@@ -772,6 +772,27 @@ function defaultWorkspace() {
   };
 }
 
+const radarSocialPlatforms = new Set([
+  "Instagram",
+  "Facebook",
+  "TikTok",
+  "LinkedIn",
+  "Twitter/X",
+  "YouTube",
+  "Reddit",
+  "Telegram"
+]);
+
+const radarIntentPatterns = [
+  { label: "prezzo", weight: 22, patterns: ["quanto costa", "prezzo", "preventivo", "costo", "tariffa", "price", "pricing"] },
+  { label: "richiesta info", weight: 18, patterns: ["info", "informazioni", "come funziona", "mi interessa", "vorrei capire", "details"] },
+  { label: "ricerca servizio", weight: 24, patterns: ["cerco", "qualcuno conosce", "mi serve", "sto cercando", "dove posso trovare", "consigliate"] },
+  { label: "problema espresso", weight: 18, patterns: ["non riesco", "problema", "aiuto", "bloccato", "non so da dove partire", "fallito"] },
+  { label: "urgenza", weight: 16, patterns: ["urgente", "subito", "prima possibile", "asap", "entro", "oggi"] },
+  { label: "località", weight: 10, patterns: ["zona", "roma", "milano", "torino", "napoli", "bologna", "vicino"] },
+  { label: "valutazione acquisto", weight: 14, patterns: ["vale la pena", "alternative", "migliore", "recensioni", "opinioni", "conviene"] }
+];
+
 function clampScore(value) {
   const score = Number(value);
   if (!Number.isFinite(score)) return null;
@@ -2246,17 +2267,6 @@ async function runYouTubeLeadSearch() {
   );
 }
 
-const radarSocialPlatforms = new Set([
-  "Instagram",
-  "Facebook",
-  "TikTok",
-  "LinkedIn",
-  "Twitter/X",
-  "YouTube",
-  "Reddit",
-  "Telegram"
-]);
-
 const radarSourceAliases = {
   web: ["Website", "Blog", "Directory", "Reviews", "Google", "Forum"],
   forum: ["Forum", "Reddit"],
@@ -2264,16 +2274,6 @@ const radarSourceAliases = {
   social: [...radarSocialPlatforms],
   import: ["CRM/Import"]
 };
-
-const radarIntentPatterns = [
-  { label: "prezzo", weight: 22, patterns: ["quanto costa", "prezzo", "preventivo", "costo", "tariffa", "price", "pricing"] },
-  { label: "richiesta info", weight: 18, patterns: ["info", "informazioni", "come funziona", "mi interessa", "vorrei capire", "details"] },
-  { label: "ricerca servizio", weight: 24, patterns: ["cerco", "qualcuno conosce", "mi serve", "sto cercando", "dove posso trovare", "consigliate"] },
-  { label: "problema espresso", weight: 18, patterns: ["non riesco", "problema", "aiuto", "bloccato", "non so da dove partire", "fallito"] },
-  { label: "urgenza", weight: 16, patterns: ["urgente", "subito", "prima possibile", "asap", "entro", "oggi"] },
-  { label: "località", weight: 10, patterns: ["zona", "roma", "milano", "torino", "napoli", "bologna", "vicino"] },
-  { label: "valutazione acquisto", weight: 14, patterns: ["vale la pena", "alternative", "migliore", "recensioni", "opinioni", "conviene"] }
-];
 
 const radarCapabilityRows = [
   ["Instagram", "manual_assist", false, "apri profilo, copia messaggio, segna stato"],
