@@ -6,31 +6,6 @@ const shellEl = document.querySelector(".dashboard-shell");
 const desktopWidth = 1180;
 const svgNs = "http://www.w3.org/2000/svg";
 
-const activityChartData = [
-  { label: "8 Mag", leads: 420, email: 260, replies: 130 },
-  { label: "9 Mag", leads: 610, email: 385, replies: 210 },
-  { label: "10 Mag", leads: 455, email: 300, replies: 170 },
-  { label: "11 Mag", leads: 590, email: 390, replies: 235 },
-  { label: "12 Mag", leads: 820, email: 570, replies: 315 },
-  { label: "13 Mag", leads: 915, email: 650, replies: 365 },
-  { label: "14 Mag", leads: 880, email: 585, replies: 300 }
-];
-
-const chartSeriesByTheme = {
-  stripe: [
-    { key: "leads", label: "Leads", color: "#5b67d8", glow: "#8d96ff" },
-    { key: "email", label: "Email", color: "#24a69a", glow: "#54d4ca" },
-    { key: "replies", label: "Risposte", color: "#38a8c4", glow: "#7ed7ea", thin: true }
-  ],
-  interstellar: [
-    { key: "leads", label: "Leads", color: "#7c4dff", glow: "#9b78ff" },
-    { key: "email", label: "Email", color: "#1f8fff", glow: "#52b4ff" },
-    { key: "replies", label: "Risposte", color: "#2ee9f0", glow: "#71ffff", thin: true }
-  ]
-};
-
-const activityChartSeries = chartSeriesByTheme.stripe;
-
 document.addEventListener(
   "click",
   (event) => {
@@ -445,14 +420,6 @@ fitDesktopPreview();
 seed();
 frame();
 
-window.InterstellarCharts = {
-  activity: createAreaChart(
-    document.querySelector("#activityAreaChart"),
-    activityChartData,
-    activityChartSeries
-  )
-};
-
 const themePicker = document.querySelector("#themePicker");
 const availableThemes = new Set(["stripe", "interstellar"]);
 const themeStorageKey = "interstellar-theme-v2";
@@ -477,7 +444,6 @@ function applyTheme(theme, persist = true) {
   const nextTheme = availableThemes.has(theme) ? theme : "stripe";
   document.body.dataset.theme = nextTheme;
   if (themePicker) themePicker.value = nextTheme;
-  window.InterstellarCharts.activity?.setSeries(chartSeriesByTheme[nextTheme]);
   if (persist) storeTheme(nextTheme);
 }
 
@@ -955,6 +921,20 @@ function formatDate(value) {
   return new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short", year: "numeric" }).format(date);
 }
 
+function formatDashboardAge(value) {
+  const time = Date.parse(value || "");
+  if (!Number.isFinite(time)) return "data n/d";
+  const diff = Math.max(0, Date.now() - time);
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "ora";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} ore`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}g`;
+  return formatDate(value);
+}
+
 function getLeadById(id = selectedLeadId) {
   return workspace.leads.find((lead) => lead.id === id) || null;
 }
@@ -1188,15 +1168,197 @@ function renderSettings() {
   if (signatureInput) signatureInput.value = workspace.settings?.signature || "Kevin - Interstellar";
 }
 
+const dashboardDemoUsernames = new Set(
+  testLeadDataset
+    .split(/\r?\n/)
+    .map((row) => row.split(",")[0]?.trim().toLowerCase())
+    .filter(Boolean)
+);
+
+function isDashboardDemoProspect(prospect = {}) {
+  const handle = String(prospect.username_public || prospect.username || "").toLowerCase();
+  const email = String(prospect.email_business_public || prospect.email || "").toLowerCase();
+  return dashboardDemoUsernames.has(handle) || email.endsWith(".test") || email.endsWith("@example.com");
+}
+
+function dashboardProspects() {
+  return allRadarProspects()
+    .filter((prospect) => !isDashboardDemoProspect(prospect))
+    .map((prospect) => {
+      const capability = getRadarCapability(prospect);
+      const scored = scoreRadarProspect({ ...prospect, ...capability }, workspace.radar.lastSearch || {});
+      return {
+        ...prospect,
+        ...capability,
+        ...scored
+      };
+    });
+}
+
+function dashboardEmpty(title, text, target = "radar", label = "Apri Radar 360") {
+  return `
+    <div class="dashboard-empty">
+      <strong>${escapeHtml(title)}</strong>
+      <p>${escapeHtml(text)}</p>
+      <button type="button" data-jump="${escapeHtml(target)}">${escapeHtml(label)}</button>
+    </div>
+  `;
+}
+
+function renderDashboardOverview(prospects, contacts, clients) {
+  const overview = document.querySelector("#dashboardRealOverview");
+  if (!overview) return;
+  const sourceCount = new Set(prospects.map((prospect) => prospect.platform).filter(Boolean)).size;
+  const automated = prospects.filter((prospect) => prospect.contact_mode === "automated_possible").length;
+  const manual = prospects.filter((prospect) => prospect.contact_mode === "manual_assist").length;
+  const lastSearchCount = workspace.radar.resultIds?.length || 0;
+
+  overview.innerHTML = `
+    <div class="dashboard-real-grid">
+      <div>
+        <span>Radar 360</span>
+        <strong>${formatMetric(prospects.length)}</strong>
+        <p>Prospect salvati o importati da fonti reali/autorizzate.</p>
+      </div>
+      <div>
+        <span>Ultima ricerca</span>
+        <strong>${formatMetric(lastSearchCount)}</strong>
+        <p>Risultati filtrati nell'ultima sessione Radar.</p>
+      </div>
+      <div>
+        <span>Contatto manuale</span>
+        <strong>${formatMetric(manual)}</strong>
+        <p>Social e community dove il messaggio resta assistito.</p>
+      </div>
+      <div>
+        <span>Automazione possibile</span>
+        <strong>${formatMetric(automated)}</strong>
+        <p>Email business, form o import autorizzati con conferma.</p>
+      </div>
+    </div>
+    <div class="dashboard-workspace-note">
+      <strong>${contacts.length ? `${contacts.length} log contatto salvati` : "Nessun contatto reale ancora"}</strong>
+      <p>${clients} clienti nel CRM · ${sourceCount} fonti dati rilevate. Nessun numero viene simulato nella dashboard.</p>
+    </div>
+  `;
+}
+
+function renderDashboardActivity(prospects) {
+  const list = document.querySelector("#dashboardActivityList");
+  if (!list) return;
+  const events = [
+    ...(workspace.radar.contactLogs || []).map((log) => ({
+      icon: "send",
+      color: "blue",
+      title: log.action === "automation_preview_confirmed" ? "Contatto automatico preparato" : "Contatto manuale avviato",
+      text: `${log.channel || "Canale n/d"} · ${log.source_url || "fonte n/d"}`,
+      date: log.created_at
+    })),
+    ...prospects.map((prospect) => ({
+      icon: "search",
+      color: prospect.temperature === "hot" ? "gold" : prospect.temperature === "warm" ? "purple" : "cyan",
+      title: prospect.business_name || prospect.public_name || prospect.username_public || "Prospect salvato",
+      text: `${prospect.platform || "Fonte n/d"} · score ${prospect.score_ai}/100`,
+      date: prospect.collected_at || prospect.updated_at
+    })),
+    ...workspace.campaigns.map((campaign) => ({
+      icon: "send",
+      color: "purple",
+      title: campaign.name || "Campagna",
+      text: `${campaign.channel || "Canale n/d"} · ${campaign.status || "stato n/d"}`,
+      date: campaign.createdAt || campaign.updatedAt
+    }))
+  ]
+    .filter((event) => event.title)
+    .sort((a, b) => (Date.parse(b.date || "") || 0) - (Date.parse(a.date || "") || 0))
+    .slice(0, 5);
+
+  list.innerHTML = events.length
+    ? events
+        .map(
+          (event) => `
+            <div class="activity-item">
+              <span class="activity-icon ${event.color}"><svg class="icon"><use href="#icon-${event.icon}"></use></svg></span>
+              <div>
+                <strong>${escapeHtml(event.title)}</strong>
+                <p>${escapeHtml(event.text)}</p>
+              </div>
+              <small>${escapeHtml(formatDashboardAge(event.date))}</small>
+            </div>
+          `
+        )
+        .join("")
+    : dashboardEmpty("Nessuna attività reale", "Quando importi prospect, avvii un contatto o crei una campagna, apparirà qui.", "radar", "Importa prospect");
+}
+
+function renderDashboardCampaigns() {
+  const list = document.querySelector("#dashboardCampaignList");
+  if (!list) return;
+  list.innerHTML = workspace.campaigns.length
+    ? workspace.campaigns
+        .map(
+          (campaign) => `
+            <div class="campaign-row">
+              <span class="source-logo">${escapeHtml((campaign.channel || campaign.name || "C").slice(0, 2).toUpperCase())}</span>
+              <div>
+                <strong>${escapeHtml(campaign.name || "Campagna senza nome")}</strong>
+                <p>${escapeHtml(campaign.goal || "Obiettivo da definire")} · ${formatMetric(campaign.sent || 0)} contatti preparati</p>
+              </div>
+              <em class="${campaign.status === "In pausa" ? "paused" : ""}">${escapeHtml(campaign.status || "Bozza")}</em>
+            </div>
+          `
+        )
+        .join("")
+    : dashboardEmpty("Nessuna campagna reale", "Le campagne appariranno qui solo quando le crei nella sezione Campagne.", "campaigns", "Crea campagna");
+}
+
+function renderDashboardSources(prospects) {
+  const root = document.querySelector("#dashboardSources");
+  if (!root) return;
+  const counts = prospects.reduce((map, prospect) => {
+    const source = prospect.platform || "Fonte n/d";
+    map.set(source, (map.get(source) || 0) + 1);
+    return map;
+  }, new Map());
+  const entries = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  const total = entries.reduce((sum, [, count]) => sum + count, 0);
+
+  root.innerHTML = entries.length
+    ? `
+      <div class="source-list source-bars">
+        ${entries
+          .map(([source, count], index) => {
+            const percent = total ? Math.round((count / total) * 100) : 0;
+            const dotClass = ["purple-dot", "blue-dot", "cyan-dot", "gold-dot"][index % 4];
+            return `
+              <span>
+                <i class="${dotClass}"></i>
+                <b>${escapeHtml(source)}</b>
+                <em style="--source-width:${percent}%"></em>
+                <strong>${formatMetric(count)}</strong>
+              </span>
+            `;
+          })
+          .join("")}
+      </div>
+    `
+    : dashboardEmpty("Nessuna fonte collegata", "Importa CSV, URL pubblici o risultati API nel Radar 360 per vedere i canali qui.", "radar", "Apri Radar");
+}
+
 function renderDashboardData() {
   const metricValues = document.querySelectorAll(".metric-card strong");
-  const todayLeads = workspace.leads.length;
-  const drafts = workspace.leads.filter((lead) => lead.draft).length;
-  const interested = workspace.leads.filter((lead) => lead.status === "interested").length;
+  const prospects = dashboardProspects();
+  const contactLogs = workspace.radar.contactLogs || [];
+  const hotProspects = prospects.filter((prospect) => prospect.temperature === "hot").length;
+  const contacted = contactLogs.length + prospects.filter((prospect) => /contact/.test(prospect.contact_state || "")).length;
   const clients = workspace.leads.filter((lead) => lead.status === "client").length;
-  [todayLeads, drafts, interested, clients].forEach((value, index) => {
+  [prospects.length, hotProspects, contacted, clients].forEach((value, index) => {
     if (metricValues[index]) metricValues[index].textContent = formatMetric(value);
   });
+  renderDashboardOverview(prospects, contactLogs, clients);
+  renderDashboardActivity(prospects);
+  renderDashboardCampaigns();
+  renderDashboardSources(prospects);
 }
 
 function renderAll() {

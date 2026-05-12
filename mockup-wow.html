@@ -148,33 +148,33 @@
           <article class="metric-card">
             <span class="metric-icon purple"><svg class="icon"><use href="#icon-users"></use></svg></span>
             <div>
-              <p>Lead trovati oggi</p>
-              <strong>237</strong>
-              <span class="trend">↗ 18% vs ieri</span>
+              <p>Prospect reali</p>
+              <strong>0</strong>
+              <span class="trend neutral" id="metricProspectsHint">Nessun dato inventato</span>
             </div>
           </article>
           <article class="metric-card">
             <span class="metric-icon blue"><svg class="icon"><use href="#icon-send"></use></svg></span>
             <div>
-              <p>Email inviate</p>
-              <strong>1.429</strong>
-              <span class="trend">↗ 22% vs ieri</span>
+              <p>Hot lead</p>
+              <strong>0</strong>
+              <span class="trend neutral" id="metricHotHint">Da Radar 360</span>
             </div>
           </article>
           <article class="metric-card">
             <span class="metric-icon cyan"><svg class="icon"><use href="#icon-workflow"></use></svg></span>
             <div>
-              <p>Risposte</p>
-              <strong>102</strong>
-              <span class="trend">↗ 15% vs ieri</span>
+              <p>Contatti avviati</p>
+              <strong>0</strong>
+              <span class="trend neutral" id="metricContactHint">Solo log reali</span>
             </div>
           </article>
           <article class="metric-card">
             <span class="metric-icon gold"><svg class="icon"><use href="#icon-crown"></use></svg></span>
             <div>
-              <p>Clienti acquisiti</p>
-              <strong>23</strong>
-              <span class="trend">↗ 35% vs ieri</span>
+              <p>Clienti</p>
+              <strong>0</strong>
+              <span class="trend neutral" id="metricClientsHint">Dal CRM</span>
             </div>
           </article>
         </section>
@@ -183,170 +183,71 @@
           <article class="panel chart-panel">
             <div class="panel-head">
               <div>
-                <span>Panoramica attività</span>
-                <h2>Traffico e conversioni</h2>
+                <span>Panoramica reale</span>
+                <h2>Stato workspace</h2>
               </div>
               <div class="panel-actions">
-                <button type="button">Ultimi 7 giorni</button>
-                <button type="button">Esporta</button>
+                <button type="button" data-jump="radar">Vai al Radar</button>
+                <button type="button" data-jump="crm">Apri CRM</button>
               </div>
             </div>
-
-            <div
-              class="area-chart"
-              id="activityAreaChart"
-              role="img"
-              aria-label="AreaChart premium con leads, email e risposte degli ultimi sette giorni"
-            >
-              <svg class="area-chart__svg" viewBox="0 0 860 330" preserveAspectRatio="none"></svg>
-              <div class="area-chart__tooltip" hidden></div>
-            </div>
-
-            <div class="legend">
-              <span><i class="purple-dot"></i>Leads</span>
-              <span><i class="blue-dot"></i>Email</span>
-              <span><i class="cyan-dot"></i>Risposte</span>
-            </div>
+            <div class="dashboard-real-overview" id="dashboardRealOverview"></div>
           </article>
 
           <aside class="panel activity-panel">
             <div class="panel-head">
               <div>
-                <span>Attività recenti</span>
-                <h2>Ultimi eventi</h2>
+                <span>Attività reali</span>
+                <h2>Ultimi eventi salvati</h2>
               </div>
-              <button type="button">Vedi tutto</button>
+              <button type="button" data-jump="radar">Radar</button>
             </div>
-            <div class="activity-list">
-              <div class="activity-item">
-                <span class="activity-icon purple"><svg class="icon"><use href="#icon-users"></use></svg></span>
-                <div>
-                  <strong>Nuovo lead da Instagram</strong>
-                  <p>Luca Bianchi</p>
-                </div>
-                <small>2 min</small>
-              </div>
-              <div class="activity-item">
-                <span class="activity-icon blue"><svg class="icon"><use href="#icon-send"></use></svg></span>
-                <div>
-                  <strong>Email inviata a Mario Verdi</strong>
-                  <p>Campagna: Servizi AI</p>
-                </div>
-                <small>12 min</small>
-              </div>
-              <div class="activity-item">
-                <span class="activity-icon cyan"><svg class="icon"><use href="#icon-workflow"></use></svg></span>
-                <div>
-                  <strong>Risposta da Giulia Romano</strong>
-                  <p>Interessata ai tuoi servizi</p>
-                </div>
-                <small>28 min</small>
-              </div>
-              <div class="activity-item">
-                <span class="activity-icon gold"><svg class="icon"><use href="#icon-crown"></use></svg></span>
-                <div>
-                  <strong>Nuovo cliente acquisito</strong>
-                  <p>Azienda: Tech Solutions SRL</p>
-                </div>
-                <small>1 ora</small>
-              </div>
-              <div class="activity-item">
-                <span class="activity-icon purple"><svg class="icon"><use href="#icon-settings"></use></svg></span>
-                <div>
-                  <strong>Automazione completata</strong>
-                  <p>Workflow: Follow-up leads</p>
-                </div>
-                <small>2 ore</small>
-              </div>
-            </div>
+            <div class="activity-list" id="dashboardActivityList"></div>
           </aside>
 
           <article class="panel campaign-panel">
             <div class="panel-head">
               <div>
-                <span>Campagne attive</span>
-                <h2>Missioni in corso</h2>
+                <span>Campagne reali</span>
+                <h2>Create nel workspace</h2>
               </div>
-              <button type="button">Vedi tutto</button>
+              <button type="button" data-jump="campaigns">Campagne</button>
             </div>
-            <div class="campaign-list">
-              <div class="campaign-row">
-                <span class="source-logo">TT</span>
-                <div>
-                  <strong>Campagna TikTok Ads</strong>
-                  <p>Leads: 342 · CTR 2.45%</p>
-                </div>
-                <em>Attiva</em>
-              </div>
-              <div class="campaign-row">
-                <span class="source-logo">EM</span>
-                <div>
-                  <strong>Email Marketing - Maggio</strong>
-                  <p>Inviate: 1.429 · Aperture 32%</p>
-                </div>
-                <em>Attiva</em>
-              </div>
-              <div class="campaign-row">
-                <span class="source-logo">FB</span>
-                <div>
-                  <strong>Retargeting Facebook</strong>
-                  <p>Leads: 87 · CTR 1.32%</p>
-                </div>
-                <em class="paused">In pausa</em>
-              </div>
-              <div class="campaign-row">
-                <span class="source-logo">G</span>
-                <div>
-                  <strong>Lead Generation Google</strong>
-                  <p>Leads: 156 · CTR 3.21%</p>
-                </div>
-                <em>Attiva</em>
-              </div>
-            </div>
+            <div class="campaign-list" id="dashboardCampaignList"></div>
           </article>
 
           <article class="panel sources-panel">
             <div class="panel-head">
               <div>
-                <span>Top fonti lead</span>
-                <h2>Canali principali</h2>
+                <span>Fonti reali</span>
+                <h2>Da prospect importati o trovati</h2>
               </div>
-              <button type="button">Vedi tutto</button>
+              <button type="button" data-jump="radar">Fonti</button>
             </div>
-            <div class="sources-content">
-              <div class="donut" aria-hidden="true"></div>
-              <div class="source-list">
-                <span><i class="purple-dot"></i>Instagram <strong>42%</strong></span>
-                <span><i class="blue-dot"></i>TikTok <strong>28%</strong></span>
-                <span><i class="cyan-dot"></i>Google <strong>18%</strong></span>
-                <span><i class="gold-dot"></i>Facebook <strong>8%</strong></span>
-                <span><i></i>Altro <strong>4%</strong></span>
-              </div>
-            </div>
+            <div class="sources-content real-sources" id="dashboardSources"></div>
           </article>
 
           <aside class="panel tools-panel">
             <div class="panel-head">
               <div>
-                <span>Strumenti AI</span>
-                <h2>Azioni rapide</h2>
+                <span>Azioni operative</span>
+                <h2>Funzioni già navigabili</h2>
               </div>
             </div>
             <div class="tool-grid">
-              <button type="button" data-jump="content"><span><svg class="icon"><use href="#icon-pencil"></use></svg></span><strong>Scrivi contenuti</strong><small>Genera testi efficaci</small></button>
-              <button type="button"><span><svg class="icon"><use href="#icon-image"></use></svg></span><strong>Genera immagini</strong><small>Crea visual AI</small></button>
-              <button type="button" data-jump="radar"><span><svg class="icon"><use href="#icon-search"></use></svg></span><strong>Radar 360</strong><small>Trova prospect reali</small></button>
-              <button type="button"><span><svg class="icon"><use href="#icon-profile"></use></svg></span><strong>AI Assistant</strong><small>Il tuo assistente operativo</small></button>
+              <button type="button" data-jump="radar"><span><svg class="icon"><use href="#icon-search"></use></svg></span><strong>Radar 360</strong><small>Cerca/importa prospect</small></button>
+              <button type="button" data-jump="crm"><span><svg class="icon"><use href="#icon-card"></use></svg></span><strong>CRM</strong><small>Gestisci pipeline</small></button>
+              <button type="button" data-jump="content"><span><svg class="icon"><use href="#icon-pencil"></use></svg></span><strong>AI Content</strong><small>Prepara messaggi</small></button>
+              <button type="button" data-jump="campaigns"><span><svg class="icon"><use href="#icon-send"></use></svg></span><strong>Campagne</strong><small>Organizza outreach</small></button>
             </div>
           </aside>
 
-          <aside class="panel promo-panel">
+          <aside class="panel promo-panel dashboard-next-panel">
             <div>
-              <h2>Porta il tuo business al livello successivo</h2>
-              <p>Automatizza, scala e coordina i tuoi sistemi con Interstellar.</p>
-              <button type="button">Scopri di più</button>
+              <h2>Prossimo passo reale</h2>
+              <p>Importa prospect nel Radar 360 oppure collega una fonte API autorizzata. La dashboard si riempie solo con quei dati.</p>
+              <button type="button" data-jump="radar">Inizia dal Radar</button>
             </div>
-            <div class="promo-ship" aria-hidden="true"></div>
           </aside>
         </section>
 
