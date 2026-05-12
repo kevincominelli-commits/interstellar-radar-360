@@ -1,26 +1,59 @@
-# Lead OS
+# Interstellar Radar 360
 
-MVP locale per trovare, qualificare e gestire potenziali clienti su piu fronti: servizi di programmazione, networker interessati alla piattaforma e aziende/professionisti che cercano clienti.
+Piattaforma SaaS per trovare prospect/clienti da fonti pubbliche, analizzarli, assegnare priorita e gestirli in CRM.
 
-## Apri
+Demo online: https://interstellar-radar-360.vercel.app/mockup-wow
 
-Apri `index.html` nel browser. Non servono installazioni.
+## Da leggere quando si riprende il progetto
 
-## Cosa fa
+Prima di lavorare, apri:
 
-- Cattura lead da testi, post o richieste pubbliche.
-- Distingue i fronti: programmazione, networker, aziende.
-- Stima score commerciale con intento, budget, freschezza e fit.
-- Genera messaggi di primo contatto e follow-up in base al fronte.
-- Tiene pipeline, note, stato e prossima azione.
-- Importa ed esporta CSV.
-- Salva tutto in `localStorage` del browser.
+```text
+PROJECT_HANDOFF.md
+```
 
-## Prossimi moduli
+Quello e il file principale per non perdersi: contiene stato attuale, cosa funziona, regole prodotto, file importanti e prossimi step.
 
-- Ricerca web semi-automatica su query approvate.
-- Workspace separati per cliente/settore.
-- Abbonamenti mensili e annuali.
-- Area demo per vendere la piattaforma.
-- Follow-up calendarizzato.
-- Verifica manuale prima di ogni invio.
+Prompt consigliato da dare a Codex quando si ricomincia:
+
+```text
+Leggi PROJECT_HANDOFF.md, controlla git status e ultimi commit, poi dimmi in 5 righe dove siamo e riprendiamo da li.
+```
+
+## Avvio locale
+
+```bash
+git clone https://github.com/kevincominelli-commits/interstellar-radar-360.git
+cd interstellar-radar-360
+npm start
+```
+
+Apri:
+
+```text
+http://127.0.0.1:4176/mockup-wow.html
+```
+
+## Controllo rapido
+
+```bash
+npm run check
+```
+
+## File principali
+
+- `PROJECT_HANDOFF.md`: stato progetto e istruzioni per riprendere.
+- `mockup-wow.html`: struttura app.
+- `mockup-wow.css`: grafica, layout, temi.
+- `mockup-wow.js`: logica dashboard, Radar 360, CRM, localStorage.
+- `api/radar-search.js`: ricerca live su fonti open web supportate.
+- `vercel.json`: configurazione deploy.
+
+## Regola prodotto fondamentale
+
+La piattaforma deve essere professionale e realistica:
+
+- social/app chiuse = contatto manuale assistito
+- siti, email business pubbliche, form e lead autorizzati = automazione possibile con conferma e log
+
+Niente promesse impossibili, niente spam automatico sui social.
