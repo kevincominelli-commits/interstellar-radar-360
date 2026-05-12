@@ -3166,11 +3166,11 @@ function renderRadar() {
           .join("")
       : `<div class="radar-empty-guide">
           <strong>Nessun prospect ancora</strong>
-          <p>Il Radar non inventa contatti. Per testarlo davvero devi dargli una fonte: CSV, URL pubblici, commenti/API autorizzate o lead già nel CRM.</p>
+          <p>Il Radar non inventa contatti. Hai lanciato la ricerca, ma il database è vuoto oppure non ci sono segnali compatibili con i filtri.</p>
           <ol>
-            <li>Usa il preset in alto: <b>Clienti per programmazione</b>.</li>
-            <li>Importa segnali reali nel box a sinistra.</li>
-            <li>Premi <b>Lancia Radar 360</b>.</li>
+            <li>Premi <b>Richieste software</b> nel box Fonti importate.</li>
+            <li>Copia una richiesta reale trovata online nel formato facile.</li>
+            <li>Premi <b>Importa segnali reali</b> e poi <b>Lancia Radar 360</b>.</li>
           </ol>
         </div>`;
   }
@@ -3260,7 +3260,7 @@ function importRadarSignalsFromText(text) {
     .split(/\r?\n/)
     .map((row) => row.trim())
     .filter(Boolean)
-    .map(parseCsvLine);
+    .map((row) => (row.includes("|") ? row.split("|").map((cell) => cell.trim()) : parseCsvLine(row)));
   if (!rows.length) return 0;
 
   const firstRow = rows[0].map((cell) => cell.toLowerCase());
@@ -3286,6 +3286,27 @@ function importRadarSignalsFromText(text) {
           source_url: cells[0],
           relevant_text: cells[0],
           provider: "URL import"
+        });
+      }
+      if (!hasHeader && cells.length <= 6 && cells[2] && cells[3]) {
+        const maybeEmail = cells.find((cell) => /@/.test(cell) && !/^@/.test(cell)) || "";
+        return normalizeRadarProspect({
+          platform: cells[0] || "Website",
+          source_type: radarSocialPlatforms.has(normalizeRadarSource(cells[0])) ? "social_public_signal" : "manual_real_signal",
+          username: /^@/.test(cells[1] || "") ? cells[1] : "",
+          public_name: /^@/.test(cells[1] || "") ? "" : cells[1],
+          business_name: radarSocialPlatforms.has(normalizeRadarSource(cells[0])) ? "" : cells[1],
+          profile_url: cells[2],
+          website: normalizeRadarSource(cells[0]) === "Website" ? cells[2] : "",
+          source_url: cells[2],
+          relevant_text: cells[3],
+          city: cells[4],
+          business_email: maybeEmail,
+          country: "Italia",
+          language: "it",
+          intent: detectRadarIntent(String(cells[3] || "")).label,
+          provider: "Import formato semplice",
+          reliability: 68
         });
       }
       return normalizeRadarProspect({
@@ -3372,6 +3393,39 @@ function exportRadarCsv() {
       .join(",")
   );
   downloadTextFile("interstellar-radar-360-results.csv", [headers.join(","), ...rows].join("\n"), "text/csv");
+}
+
+function radarSearchQuery(kind) {
+  const config = getRadarConfig();
+  const country = config.country || "Italia";
+  const city = config.city ? ` ${config.city}` : "";
+  const queries = {
+    programmingRequests: `"cerco sviluppatore" OR "mi serve un sito" OR "voglio creare un'app" ${country}${city}`,
+    forumRequests: `site:reddit.com OR site:forumfree.it "cerco sviluppatore" OR "quanto costa un sito" ${country}`,
+    businessWeb: `"sito in costruzione" OR "pagina contatti" "azienda" "preventivo sito" ${country}${city}`
+  };
+  return queries[kind] || queries.programmingRequests;
+}
+
+function openRadarSearch(kind) {
+  const query = encodeURIComponent(radarSearchQuery(kind));
+  window.open(`https://www.google.com/search?q=${query}`, "_blank", "noopener");
+  setFeedback(
+    "#radarFeedback",
+    "Ricerca aperta. Quando trovi una richiesta reale, copia fonte, nome/link/testo nel box 'Fonti importate' e poi premi Importa."
+  );
+}
+
+async function copyRadarSimpleTemplate() {
+  const template = [
+    "Fonte | Nome o azienda | Link fonte/profilo | Testo reale trovato | Città | Email business opzionale",
+    "Website | Nome azienda reale | https://sito-reale.it/contatti | Ho trovato una pagina contatti pubblica coerente con il target | Milano | info@sito-reale.it",
+    "Reddit | @utente_reale | https://reddit.com/r/... | Sto cercando qualcuno che mi faccia un sito per la mia attività | Italia |"
+  ].join("\n");
+  const copied = await copyText(template);
+  const textarea = document.querySelector("#radarImportText");
+  if (textarea && !textarea.value.trim()) textarea.value = template;
+  setFeedback("#radarFeedback", copied ? "Formato copiato. Sostituisci le righe esempio con dati reali trovati." : "Formato inserito nel box. Sostituiscilo con dati reali trovati.");
 }
 
 Object.assign(helpContent, {
@@ -3609,6 +3663,14 @@ document.querySelector("#applyRadarPreset")?.addEventListener("click", () => {
 document.querySelector("#runRadarPreset")?.addEventListener("click", () => {
   const key = document.querySelector("#radarPresetSelect")?.value || "programming";
   applyRadarPreset(key, true);
+});
+
+document.querySelectorAll("[data-radar-open-search]").forEach((button) => {
+  button.addEventListener("click", () => openRadarSearch(button.dataset.radarOpenSearch));
+});
+
+document.querySelector("#copyRadarSimpleTemplate")?.addEventListener("click", () => {
+  copyRadarSimpleTemplate();
 });
 
 document.querySelector("#importRadarSignals")?.addEventListener("click", () => {

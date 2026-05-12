@@ -2644,6 +2644,27 @@ body[data-theme="stripe"] .real-source-box > button {
   padding: 12px;
 }
 
+.radar-source-starter {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.032);
+  padding: 11px;
+}
+
+.radar-source-starter strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.radar-source-starter p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .radar-howto-card ol,
 .radar-empty-guide ol {
   margin: 9px 0 0;
@@ -2949,6 +2970,7 @@ body[data-theme="stripe"] .radar-source-group,
 body[data-theme="stripe"] .radar-guided-panel,
 body[data-theme="stripe"] .radar-preset-summary,
 body[data-theme="stripe"] .radar-howto-card,
+body[data-theme="stripe"] .radar-source-starter,
 body[data-theme="stripe"] .radar-empty-guide,
 body[data-theme="stripe"] .radar-manual-fields,
 body[data-theme="stripe"] .radar-advanced {
@@ -2962,6 +2984,7 @@ body[data-theme="stripe"] .radar-matrix-row strong,
 body[data-theme="stripe"] .radar-source-group > strong,
 body[data-theme="stripe"] .radar-preset-summary strong,
 body[data-theme="stripe"] .radar-howto-card strong,
+body[data-theme="stripe"] .radar-source-starter strong,
 body[data-theme="stripe"] .radar-empty-guide strong,
 body[data-theme="stripe"] .radar-manual-fields summary,
 body[data-theme="stripe"] .radar-advanced summary {
