@@ -1,0 +1,1025 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Interstellar Dashboard Mockup</title>
+    <link rel="stylesheet" href="mockup-wow.css?v=radar360-2" />
+  </head>
+  <body data-theme="stripe">
+    <canvas id="starCanvas" aria-hidden="true"></canvas>
+    <svg class="icon-defs" aria-hidden="true">
+      <symbol id="icon-dashboard" viewBox="0 0 24 24">
+        <path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1Z" />
+      </symbol>
+      <symbol id="icon-users" viewBox="0 0 24 24">
+        <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+        <path d="M2.5 21a6.5 6.5 0 0 1 13 0" />
+        <path d="M17 10a3.5 3.5 0 1 0-1.2-6.8" />
+        <path d="M17.5 21a5 5 0 0 0-3.2-4.6" />
+      </symbol>
+      <symbol id="icon-send" viewBox="0 0 24 24">
+        <path d="m21 3-8.2 18-2.7-7.1L3 11.2Z" />
+        <path d="m21 3-10.9 10.9" />
+      </symbol>
+      <symbol id="icon-pencil" viewBox="0 0 24 24">
+        <path d="M4 20h4.5L20 8.5 15.5 4 4 15.5Z" />
+        <path d="m14.5 5 4.5 4.5" />
+      </symbol>
+      <symbol id="icon-workflow" viewBox="0 0 24 24">
+        <path d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M8.6 6.5h6.8M8.2 7.4l7.6 9.2" />
+      </symbol>
+      <symbol id="icon-card" viewBox="0 0 24 24">
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="M7 10h4M7 14h2M15 14h2" />
+      </symbol>
+      <symbol id="icon-chart" viewBox="0 0 24 24">
+        <path d="M4 20h16" />
+        <path d="M7 16v-5M12 16V7M17 16v-9" />
+      </symbol>
+      <symbol id="icon-grid" viewBox="0 0 24 24">
+        <rect x="4" y="4" width="6" height="6" rx="1.5" />
+        <rect x="14" y="4" width="6" height="6" rx="1.5" />
+        <rect x="4" y="14" width="6" height="6" rx="1.5" />
+        <rect x="14" y="14" width="6" height="6" rx="1.5" />
+      </symbol>
+      <symbol id="icon-settings" viewBox="0 0 24 24">
+        <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2 3.4-.2-.1a1.8 1.8 0 0 0-2 .1 1.8 1.8 0 0 0-.9 1.6v.2H9.3V22a1.8 1.8 0 0 0-.9-1.6 1.8 1.8 0 0 0-2-.1l-.2.1-2-3.4.1-.1A1.7 1.7 0 0 0 4.6 15a1.8 1.8 0 0 0-1.4-1H3v-4h.2a1.8 1.8 0 0 0 1.4-1 1.7 1.7 0 0 0-.3-1.9L4.2 7l2-3.4.2.1a1.8 1.8 0 0 0 2-.1A1.8 1.8 0 0 0 9.3 2v-.2h5.4V2a1.8 1.8 0 0 0 .9 1.6 1.8 1.8 0 0 0 2 .1l.2-.1 2 3.4-.1.1a1.7 1.7 0 0 0-.3 1.9 1.8 1.8 0 0 0 1.4 1h.2v4h-.2a1.8 1.8 0 0 0-1.4 1Z" />
+      </symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="7" />
+        <path d="m16.5 16.5 4 4" />
+      </symbol>
+      <symbol id="icon-bell" viewBox="0 0 24 24">
+        <path d="M18 9a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" />
+        <path d="M10 21h4" />
+      </symbol>
+      <symbol id="icon-profile" viewBox="0 0 24 24">
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21a8 8 0 0 1 16 0" />
+      </symbol>
+      <symbol id="icon-image" viewBox="0 0 24 24">
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="m6 16 4-4 3 3 2-2 3 3" />
+        <circle cx="8.5" cy="9.5" r="1.5" />
+      </symbol>
+      <symbol id="icon-crown" viewBox="0 0 24 24">
+        <path d="M5 18h14l1-10-5 4-3-6-3 6-5-4Z" />
+        <path d="M5 21h14" />
+      </symbol>
+    </svg>
+
+    <div class="stage-frame">
+      <main class="dashboard-shell">
+        <aside class="sidebar">
+        <a class="brand" href="#">
+          <span class="brand-mark logo-mark" aria-hidden="true"></span>
+          <strong>INTERSTELLAR</strong>
+        </a>
+
+        <nav class="nav" aria-label="Navigazione Interstellar">
+          <button class="active" type="button" data-nav="dashboard"><svg class="icon"><use href="#icon-dashboard"></use></svg>Dashboard</button>
+          <button type="button" data-nav="radar"><svg class="icon"><use href="#icon-search"></use></svg>Radar 360</button>
+          <button type="button" data-nav="campaigns"><svg class="icon"><use href="#icon-send"></use></svg>Campaigns</button>
+          <button type="button" data-nav="content"><svg class="icon"><use href="#icon-pencil"></use></svg>AI Content</button>
+          <button type="button" data-nav="automations"><svg class="icon"><use href="#icon-workflow"></use></svg>Automations</button>
+          <button type="button" data-nav="crm"><svg class="icon"><use href="#icon-card"></use></svg>CRM</button>
+          <button type="button" data-nav="analytics"><svg class="icon"><use href="#icon-chart"></use></svg>Analytics</button>
+          <button type="button" data-nav="integrations"><svg class="icon"><use href="#icon-grid"></use></svg>Integrations</button>
+          <button type="button" data-nav="settings"><svg class="icon"><use href="#icon-settings"></use></svg>Settings</button>
+        </nav>
+
+        <section class="orbit-card">
+          <div class="orbit-visual" aria-hidden="true">
+            <span class="planet"></span>
+            <span class="ring ring-one"></span>
+            <span class="ring ring-two"></span>
+            <span class="traveller"></span>
+          </div>
+          <div class="plan-row">
+            <span>Pro plan</span>
+            <strong>16 Mag 2026</strong>
+          </div>
+          <button type="button">Gestisci piano</button>
+        </section>
+
+        <section class="profile">
+          <div class="avatar">KC</div>
+          <div>
+            <strong>Kevin Cominelli</strong>
+            <span>founder@interstellar.ai</span>
+          </div>
+        </section>
+        </aside>
+
+        <section class="workspace">
+        <header class="topbar">
+          <div>
+            <h1>Bentornato, Kevin!</h1>
+            <p>Sei pronto a portare il tuo business <span>oltre i confini</span>.</p>
+          </div>
+          <div class="top-actions">
+            <label class="search">
+              <svg class="icon"><use href="#icon-search"></use></svg>
+              <input type="search" placeholder="Cerca qualsiasi cosa..." />
+            </label>
+            <label class="theme-control">
+              <span>Tema</span>
+              <select id="themePicker" aria-label="Cambia tema dashboard">
+                <option value="stripe">Stripe</option>
+                <option value="interstellar">Interstellar</option>
+              </select>
+            </label>
+            <button class="icon-button" type="button"><svg class="icon"><use href="#icon-bell"></use></svg></button>
+            <button class="icon-button" type="button"><svg class="icon"><use href="#icon-profile"></use></svg></button>
+          </div>
+        </header>
+
+        <section class="hero-band">
+          <div class="ship" aria-hidden="true"></div>
+          <div class="comet" aria-hidden="true"></div>
+        </section>
+
+        <section class="metric-grid" aria-label="Metriche principali">
+          <article class="metric-card">
+            <span class="metric-icon purple"><svg class="icon"><use href="#icon-users"></use></svg></span>
+            <div>
+              <p>Lead trovati oggi</p>
+              <strong>237</strong>
+              <span class="trend">↗ 18% vs ieri</span>
+            </div>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon blue"><svg class="icon"><use href="#icon-send"></use></svg></span>
+            <div>
+              <p>Email inviate</p>
+              <strong>1.429</strong>
+              <span class="trend">↗ 22% vs ieri</span>
+            </div>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon cyan"><svg class="icon"><use href="#icon-workflow"></use></svg></span>
+            <div>
+              <p>Risposte</p>
+              <strong>102</strong>
+              <span class="trend">↗ 15% vs ieri</span>
+            </div>
+          </article>
+          <article class="metric-card">
+            <span class="metric-icon gold"><svg class="icon"><use href="#icon-crown"></use></svg></span>
+            <div>
+              <p>Clienti acquisiti</p>
+              <strong>23</strong>
+              <span class="trend">↗ 35% vs ieri</span>
+            </div>
+          </article>
+        </section>
+
+        <section class="content-grid app-page active" data-page="dashboard">
+          <article class="panel chart-panel">
+            <div class="panel-head">
+              <div>
+                <span>Panoramica attività</span>
+                <h2>Traffico e conversioni</h2>
+              </div>
+              <div class="panel-actions">
+                <button type="button">Ultimi 7 giorni</button>
+                <button type="button">Esporta</button>
+              </div>
+            </div>
+
+            <div
+              class="area-chart"
+              id="activityAreaChart"
+              role="img"
+              aria-label="AreaChart premium con leads, email e risposte degli ultimi sette giorni"
+            >
+              <svg class="area-chart__svg" viewBox="0 0 860 330" preserveAspectRatio="none"></svg>
+              <div class="area-chart__tooltip" hidden></div>
+            </div>
+
+            <div class="legend">
+              <span><i class="purple-dot"></i>Leads</span>
+              <span><i class="blue-dot"></i>Email</span>
+              <span><i class="cyan-dot"></i>Risposte</span>
+            </div>
+          </article>
+
+          <aside class="panel activity-panel">
+            <div class="panel-head">
+              <div>
+                <span>Attività recenti</span>
+                <h2>Ultimi eventi</h2>
+              </div>
+              <button type="button">Vedi tutto</button>
+            </div>
+            <div class="activity-list">
+              <div class="activity-item">
+                <span class="activity-icon purple"><svg class="icon"><use href="#icon-users"></use></svg></span>
+                <div>
+                  <strong>Nuovo lead da Instagram</strong>
+                  <p>Luca Bianchi</p>
+                </div>
+                <small>2 min</small>
+              </div>
+              <div class="activity-item">
+                <span class="activity-icon blue"><svg class="icon"><use href="#icon-send"></use></svg></span>
+                <div>
+                  <strong>Email inviata a Mario Verdi</strong>
+                  <p>Campagna: Servizi AI</p>
+                </div>
+                <small>12 min</small>
+              </div>
+              <div class="activity-item">
+                <span class="activity-icon cyan"><svg class="icon"><use href="#icon-workflow"></use></svg></span>
+                <div>
+                  <strong>Risposta da Giulia Romano</strong>
+                  <p>Interessata ai tuoi servizi</p>
+                </div>
+                <small>28 min</small>
+              </div>
+              <div class="activity-item">
+                <span class="activity-icon gold"><svg class="icon"><use href="#icon-crown"></use></svg></span>
+                <div>
+                  <strong>Nuovo cliente acquisito</strong>
+                  <p>Azienda: Tech Solutions SRL</p>
+                </div>
+                <small>1 ora</small>
+              </div>
+              <div class="activity-item">
+                <span class="activity-icon purple"><svg class="icon"><use href="#icon-settings"></use></svg></span>
+                <div>
+                  <strong>Automazione completata</strong>
+                  <p>Workflow: Follow-up leads</p>
+                </div>
+                <small>2 ore</small>
+              </div>
+            </div>
+          </aside>
+
+          <article class="panel campaign-panel">
+            <div class="panel-head">
+              <div>
+                <span>Campagne attive</span>
+                <h2>Missioni in corso</h2>
+              </div>
+              <button type="button">Vedi tutto</button>
+            </div>
+            <div class="campaign-list">
+              <div class="campaign-row">
+                <span class="source-logo">TT</span>
+                <div>
+                  <strong>Campagna TikTok Ads</strong>
+                  <p>Leads: 342 · CTR 2.45%</p>
+                </div>
+                <em>Attiva</em>
+              </div>
+              <div class="campaign-row">
+                <span class="source-logo">EM</span>
+                <div>
+                  <strong>Email Marketing - Maggio</strong>
+                  <p>Inviate: 1.429 · Aperture 32%</p>
+                </div>
+                <em>Attiva</em>
+              </div>
+              <div class="campaign-row">
+                <span class="source-logo">FB</span>
+                <div>
+                  <strong>Retargeting Facebook</strong>
+                  <p>Leads: 87 · CTR 1.32%</p>
+                </div>
+                <em class="paused">In pausa</em>
+              </div>
+              <div class="campaign-row">
+                <span class="source-logo">G</span>
+                <div>
+                  <strong>Lead Generation Google</strong>
+                  <p>Leads: 156 · CTR 3.21%</p>
+                </div>
+                <em>Attiva</em>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel sources-panel">
+            <div class="panel-head">
+              <div>
+                <span>Top fonti lead</span>
+                <h2>Canali principali</h2>
+              </div>
+              <button type="button">Vedi tutto</button>
+            </div>
+            <div class="sources-content">
+              <div class="donut" aria-hidden="true"></div>
+              <div class="source-list">
+                <span><i class="purple-dot"></i>Instagram <strong>42%</strong></span>
+                <span><i class="blue-dot"></i>TikTok <strong>28%</strong></span>
+                <span><i class="cyan-dot"></i>Google <strong>18%</strong></span>
+                <span><i class="gold-dot"></i>Facebook <strong>8%</strong></span>
+                <span><i></i>Altro <strong>4%</strong></span>
+              </div>
+            </div>
+          </article>
+
+          <aside class="panel tools-panel">
+            <div class="panel-head">
+              <div>
+                <span>Strumenti AI</span>
+                <h2>Azioni rapide</h2>
+              </div>
+            </div>
+            <div class="tool-grid">
+              <button type="button" data-jump="content"><span><svg class="icon"><use href="#icon-pencil"></use></svg></span><strong>Scrivi contenuti</strong><small>Genera testi efficaci</small></button>
+              <button type="button"><span><svg class="icon"><use href="#icon-image"></use></svg></span><strong>Genera immagini</strong><small>Crea visual AI</small></button>
+              <button type="button" data-jump="radar"><span><svg class="icon"><use href="#icon-search"></use></svg></span><strong>Radar 360</strong><small>Trova prospect reali</small></button>
+              <button type="button"><span><svg class="icon"><use href="#icon-profile"></use></svg></span><strong>AI Assistant</strong><small>Il tuo assistente operativo</small></button>
+            </div>
+          </aside>
+
+          <aside class="panel promo-panel">
+            <div>
+              <h2>Porta il tuo business al livello successivo</h2>
+              <p>Automatizza, scala e coordina i tuoi sistemi con Interstellar.</p>
+              <button type="button">Scopri di più</button>
+            </div>
+            <div class="promo-ship" aria-hidden="true"></div>
+          </aside>
+        </section>
+
+        <section class="app-page system-page" data-page="leads">
+          <div class="lead-finder-layout">
+            <article class="panel system-card finder-control-card">
+              <div class="panel-head">
+                <div>
+                  <span>Lead Finder</span>
+                  <h2>Ricerca lead multi-piattaforma</h2>
+                </div>
+                <button type="button" class="help-button" data-help="leadFinderOverview">?</button>
+              </div>
+              <form class="system-form finder-form" id="leadFinderForm">
+                <label>
+                  <span class="field-label">Nicchia / target <button type="button" class="help-button" data-help="niche">?</button></span>
+                  <input name="niche" required value="finanza" placeholder="finanza, fitness, AI, business..." />
+                </label>
+                <div class="form-two">
+                  <label>
+                    <span class="field-label">Paese <button type="button" class="help-button" data-help="country">?</button></span>
+                    <input name="country" value="Italia" placeholder="Italia, UK, USA..." />
+                  </label>
+                  <label>
+                    <span class="field-label">Città <button type="button" class="help-button" data-help="city">?</button></span>
+                    <input name="city" placeholder="Milano, Roma..." />
+                  </label>
+                </div>
+                <div class="form-two">
+                  <label>
+                    <span class="field-label">Lingua <button type="button" class="help-button" data-help="language">?</button></span>
+                    <select name="language">
+                      <option value="it">Italiano</option>
+                      <option value="en">Inglese</option>
+                      <option value="es">Spagnolo</option>
+                      <option value="fr">Francese</option>
+                      <option value="any">Qualsiasi</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span class="field-label">Timezone <button type="button" class="help-button" data-help="timezone">?</button></span>
+                    <select name="timezone">
+                      <option value="Europe/Rome">Europe/Rome</option>
+                      <option value="Europe/London">Europe/London</option>
+                      <option value="America/New_York">America/New_York</option>
+                      <option value="any">Qualsiasi</option>
+                    </select>
+                  </label>
+                </div>
+                <label>
+                  <span class="field-label">Piattaforme <button type="button" class="help-button" data-help="platforms">?</button></span>
+                  <div class="platform-picker" id="platformPicker">
+                    <label><input type="checkbox" name="platforms" value="Instagram" checked />Instagram</label>
+                    <label><input type="checkbox" name="platforms" value="TikTok" checked />TikTok</label>
+                    <label><input type="checkbox" name="platforms" value="Telegram" />Telegram</label>
+                    <label><input type="checkbox" name="platforms" value="YouTube" />YouTube</label>
+                    <label><input type="checkbox" name="platforms" value="Twitter/X" />Twitter/X</label>
+                    <label><input type="checkbox" name="platforms" value="LinkedIn" checked />LinkedIn</label>
+                  </div>
+                </label>
+                <label>
+                  <span class="field-label">Modalità ricerca <button type="button" class="help-button" data-help="searchModes">?</button></span>
+                  <select name="mode">
+                    <option value="keyword">Keyword Search</option>
+                    <option value="competitor">Competitor Audience Extraction</option>
+                    <option value="engaged">Engaged Users</option>
+                    <option value="lookalike">Lookalike AI</option>
+                    <option value="fresh">Fresh Leads</option>
+                  </select>
+                </label>
+                <label>
+                  <span class="field-label">Competitor / creator / community opzionale <button type="button" class="help-button" data-help="competitor">?</button></span>
+                  <input name="competitor" placeholder="@pagina_finanza, canale Telegram, creator..." />
+                </label>
+                <div class="form-three">
+                  <label>
+                    <span class="field-label">Engagement min. <button type="button" class="help-button" data-help="minEngagement">?</button></span>
+                    <input name="minEngagement" type="number" min="0" max="100" value="2" />
+                  </label>
+                  <label>
+                    <span class="field-label">Follower min. <button type="button" class="help-button" data-help="minFollowers">?</button></span>
+                    <input name="minFollowers" type="number" min="0" value="100" />
+                  </label>
+                  <label>
+                    <span class="field-label">Score min. <button type="button" class="help-button" data-help="minScore">?</button></span>
+                    <input name="minScore" type="number" min="0" max="100" value="55" />
+                  </label>
+                </div>
+                <div class="form-three">
+                  <label>
+                    <span class="field-label">Attivi ultimi giorni <button type="button" class="help-button" data-help="activeDays">?</button></span>
+                    <input name="activeDays" type="number" min="1" value="14" />
+                  </label>
+                  <label>
+                    <span class="field-label">Risultati <button type="button" class="help-button" data-help="resultLimit">?</button></span>
+                    <input name="limit" type="number" min="5" max="100" value="25" />
+                  </label>
+                  <label>
+                    <span class="field-label">Seed rotazione <button type="button" class="help-button" data-help="rotationSeed">?</button></span>
+                    <input name="workspaceSeed" value="internal-alpha" />
+                  </label>
+                </div>
+                <div class="quality-switches">
+                  <label><input type="checkbox" name="excludeBots" checked />No bot <button type="button" class="help-button help-button-inline" data-help="excludeBots">?</button></label>
+                  <label><input type="checkbox" name="excludePrivate" checked />No privati <button type="button" class="help-button help-button-inline" data-help="excludePrivate">?</button></label>
+                  <label><input type="checkbox" name="freshFirst" checked />Freshness prioritaria <button type="button" class="help-button help-button-inline" data-help="freshFirst">?</button></label>
+                </div>
+                <button type="submit">TROVA LEAD <span class="button-help" data-help="findLeads">?</span></button>
+              </form>
+
+              <div class="target-expansion">
+                <div>
+                  <span class="field-label">Target expansion AI <button type="button" class="help-button" data-help="targetExpansion">?</button></span>
+                  <strong id="targetExpansionTitle">finanza</strong>
+                </div>
+                <div class="chip-list" id="targetExpansion"></div>
+              </div>
+
+              <div class="compliance-note">
+                <strong>Solo raccolta e classificazione. <button type="button" class="help-button" data-help="noOutreach">?</button></strong>
+                <p>Nessun invio messaggi da questa sezione. Le fonti reali andranno collegate tramite API, export consentiti o import manuale.</p>
+              </div>
+            </article>
+
+            <article class="panel system-card finder-results-card">
+              <div class="panel-head">
+                <div>
+                  <span>Risultati ricerca</span>
+                  <h2>Lead classificati per qualità</h2>
+                </div>
+                <div class="panel-actions">
+                  <button type="button" id="exportLeads">Esporta risultati <span class="button-help" data-help="exportResults">?</span></button>
+                </div>
+              </div>
+              <div class="finder-stats" id="finderStats"></div>
+              <div class="lead-tabs" id="leadResultTabs">
+                <button type="button" class="active" data-lead-tab="top">Top Leads <span class="button-help" data-help="tabTop">?</span></button>
+                <button type="button" data-lead-tab="engaged">Engaged Users <span class="button-help" data-help="tabEngaged">?</span></button>
+                <button type="button" data-lead-tab="competitor">Competitor Audience <span class="button-help" data-help="tabCompetitor">?</span></button>
+                <button type="button" data-lead-tab="lookalike">Lookalike AI <span class="button-help" data-help="tabLookalike">?</span></button>
+                <button type="button" data-lead-tab="fresh">Fresh Leads <span class="button-help" data-help="tabFresh">?</span></button>
+              </div>
+              <div class="system-toolbar finder-toolbar">
+                <input id="leadSearch" type="search" placeholder="Filtra username, bio, interessi, provenienza..." />
+                <select id="leadStatusFilter">
+                  <option value="all">Tutte qualità</option>
+                  <option value="hot">Hot</option>
+                  <option value="warm">Warm</option>
+                  <option value="cold">Cold</option>
+                </select>
+                <select id="leadSourceFilter">
+                  <option value="all">Tutte piattaforme</option>
+                </select>
+                <select id="leadSort">
+                  <option value="score">Score alto</option>
+                  <option value="freshness">Più freschi</option>
+                  <option value="engagement">Engagement</option>
+                  <option value="followers">Follower</option>
+                </select>
+              </div>
+              <p class="system-feedback" id="leadsFeedback"></p>
+              <div class="lead-table finder-results" id="leadTable"></div>
+            </article>
+
+            <article class="panel system-card finder-database-card">
+              <div class="lead-import-box">
+                <div class="panel-head compact-head">
+                  <div>
+                    <span>Database lead</span>
+                    <h2>Importa dataset reale <button type="button" class="help-button" data-help="importDataset">?</button></h2>
+                  </div>
+                  <span class="status-pill" id="savedLeadCount">0 lead</span>
+                </div>
+                <textarea id="leadImportText" placeholder="username, piattaforma, bio, follower, following, engagement, lingua, paese, interessi, ultima attività, provenienza, privato, bot risk, email/telegram"></textarea>
+                <div class="button-row">
+                  <button type="button" id="importLeads">Importa dataset <span class="button-help" data-help="importButton">?</span></button>
+                  <button type="button" class="ghost-button" id="loadTestDataset">Carica dataset test <span class="button-help" data-help="testDataset">?</span></button>
+                  <button type="button" class="ghost-button" id="clearLeadDatabase">Svuota database <span class="button-help" data-help="clearDatabase">?</span></button>
+                </div>
+              </div>
+              <div class="real-source-box">
+                <div class="panel-head compact-head">
+                  <div>
+                    <span>Fonte reale</span>
+                    <h2>YouTube API <button type="button" class="help-button" data-help="youtubeApi">?</button></h2>
+                  </div>
+                </div>
+                <label class="source-field">
+                  <span class="field-label">API key <button type="button" class="help-button" data-help="youtubeApiKey">?</button></span>
+                  <input id="youtubeApiKey" type="password" placeholder="Incolla YouTube Data API key" />
+                </label>
+                <div class="form-two">
+                  <label class="source-field">
+                    <span>Video max</span>
+                    <input id="youtubeVideoLimit" type="number" min="1" max="20" value="6" />
+                  </label>
+                  <label class="source-field">
+                    <span>Commenti per video</span>
+                    <input id="youtubeCommentLimit" type="number" min="1" max="50" value="12" />
+                  </label>
+                </div>
+                <button type="button" id="runYouTubeSearch">Cerca lead veri da YouTube</button>
+                <p class="system-feedback" id="youtubeConnectorStatus"></p>
+              </div>
+              <div class="connector-matrix">
+                <div class="panel-head compact-head">
+                  <div>
+                    <span>Connector status</span>
+                    <h2>Piattaforme reali</h2>
+                  </div>
+                </div>
+                <div class="connector-grid">
+                  <div class="connector-card is-ready">
+                    <strong>YouTube</strong>
+                    <span>API ufficiale pronta</span>
+                  </div>
+                  <div class="connector-card">
+                    <strong>Instagram</strong>
+                    <span>Serve Meta API o provider autorizzato</span>
+                  </div>
+                  <div class="connector-card">
+                    <strong>TikTok</strong>
+                    <span>Serve API/provider dati consentito</span>
+                  </div>
+                  <div class="connector-card">
+                    <strong>Telegram</strong>
+                    <span>Serve backend Telegram API</span>
+                  </div>
+                  <div class="connector-card">
+                    <strong>Twitter/X</strong>
+                    <span>Serve X API bearer token</span>
+                  </div>
+                  <div class="connector-card">
+                    <strong>LinkedIn</strong>
+                    <span>Serve API partner o import Sales Navigator</span>
+                  </div>
+                </div>
+              </div>
+              <div class="lead-detail" id="leadDetail"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="app-page system-page" data-page="radar">
+          <div class="radar-layout">
+            <article class="panel system-card radar-control-card">
+              <div class="panel-head">
+                <div>
+                  <span>AI Social & Web Radar 360</span>
+                  <h2>Prospect intelligence</h2>
+                </div>
+                <button type="button" class="help-button" data-help="radarOverview">?</button>
+              </div>
+
+              <form class="system-form radar-form" id="radarForm">
+                <div class="radar-step-label">1. Target</div>
+                <div class="form-two">
+                  <label>
+                    <span class="field-label">Cosa vuoi trovare <button type="button" class="help-button" data-help="radarNiche">?</button></span>
+                    <input name="niche" required value="centri estetici laser epilazione" placeholder="trading, estetica, fitness, AI..." />
+                  </label>
+                  <label>
+                    <span class="field-label">Tipo business <button type="button" class="help-button" data-help="radarSector">?</button></span>
+                    <input name="sector" value="beauty local business" placeholder="B2B, local, creator, ecommerce..." />
+                  </label>
+                </div>
+
+                <div class="radar-step-label">2. Area</div>
+                <div class="form-three">
+                  <label>
+                    <span class="field-label">Paese <button type="button" class="help-button" data-help="radarCountry">?</button></span>
+                    <input name="country" value="Italia" />
+                  </label>
+                  <label>
+                    <span class="field-label">Città <button type="button" class="help-button" data-help="radarCity">?</button></span>
+                    <input name="city" value="Roma" />
+                  </label>
+                  <label>
+                    <span class="field-label">Lingua <button type="button" class="help-button" data-help="radarLanguage">?</button></span>
+                    <select name="language">
+                      <option value="it">Italiano</option>
+                      <option value="en">Inglese</option>
+                      <option value="any">Qualsiasi</option>
+                    </select>
+                  </label>
+                </div>
+
+                <label>
+                  <span class="field-label">3. Segnali da cercare <button type="button" class="help-button" data-help="radarKeywords">?</button></span>
+                  <textarea name="keywords" placeholder="laser diodo, epilazione definitiva, quanto costa, centro estetico, prezzo, zona Roma"></textarea>
+                </label>
+
+                <div class="form-two">
+                  <label>
+                    <span class="field-label">Hashtag <button type="button" class="help-button" data-help="radarHashtags">?</button></span>
+                    <input name="hashtags" value="#epilazionelaser, #centroestetico, #roma" />
+                  </label>
+                  <label>
+                    <span class="field-label">Competitor / creator <button type="button" class="help-button" data-help="radarCompetitors">?</button></span>
+                    <input name="competitors" placeholder="@pagina, canale, competitor, brand..." />
+                  </label>
+                </div>
+
+                <div class="radar-source-block">
+                  <span class="field-label">4. Dove cercare <button type="button" class="help-button" data-help="radarSources">?</button></span>
+                  <div class="radar-source-groups">
+                    <div class="radar-source-group">
+                      <strong>Social</strong>
+                      <div class="platform-picker radar-source-picker compact-checks">
+                        <label><input type="checkbox" name="sources" value="Instagram" checked />Instagram</label>
+                        <label><input type="checkbox" name="sources" value="Facebook" checked />Facebook</label>
+                        <label><input type="checkbox" name="sources" value="TikTok" checked />TikTok</label>
+                        <label><input type="checkbox" name="sources" value="LinkedIn" checked />LinkedIn</label>
+                        <label><input type="checkbox" name="sources" value="Twitter/X" checked />X/Twitter</label>
+                        <label><input type="checkbox" name="sources" value="YouTube" checked />YouTube</label>
+                        <label><input type="checkbox" name="sources" value="Reddit" checked />Reddit</label>
+                        <label><input type="checkbox" name="sources" value="Telegram" checked />Telegram</label>
+                      </div>
+                    </div>
+                    <div class="radar-source-group">
+                      <strong>Web</strong>
+                      <div class="platform-picker radar-source-picker compact-checks">
+                        <label><input type="checkbox" name="sources" value="Forum" checked />Forum</label>
+                        <label><input type="checkbox" name="sources" value="Website" checked />Siti web</label>
+                        <label><input type="checkbox" name="sources" value="Blog" checked />Blog</label>
+                        <label><input type="checkbox" name="sources" value="Directory" checked />Directory</label>
+                        <label><input type="checkbox" name="sources" value="Reviews" checked />Recensioni</label>
+                        <label><input type="checkbox" name="sources" value="CRM/Import" checked />CRM / Import</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <details class="radar-advanced">
+                  <summary>Opzioni avanzate</summary>
+                <label>
+                  <span class="field-label">Siti, forum o URL da monitorare <button type="button" class="help-button" data-help="radarUrls">?</button></span>
+                  <textarea name="monitorUrls" placeholder="https://forum.example/thread&#10;https://directory.example/centri-estetici-roma"></textarea>
+                </label>
+
+                <label>
+                  <span class="field-label">Frasi di intento <button type="button" class="help-button" data-help="radarIntent">?</button></span>
+                  <textarea name="intentPhrases" placeholder="quanto costa, info, mi interessa, cerco qualcuno, zona Roma, vorrei provare, urgente"></textarea>
+                </label>
+
+                <div class="form-three">
+                  <label>
+                    <span class="field-label">Ultimi mesi <button type="button" class="help-button" data-help="radarRecency">?</button></span>
+                    <input name="recencyMonths" type="number" min="1" max="60" value="12" />
+                  </label>
+                  <label>
+                    <span class="field-label">Score min. <button type="button" class="help-button" data-help="radarMinScore">?</button></span>
+                    <input name="minScore" type="number" min="0" max="100" value="45" />
+                  </label>
+                  <label>
+                    <span class="field-label">Risultati <button type="button" class="help-button" data-help="radarLimit">?</button></span>
+                    <input name="limit" type="number" min="5" max="250" value="60" />
+                  </label>
+                </div>
+
+                <div class="form-three">
+                  <label>
+                    <span class="field-label">Seed rotazione <button type="button" class="help-button" data-help="radarRotationSeed">?</button></span>
+                    <input name="workspaceSeed" value="internal-alpha" />
+                  </label>
+                  <label>
+                    <span class="field-label">Cooldown ore <button type="button" class="help-button" data-help="radarCooldown">?</button></span>
+                    <input name="cooldownHours" type="number" min="1" max="168" value="24" />
+                  </label>
+                  <label>
+                    <span class="field-label">Distribuzione <button type="button" class="help-button" data-help="radarDiversify">?</button></span>
+                    <select name="distributionMode">
+                      <option value="balanced">Bilanciata</option>
+                      <option value="freshness">Fresh first</option>
+                      <option value="score">Solo score</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div class="quality-switches">
+                  <label><input type="checkbox" name="businessOnly" />Solo business pubblici <button type="button" class="help-button help-button-inline" data-help="radarBusinessOnly">?</button></label>
+                  <label><input type="checkbox" name="excludeBots" checked />Penalizza fake/spam <button type="button" class="help-button help-button-inline" data-help="radarFake">?</button></label>
+                  <label><input type="checkbox" name="automationGuard" checked />Safety automation <button type="button" class="help-button help-button-inline" data-help="radarSafety">?</button></label>
+                </div>
+                </details>
+
+                <button type="submit">Lancia Radar 360 <span class="button-help" data-help="radarRun">?</span></button>
+              </form>
+
+              <div class="radar-import-box">
+                <div class="panel-head compact-head">
+                  <div>
+                    <span>Fonti importate</span>
+                    <h2>CSV, URL e segnali reali <button type="button" class="help-button" data-help="radarImport">?</button></h2>
+                  </div>
+                  <span class="status-pill" id="radarProspectCount">0 prospect</span>
+                </div>
+                <textarea id="radarImportText" placeholder="platform, source_type, username, public_name, business_name, profile_url, website, bio, business_email, business_phone, city, country, language, source_url, source_page, source_item, relevant_text, keywords, hashtags, intent, interactions, last_interaction, provider, reliability"></textarea>
+                <div class="button-row">
+                  <button type="button" id="importRadarSignals">Importa segnali reali</button>
+                  <button type="button" class="ghost-button" id="clearRadarDatabase">Svuota radar</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel system-card radar-results-card">
+              <div class="panel-head">
+                <div>
+                  <span>Radar results</span>
+                  <h2>Prospect ordinati per qualità</h2>
+                </div>
+                <div class="panel-actions">
+                  <button type="button" id="exportRadarCsv">Export CSV</button>
+                </div>
+              </div>
+
+              <div class="finder-stats radar-stats" id="radarStats"></div>
+
+              <div class="lead-tabs radar-tabs" id="radarTabs">
+                <button type="button" class="active" data-radar-tab="hot">Hot</button>
+                <button type="button" data-radar-tab="warm">Warm</button>
+                <button type="button" data-radar-tab="cold">Cold</button>
+                <button type="button" data-radar-tab="social">Social Leads</button>
+                <button type="button" data-radar-tab="web">Web Leads</button>
+                <button type="button" data-radar-tab="forum">Forum Leads</button>
+                <button type="button" data-radar-tab="local">Local Leads</button>
+                <button type="button" data-radar-tab="automated">Automated Possible</button>
+                <button type="button" data-radar-tab="manual">Manual Contact</button>
+              </div>
+
+              <div class="system-toolbar finder-toolbar radar-toolbar">
+                <input id="radarSearch" type="search" placeholder="Filtra nome, testo, fonte, città, intent..." />
+                <select id="radarSourceFilter">
+                  <option value="all">Tutte fonti</option>
+                </select>
+                <select id="radarContactModeFilter">
+                  <option value="all">Tutti contatti</option>
+                  <option value="manual_assist">Manual assist</option>
+                  <option value="automated_possible">Automated possible</option>
+                </select>
+                <select id="radarSort">
+                  <option value="score">Score alto</option>
+                  <option value="recency">Più recenti</option>
+                  <option value="intent">Intent forte</option>
+                  <option value="automation">Automatizzabili</option>
+                </select>
+              </div>
+
+              <p class="system-feedback" id="radarFeedback"></p>
+              <div class="radar-results" id="radarResults"></div>
+            </article>
+
+            <article class="panel system-card radar-detail-card">
+              <div class="panel-head compact-head">
+                <div>
+                  <span>Prospect detail</span>
+                  <h2>Motivo, contatto e log</h2>
+                </div>
+              </div>
+              <div class="lead-detail radar-detail" id="radarDetail"></div>
+              <div class="connector-matrix radar-matrix" id="radarMatrix"></div>
+              <div class="radar-safety-panel" id="radarSafetyPanel"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="app-page system-page" data-page="campaigns">
+          <div class="system-grid">
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Campagne</span>
+                  <h2>Organizza outreach per servizio</h2>
+                </div>
+              </div>
+              <form class="system-form" id="campaignForm">
+                <label>
+                  <span>Nome campagna</span>
+                  <input name="name" required value="AI per attività locali" />
+                </label>
+                <label>
+                  <span>Obiettivo</span>
+                  <input name="goal" required value="Prenotare call conoscitive" />
+                </label>
+                <label>
+                  <span>Canale</span>
+                  <select name="channel">
+                    <option>Email</option>
+                    <option>DM Instagram</option>
+                    <option>LinkedIn</option>
+                    <option>WhatsApp manuale</option>
+                  </select>
+                </label>
+                <button type="submit">Crea campagna</button>
+              </form>
+            </article>
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Lista campagne</span>
+                  <h2>Stato e performance iniziali</h2>
+                </div>
+              </div>
+              <div class="system-list" id="campaignBoard"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="app-page system-page" data-page="content">
+          <div class="system-grid">
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>AI content engine</span>
+                  <h2>Genera messaggi personalizzati</h2>
+                </div>
+              </div>
+              <form class="system-form" id="messageForm">
+                <label>
+                  <span>Lead</span>
+                  <select name="lead" id="messageLeadSelect"></select>
+                </label>
+                <label>
+                  <span>Tono</span>
+                  <select name="tone">
+                    <option>Professionale diretto</option>
+                    <option>Amichevole</option>
+                    <option>Premium consulenziale</option>
+                    <option>Founder to founder</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Obiettivo</span>
+                  <input name="goal" value="Proporre una call di 15 minuti" />
+                </label>
+                <button type="submit">Genera bozza</button>
+              </form>
+            </article>
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Bozza AI</span>
+                  <h2>Messaggio modificabile prima dell'invio</h2>
+                </div>
+                <button type="button" id="saveDraftToLead">Salva nel lead</button>
+              </div>
+              <textarea class="message-output" id="messageOutput" placeholder="La bozza apparirà qui."></textarea>
+            </article>
+          </div>
+        </section>
+
+        <section class="app-page system-page" data-page="automations">
+          <div class="system-grid">
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Automazioni interne</span>
+                  <h2>Regole operative senza invio automatico</h2>
+                </div>
+              </div>
+              <div class="system-list" id="automationList"></div>
+            </article>
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Regola rapida</span>
+                  <h2>Crea un promemoria operativo</h2>
+                </div>
+              </div>
+              <form class="system-form" id="automationForm">
+                <label>
+                  <span>Quando</span>
+                  <select name="trigger">
+                    <option>Dopo 24 ore senza risposta</option>
+                    <option>Quando un lead diventa interessato</option>
+                    <option>Ogni lunedì mattina</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Azione</span>
+                  <input name="action" value="Preparare follow-up personalizzato" />
+                </label>
+                <button type="submit">Aggiungi automazione</button>
+              </form>
+            </article>
+          </div>
+        </section>
+
+        <section class="app-page system-page" data-page="crm">
+          <article class="panel system-card">
+            <div class="panel-head">
+              <div>
+                <span>CRM</span>
+                <h2>Pipeline commerciale interna</h2>
+              </div>
+            </div>
+            <div class="crm-board" id="crmBoard"></div>
+          </article>
+        </section>
+
+        <section class="app-page system-page" data-page="analytics">
+          <div class="system-grid">
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Analytics</span>
+                  <h2>Numeri operativi reali dal workspace</h2>
+                </div>
+              </div>
+              <div class="analytics-grid" id="analyticsGrid"></div>
+            </article>
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Prossime azioni</span>
+                  <h2>Cosa conviene fare ora</h2>
+                </div>
+              </div>
+              <div class="system-list" id="nextActions"></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="app-page system-page" data-page="integrations">
+          <article class="panel system-card">
+            <div class="panel-head">
+              <div>
+                <span>Integrazioni</span>
+                <h2>Pronte per quando passiamo al cloud</h2>
+              </div>
+            </div>
+            <div class="integration-grid" id="integrationGrid"></div>
+          </article>
+        </section>
+
+        <section class="app-page system-page" data-page="settings">
+          <div class="system-grid">
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Settings</span>
+                  <h2>Configurazione interna Interstellar</h2>
+                </div>
+              </div>
+              <form class="system-form" id="workspaceSettings">
+                <label>
+                  <span>Nome workspace</span>
+                  <input name="workspace" value="Interstellar Internal" />
+                </label>
+                <label>
+                  <span>Firma outreach</span>
+                  <input name="signature" value="Kevin - Interstellar" />
+                </label>
+                <button type="submit">Salva impostazioni</button>
+              </form>
+            </article>
+            <article class="panel system-card danger-card">
+              <div class="panel-head">
+                <div>
+                  <span>Dati locali</span>
+                  <h2>Backup o reset workspace</h2>
+                </div>
+              </div>
+              <button type="button" id="copyWorkspaceData">Copia backup JSON</button>
+              <button type="button" id="resetWorkspaceData">Reset dati demo</button>
+              <p id="settingsFeedback"></p>
+            </article>
+          </div>
+        </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="mockup-wow.js?v=radar360-2"></script>
+  </body>
+</html>
