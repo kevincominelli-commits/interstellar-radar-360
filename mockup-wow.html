@@ -503,25 +503,43 @@
               </div>
 
               <div class="radar-guided-panel">
-                <div>
-                  <span>Modalità semplice</span>
-                  <h3>Scegli cosa vendere, poi dagli fonti reali</h3>
-                  <p>Il Radar prepara filtri, score e sicurezza. Non inventa clienti: analizza dati che importi, URL pubblici, CSV o API autorizzate.</p>
+                <div class="radar-question">
+                  <span>1. Cliente target</span>
+                  <h3>Che tipo di clienti vuoi trovare?</h3>
+                  <input id="radarGoalInput" value="clienti interessati a trovare un programmatore, creare un sito, app, bot o automazioni AI" />
+                  <p>Scrivilo naturale, come lo diresti a me. Il Radar trasforma questa frase in keyword, intent e score.</p>
                 </div>
-                <label>
-                  <span>Obiettivo</span>
-                  <select id="radarPresetSelect">
-                    <option value="programming">Clienti per programmazione, AI e automazioni</option>
-                    <option value="localBusiness">Aziende locali che cercano clienti</option>
-                    <option value="networkers">Networker che vogliono contatti</option>
-                    <option value="tradingEducation">Trading / finanza educational</option>
-                  </select>
-                </label>
-                <div class="radar-preset-summary" id="radarPresetSummary"></div>
+
+                <div class="radar-question">
+                  <span>2. Dove devo cercare?</span>
+                  <div class="radar-quick-sources">
+                    <label><input type="checkbox" data-quick-source="Instagram" checked />Instagram</label>
+                    <label><input type="checkbox" data-quick-source="TikTok" checked />TikTok</label>
+                    <label><input type="checkbox" data-quick-source="LinkedIn" checked />LinkedIn</label>
+                    <label><input type="checkbox" data-quick-source="YouTube" checked />YouTube</label>
+                    <label><input type="checkbox" data-quick-source="Reddit" checked />Reddit</label>
+                    <label><input type="checkbox" data-quick-source="Telegram" checked />Telegram</label>
+                    <label><input type="checkbox" data-quick-source="Forum" checked />Forum</label>
+                    <label><input type="checkbox" data-quick-source="Website" checked />Siti web</label>
+                    <label><input type="checkbox" data-quick-source="Directory" checked />Directory</label>
+                  </div>
+                  <p>Social chiusi = assistenza manuale. Web, forum e directory = ricerca/automazione possibile dove consentito.</p>
+                </div>
+
+                <div class="radar-question">
+                  <span>3. Dove vuoi trovarli?</span>
+                  <div class="radar-geo-grid">
+                    <label><input type="radio" name="radarQuickGeo" value="italy" checked />Tutta Italia</label>
+                    <label><input type="radio" name="radarQuickGeo" value="city" />Città specifica</label>
+                    <label><input type="radio" name="radarQuickGeo" value="any" />Qualsiasi paese</label>
+                  </div>
+                  <input id="radarQuickCity" placeholder="Es. Milano, Roma, Napoli..." />
+                </div>
+
                 <div class="radar-guided-actions">
-                  <button type="button" id="applyRadarPreset">Preset automatico</button>
-                  <button type="button" id="runLiveOpenWebSearch">Cerca live</button>
-                  <button type="button" class="ghost-button" id="runRadarPreset">Analizza ora</button>
+                  <button type="button" id="applyRadarPreset">Prepara ricerca</button>
+                  <button type="button" id="runLiveOpenWebSearch">Cerca clienti</button>
+                  <button type="button" class="ghost-button" id="runRadarPreset">Analizza importati</button>
                 </div>
               </div>
 
@@ -659,16 +677,14 @@
                 </div>
                 </details>
                 </details>
-
-                <button type="submit">Analizza dati importati <span class="button-help" data-help="radarRun">?</span></button>
               </form>
 
               <div class="radar-howto-card">
-                <strong>Ordine giusto</strong>
+                <strong>Il cliente deve fare solo questo</strong>
                 <ol>
-                  <li>Premi <b>Preset automatico</b>.</li>
-                  <li>Apri una ricerca pronta, trova un segnale reale e incollalo sotto.</li>
-                  <li>Premi <b>Importa segnali reali</b>, poi <b>Analizza dati importati</b>.</li>
+                  <li>Scrive che clienti vuole trovare.</li>
+                  <li>Spunta social, forum, web o directory.</li>
+                  <li>Sceglie Italia, città o paese libero. Poi preme <b>Cerca clienti</b>.</li>
                 </ol>
               </div>
 

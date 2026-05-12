@@ -2633,6 +2633,57 @@ body[data-theme="stripe"] .real-source-box > button {
   font-size: 17px;
 }
 
+.radar-question {
+  display: grid;
+  gap: 8px;
+}
+
+.radar-question > input {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 0 11px;
+}
+
+.radar-quick-sources,
+.radar-geo-grid {
+  display: grid;
+  gap: 7px;
+}
+
+.radar-quick-sources {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.radar-geo-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.radar-quick-sources label,
+.radar-geo-grid label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text);
+  padding: 0 9px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.radar-quick-sources input,
+.radar-geo-grid input {
+  width: 12px;
+  height: 12px;
+  accent-color: var(--purple);
+}
+
 .radar-guided-panel p,
 .radar-preset-summary p,
 .radar-howto-card li,
@@ -3058,7 +3109,10 @@ body[data-theme="stripe"] .radar-step-label {
 }
 
 body[data-theme="stripe"] .lead-actions a,
-body[data-theme="stripe"] .radar-message-preview textarea {
+body[data-theme="stripe"] .radar-message-preview textarea,
+body[data-theme="stripe"] .radar-question > input,
+body[data-theme="stripe"] .radar-quick-sources label,
+body[data-theme="stripe"] .radar-geo-grid label {
   border-color: #d8deea;
   background: #ffffff;
   color: #253248;
@@ -3406,6 +3460,8 @@ body .dashboard-next-panel p {
 @media (max-width: 680px) {
   .dashboard-real-grid,
   .radar-guided-actions,
+  .radar-quick-sources,
+  .radar-geo-grid,
   .source-bars span {
     grid-template-columns: 1fr;
   }

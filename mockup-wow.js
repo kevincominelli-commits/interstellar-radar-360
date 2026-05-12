@@ -2618,6 +2618,49 @@ function applyRadarPreset(key = "programming", shouldRun = false) {
   setFeedback("#radarFeedback", `Preset "${preset.title}" applicato. Ora importa segnali reali o lancia il Radar.`);
 }
 
+function getQuickRadarSources() {
+  const selected = [...document.querySelectorAll("[data-quick-source]:checked")].map((input) => input.value);
+  return selected.length ? selected : allRadarSourceValues;
+}
+
+function syncQuickRadarFlow() {
+  const form = document.querySelector("#radarForm");
+  if (!form) return getRadarConfig();
+  const goal =
+    document.querySelector("#radarGoalInput")?.value?.trim() ||
+    "clienti interessati a trovare un programmatore, creare un sito, app, bot o automazioni AI";
+  const geoMode = document.querySelector('input[name="radarQuickGeo"]:checked')?.value || "italy";
+  const city = document.querySelector("#radarQuickCity")?.value?.trim() || "";
+  const selectedSources = getQuickRadarSources();
+  const programmingIntent =
+    "cerco sviluppatore, mi serve un sito, voglio creare un'app, automazione AI, chatbot, gestionale, software su misura, preventivo sito, bot, integrazione API";
+
+  setRadarField(form, "niche", goal);
+  setRadarField(form, "sector", "programmazione, AI, automazioni, siti web, app, bot, software");
+  setRadarField(form, "keywords", `${goal}, ${programmingIntent}`);
+  setRadarField(form, "hashtags", "#startupitalia, #businessitalia, #ecommerceitalia, #ai, #automazioni");
+  setRadarField(form, "competitors", "web agency, software house, no-code agency, automazioni AI");
+  setRadarField(form, "intentPhrases", programmingIntent);
+  setRadarField(form, "recencyMonths", "12");
+  setRadarField(form, "minScore", "45");
+  setRadarField(form, "limit", "60");
+  setRadarField(form, "workspaceSeed", goal.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 48) || "radar-clienti");
+  setRadarField(form, "cooldownHours", "24");
+  setRadarField(form, "distributionMode", "balanced");
+  setRadarField(form, "language", geoMode === "any" ? "any" : "it");
+  setRadarField(form, "country", geoMode === "any" ? "" : "Italia");
+  setRadarField(form, "city", geoMode === "city" ? city : "");
+
+  form.querySelectorAll('input[name="sources"]').forEach((input) => {
+    input.checked = selectedSources.includes(input.value);
+  });
+  const excludeBots = form.elements.namedItem("excludeBots");
+  const automationGuard = form.elements.namedItem("automationGuard");
+  if (excludeBots) excludeBots.checked = true;
+  if (automationGuard) automationGuard.checked = true;
+  return getRadarConfig(form);
+}
+
 function expandRadarKeywords(config = {}) {
   const expanded = new Set();
   [config.niche, config.sector].filter(Boolean).forEach((value) => {
@@ -3442,7 +3485,7 @@ function radarApiBaseUrl() {
 
 async function runLiveOpenWebSearch() {
   const button = document.querySelector("#runLiveOpenWebSearch");
-  const config = getRadarConfig();
+  const config = syncQuickRadarFlow();
   const params = new URLSearchParams({
     niche: config.niche,
     country: config.country,
@@ -3704,7 +3747,7 @@ document.querySelector("#leadSort")?.addEventListener("change", renderLeads);
 
 document.querySelector("#radarForm")?.addEventListener("submit", (event) => {
   event.preventDefault();
-  executeRadarSearch(getRadarConfig(event.currentTarget));
+  executeRadarSearch(syncQuickRadarFlow());
 });
 
 document.querySelector("#radarPresetSelect")?.addEventListener("change", (event) => {
@@ -3712,17 +3755,25 @@ document.querySelector("#radarPresetSelect")?.addEventListener("change", (event)
 });
 
 document.querySelector("#applyRadarPreset")?.addEventListener("click", () => {
-  const key = document.querySelector("#radarPresetSelect")?.value || "programming";
-  applyRadarPreset(key, false);
+  syncQuickRadarFlow();
+  setFeedback("#radarFeedback", "Ricerca preparata. Ora premi Cerca clienti oppure importa fonti reali e analizzale.");
 });
 
 document.querySelector("#runRadarPreset")?.addEventListener("click", () => {
-  const key = document.querySelector("#radarPresetSelect")?.value || "programming";
-  applyRadarPreset(key, true);
+  syncQuickRadarFlow();
+  executeRadarSearch(getRadarConfig());
 });
 
 document.querySelector("#runLiveOpenWebSearch")?.addEventListener("click", () => {
   runLiveOpenWebSearch();
+});
+
+[document.querySelector("#radarGoalInput"), document.querySelector("#radarQuickCity")]
+  .filter(Boolean)
+  .forEach((input) => input.addEventListener("input", syncQuickRadarFlow));
+
+document.querySelectorAll("[data-quick-source], input[name='radarQuickGeo']").forEach((input) => {
+  input.addEventListener("change", syncQuickRadarFlow);
 });
 
 document.querySelectorAll("[data-radar-open-search]").forEach((button) => {
@@ -4015,4 +4066,5 @@ document.querySelector("#resetWorkspaceData")?.addEventListener("click", () => {
 
 document.body.dataset.activePage = activePage;
 document.querySelector(".radar-manual-fields")?.removeAttribute("open");
+syncQuickRadarFlow();
 renderAll();
