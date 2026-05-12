@@ -3291,6 +3291,11 @@ body[data-theme="stripe"] .radar-geo-grid label {
   gap: 10px;
 }
 
+.dashboard-real-grid--compact div {
+  min-height: 92px;
+  padding: 12px;
+}
+
 .dashboard-real-grid div,
 .dashboard-workspace-note,
 .dashboard-empty {
@@ -3317,6 +3322,11 @@ body[data-theme="stripe"] .radar-geo-grid label {
   color: var(--text);
   font-size: 30px;
   line-height: 1;
+}
+
+.dashboard-real-grid--compact strong {
+  margin-top: 9px;
+  font-size: 25px;
 }
 
 .dashboard-real-grid p,
@@ -3397,7 +3407,40 @@ body[data-theme="stripe"] .radar-geo-grid label {
 }
 
 .dashboard-live-area-chart {
-  height: 280px;
+  height: 318px;
+}
+
+.dashboard-live-area-chart.is-empty .chart-line,
+.dashboard-live-area-chart.is-empty .chart-area,
+.dashboard-live-area-chart.is-empty .chart-point {
+  opacity: 0.42;
+}
+
+.dashboard-chart-empty-note {
+  position: absolute;
+  top: 22px;
+  left: 22px;
+  z-index: 2;
+  max-width: 292px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(7, 10, 24, 0.74);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(18px);
+  padding: 12px 13px;
+}
+
+.dashboard-chart-empty-note strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.dashboard-chart-empty-note p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
 }
 
 .source-bars {

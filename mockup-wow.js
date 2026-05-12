@@ -210,7 +210,7 @@ function createAreaChart(root, initialData, series) {
     const width = viewBox.width - viewBox.left - viewBox.right;
     const height = viewBox.height - viewBox.top - viewBox.bottom;
     const maxValue = Math.max(...chart.data.flatMap((entry) => activeSeries.map((item) => entry[item.key])));
-    const max = Math.ceil((maxValue * 1.18) / 100) * 100;
+    const max = Math.max(10, Math.ceil((maxValue * 1.18) / 10) * 10 || 10);
     const step = chart.data.length > 1 ? width / (chart.data.length - 1) : width;
 
     return {
@@ -1246,25 +1246,29 @@ function buildDashboardChartData(prospects, contacts, clients) {
 function renderDashboardChart(root, chartData) {
   if (!root) return;
   const hasData = chartData.some((day) => day.prospects || day.contacts || day.clients);
-  root.innerHTML = hasData
-    ? `
-      <div class="dashboard-live-chart-head">
-        <div>
-          <strong>Andamento reale ultimi 7 giorni</strong>
-          <p>Prospect, contatti avviati e clienti dal workspace.</p>
-        </div>
-        <div class="legend">
-          <span><i class="purple-dot"></i>Prospect</span>
-          <span><i class="blue-dot"></i>Contatti</span>
-          <span><i class="cyan-dot"></i>Clienti</span>
-        </div>
+  root.innerHTML = `
+    <div class="dashboard-live-chart-head">
+      <div>
+        <strong>Andamento reale ultimi 7 giorni</strong>
+        <p>Prospect, contatti avviati e clienti dal workspace.</p>
       </div>
-      <div class="area-chart dashboard-live-area-chart" role="img" aria-label="Grafico reale degli ultimi sette giorni">
-        <svg class="area-chart__svg" viewBox="0 0 860 330" preserveAspectRatio="none"></svg>
-        <div class="area-chart__tooltip" hidden></div>
+      <div class="legend">
+        <span><i class="purple-dot"></i>Prospect</span>
+        <span><i class="blue-dot"></i>Contatti</span>
+        <span><i class="cyan-dot"></i>Clienti</span>
       </div>
-    `
-    : dashboardEmpty("Grafico pronto, ma senza dati", "Si accende automaticamente appena importi prospect reali, avvii contatti o crei clienti nel CRM.", "radar", "Aggiungi dati");
+    </div>
+    <div class="area-chart dashboard-live-area-chart ${hasData ? "" : "is-empty"}" role="img" aria-label="Grafico reale degli ultimi sette giorni">
+      <svg class="area-chart__svg" viewBox="0 0 860 330" preserveAspectRatio="none"></svg>
+      <div class="area-chart__tooltip" hidden></div>
+      ${hasData ? "" : `
+        <div class="dashboard-chart-empty-note">
+          <strong>Nessun dato reale ancora</strong>
+          <p>Il grafico resta pronto e si riempie appena usi Radar 360, avvii contatti o salvi clienti nel CRM.</p>
+        </div>
+      `}
+    </div>
+  `;
 
   const chartRoot = root.querySelector(".dashboard-live-area-chart");
   if (chartRoot) {
@@ -1283,7 +1287,8 @@ function renderDashboardOverview(prospects, contacts, clients) {
   const chartData = buildDashboardChartData(prospects, contacts, clients);
 
   overview.innerHTML = `
-    <div class="dashboard-real-grid">
+    <div class="dashboard-live-chart" id="dashboardLiveChart"></div>
+    <div class="dashboard-real-grid dashboard-real-grid--compact">
       <div>
         <span>Radar 360</span>
         <strong>${formatMetric(prospects.length)}</strong>
@@ -1309,7 +1314,6 @@ function renderDashboardOverview(prospects, contacts, clients) {
       <strong>${contacts.length ? `${contacts.length} log contatto salvati` : "Nessun contatto reale ancora"}</strong>
       <p>${clients.length} clienti nel CRM · ${sourceCount} fonti dati rilevate. Nessun numero viene simulato nella dashboard.</p>
     </div>
-    <div class="dashboard-live-chart" id="dashboardLiveChart"></div>
   `;
   renderDashboardChart(overview.querySelector("#dashboardLiveChart"), chartData);
 }
