@@ -61,10 +61,25 @@ async function fetchJson(url, options = {}) {
   return response.json();
 }
 
+function liveQueries(config) {
+  return [
+    config.q,
+    "need a website developer",
+    "looking for web developer",
+    "hire developer website app",
+    "need app developer",
+    "automation chatbot developer"
+  ].filter(Boolean);
+}
+
 async function searchReddit(config) {
-  const url = `https://www.reddit.com/search.json?q=${encodeURIComponent(config.q)}&sort=new&t=year&limit=${Math.min(config.limit, 25)}`;
-  const payload = await fetchJson(url);
-  return (payload.data?.children || []).map(({ data }) => ({
+  const settled = await Promise.allSettled(
+    liveQueries(config).map((query) =>
+      fetchJson(`https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=new&t=year&limit=${Math.min(config.limit, 10)}`)
+    )
+  );
+  return settled.flatMap((result) =>
+    result.status === "fulfilled" ? (result.value.data?.children || []).map(({ data }) => ({
     platform: "Reddit",
     source_type: "open_web_live",
     username_public: data.author ? `@${data.author}` : "",
@@ -82,14 +97,20 @@ async function searchReddit(config) {
     last_interaction: isoFromUnix(data.created_utc),
     provider_source: "Reddit public search",
     source_reliability: 72
-  }));
+  })) : []
+  );
 }
 
 async function searchHackerNews(config) {
-  const query = `${config.q} developer website app automation`;
-  const url = `https://hn.algolia.com/api/v1/search_by_date?query=${encodeURIComponent(query)}&tags=story,comment&hitsPerPage=${Math.min(config.limit, 20)}`;
-  const payload = await fetchJson(url);
-  return (payload.hits || []).map((hit) => {
+  const settled = await Promise.allSettled(
+    liveQueries(config).map((query) =>
+      fetchJson(
+        `https://hn.algolia.com/api/v1/search_by_date?query=${encodeURIComponent(`${query} website app automation`)}&tags=story,comment&hitsPerPage=${Math.min(config.limit, 8)}`
+      )
+    )
+  );
+  return settled.flatMap((result) =>
+    result.status === "fulfilled" ? (result.value.hits || []).map((hit) => {
     const title = hit.title || hit.story_title || "Discussione";
     const text = compact(`${title}. ${hit.comment_text || hit.story_text || ""}`);
     const sourceUrl = hit.url || (hit.objectID ? `https://news.ycombinator.com/item?id=${hit.objectID}` : "");
@@ -112,18 +133,22 @@ async function searchHackerNews(config) {
       provider_source: "Hacker News Algolia public API",
       source_reliability: 68
     };
-  });
+  }) : []
+  );
 }
 
 async function searchGitHubIssues(config) {
-  const query = `${config.q} in:title,body is:issue`;
-  const url = `https://api.github.com/search/issues?q=${encodeURIComponent(query)}&sort=created&order=desc&per_page=${Math.min(config.limit, 20)}`;
-  const payload = await fetchJson(url, {
-    headers: {
-      Accept: "application/vnd.github+json"
-    }
-  });
-  return (payload.items || []).map((item) => {
+  const settled = await Promise.allSettled(
+    liveQueries(config).map((query) =>
+      fetchJson(`https://api.github.com/search/issues?q=${encodeURIComponent(`${query} in:title,body is:issue`)}&sort=created&order=desc&per_page=${Math.min(config.limit, 8)}`, {
+        headers: {
+          Accept: "application/vnd.github+json"
+        }
+      })
+    )
+  );
+  return settled.flatMap((result) =>
+    result.status === "fulfilled" ? (result.value.items || []).map((item) => {
     const text = compact(`${item.title || ""}. ${item.body || ""}`);
     return {
       platform: "Forum",
@@ -144,7 +169,8 @@ async function searchGitHubIssues(config) {
       provider_source: "GitHub public search API",
       source_reliability: 64
     };
-  });
+  }) : []
+  );
 }
 
 module.exports = async function handler(req, res) {
