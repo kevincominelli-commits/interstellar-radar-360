@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Interstellar Dashboard Mockup</title>
-    <link rel="stylesheet" href="mockup-wow.css?v=radar360-2" />
+    <link rel="stylesheet" href="mockup-wow.css?v=radar360-3" />
   </head>
   <body data-theme="stripe">
     <canvas id="starCanvas" aria-hidden="true"></canvas>
@@ -502,16 +502,40 @@
                 <button type="button" class="help-button" data-help="radarOverview">?</button>
               </div>
 
+              <div class="radar-guided-panel">
+                <div>
+                  <span>Modalità semplice</span>
+                  <h3>Parti da un obiettivo, il Radar prepara i filtri</h3>
+                  <p>Scegli cosa vuoi vendere. Il sistema compila target, segnali, fonti, score e sicurezza. Tu devi solo importare fonti reali o collegare API autorizzate.</p>
+                </div>
+                <label>
+                  <span>Obiettivo</span>
+                  <select id="radarPresetSelect">
+                    <option value="programming">Clienti per programmazione, AI e automazioni</option>
+                    <option value="localBusiness">Aziende locali che cercano clienti</option>
+                    <option value="networkers">Networker che vogliono contatti</option>
+                    <option value="tradingEducation">Trading / finanza educational</option>
+                  </select>
+                </label>
+                <div class="radar-preset-summary" id="radarPresetSummary"></div>
+                <div class="radar-guided-actions">
+                  <button type="button" id="applyRadarPreset">Configura automatico</button>
+                  <button type="button" class="ghost-button" id="runRadarPreset">Configura e lancia</button>
+                </div>
+              </div>
+
               <form class="system-form radar-form" id="radarForm">
+                <details class="radar-manual-fields">
+                  <summary>Filtri compilati automaticamente (opzionale)</summary>
                 <div class="radar-step-label">1. Target</div>
                 <div class="form-two">
                   <label>
                     <span class="field-label">Cosa vuoi trovare <button type="button" class="help-button" data-help="radarNiche">?</button></span>
-                    <input name="niche" required value="centri estetici laser epilazione" placeholder="trading, estetica, fitness, AI..." />
+                    <input name="niche" required value="sviluppo software automazioni AI siti web app bot" placeholder="trading, estetica, fitness, AI..." />
                   </label>
                   <label>
                     <span class="field-label">Tipo business <button type="button" class="help-button" data-help="radarSector">?</button></span>
-                    <input name="sector" value="beauty local business" placeholder="B2B, local, creator, ecommerce..." />
+                    <input name="sector" value="PMI creator ecommerce aziende locali startup" placeholder="B2B, local, creator, ecommerce..." />
                   </label>
                 </div>
 
@@ -523,7 +547,7 @@
                   </label>
                   <label>
                     <span class="field-label">Città <button type="button" class="help-button" data-help="radarCity">?</button></span>
-                    <input name="city" value="Roma" />
+                    <input name="city" placeholder="Lascia vuoto per tutta Italia" />
                   </label>
                   <label>
                     <span class="field-label">Lingua <button type="button" class="help-button" data-help="radarLanguage">?</button></span>
@@ -537,17 +561,17 @@
 
                 <label>
                   <span class="field-label">3. Segnali da cercare <button type="button" class="help-button" data-help="radarKeywords">?</button></span>
-                  <textarea name="keywords" placeholder="laser diodo, epilazione definitiva, quanto costa, centro estetico, prezzo, zona Roma"></textarea>
+                  <textarea name="keywords" placeholder="cerco sviluppatore, mi serve un sito, voglio un'app, automazione, chatbot, gestionale, ecommerce">cerco sviluppatore, mi serve un sito, voglio creare un'app, automazione AI, chatbot, gestionale, landing page, ecommerce, software su misura, sito web professionale</textarea>
                 </label>
 
                 <div class="form-two">
                   <label>
                     <span class="field-label">Hashtag <button type="button" class="help-button" data-help="radarHashtags">?</button></span>
-                    <input name="hashtags" value="#epilazionelaser, #centroestetico, #roma" />
+                    <input name="hashtags" value="#startupitalia, #businessitalia, #ecommerceitalia, #ai, #automazioni" />
                   </label>
                   <label>
                     <span class="field-label">Competitor / creator <button type="button" class="help-button" data-help="radarCompetitors">?</button></span>
-                    <input name="competitors" placeholder="@pagina, canale, competitor, brand..." />
+                    <input name="competitors" value="web agency, software house, no-code agency, automazioni AI" placeholder="@pagina, canale, competitor, brand..." />
                   </label>
                 </div>
 
@@ -590,7 +614,7 @@
 
                 <label>
                   <span class="field-label">Frasi di intento <button type="button" class="help-button" data-help="radarIntent">?</button></span>
-                  <textarea name="intentPhrases" placeholder="quanto costa, info, mi interessa, cerco qualcuno, zona Roma, vorrei provare, urgente"></textarea>
+                  <textarea name="intentPhrases" placeholder="quanto costa, info, mi interessa, cerco qualcuno, zona Roma, vorrei provare, urgente">cerco sviluppatore, quanto costa un sito, mi serve un'app, cerco qualcuno che mi faccia, voglio automatizzare, mi serve un gestionale, consigli software, non so da dove partire, preventivo sito</textarea>
                 </label>
 
                 <div class="form-three">
@@ -633,9 +657,19 @@
                   <label><input type="checkbox" name="automationGuard" checked />Safety automation <button type="button" class="help-button help-button-inline" data-help="radarSafety">?</button></label>
                 </div>
                 </details>
+                </details>
 
                 <button type="submit">Lancia Radar 360 <span class="button-help" data-help="radarRun">?</span></button>
               </form>
+
+              <div class="radar-howto-card">
+                <strong>Come lo testi senza perderti</strong>
+                <ol>
+                  <li>Premi <b>Configura automatico</b>.</li>
+                  <li>Importa segnali reali da CSV, URL pubblici o API autorizzate.</li>
+                  <li>Premi <b>Lancia Radar 360</b> e guarda Hot/Warm/Manual/Auto.</li>
+                </ol>
+              </div>
 
               <div class="radar-import-box">
                 <div class="panel-head compact-head">
@@ -921,6 +955,6 @@
       </main>
     </div>
 
-    <script src="mockup-wow.js?v=radar360-2"></script>
+    <script src="mockup-wow.js?v=radar360-3"></script>
   </body>
 </html>

@@ -6,6 +6,19 @@ const shellEl = document.querySelector(".dashboard-shell");
 const desktopWidth = 1180;
 const svgNs = "http://www.w3.org/2000/svg";
 
+const dashboardChartSeriesByTheme = {
+  stripe: [
+    { key: "prospects", label: "Prospect", color: "#5b67d8", glow: "#8d96ff" },
+    { key: "contacts", label: "Contatti", color: "#24a69a", glow: "#54d4ca" },
+    { key: "clients", label: "Clienti", color: "#38a8c4", glow: "#7ed7ea", thin: true }
+  ],
+  interstellar: [
+    { key: "prospects", label: "Prospect", color: "#7c4dff", glow: "#9b78ff" },
+    { key: "contacts", label: "Contatti", color: "#1f8fff", glow: "#52b4ff" },
+    { key: "clients", label: "Clienti", color: "#2ee9f0", glow: "#71ffff", thin: true }
+  ]
+};
+
 document.addEventListener(
   "click",
   (event) => {
@@ -450,6 +463,7 @@ function applyTheme(theme, persist = true) {
 if (themePicker) {
   themePicker.addEventListener("change", (event) => {
     applyTheme(event.target.value);
+    renderDashboardData();
   });
 }
 
@@ -1205,6 +1219,59 @@ function dashboardEmpty(title, text, target = "radar", label = "Apri Radar 360")
   `;
 }
 
+function buildDashboardChartData(prospects, contacts, clients) {
+  const formatter = new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "short" });
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - (6 - index));
+    const key = date.toISOString().slice(0, 10);
+    return { key, label: formatter.format(date), prospects: 0, contacts: 0, clients: 0 };
+  });
+  const byKey = new Map(days.map((day) => [day.key, day]));
+  const bump = (value, field) => {
+    const date = new Date(value || "");
+    if (Number.isNaN(date.getTime())) return;
+    const key = date.toISOString().slice(0, 10);
+    const day = byKey.get(key);
+    if (day) day[field] += 1;
+  };
+  prospects.forEach((prospect) => bump(prospect.collected_at || prospect.updated_at, "prospects"));
+  contacts.forEach((log) => bump(log.created_at, "contacts"));
+  clients.forEach((lead) => bump(lead.updatedAt || lead.createdAt, "clients"));
+  return days;
+}
+
+function renderDashboardChart(root, chartData) {
+  if (!root) return;
+  const hasData = chartData.some((day) => day.prospects || day.contacts || day.clients);
+  root.innerHTML = hasData
+    ? `
+      <div class="dashboard-live-chart-head">
+        <div>
+          <strong>Andamento reale ultimi 7 giorni</strong>
+          <p>Prospect, contatti avviati e clienti dal workspace.</p>
+        </div>
+        <div class="legend">
+          <span><i class="purple-dot"></i>Prospect</span>
+          <span><i class="blue-dot"></i>Contatti</span>
+          <span><i class="cyan-dot"></i>Clienti</span>
+        </div>
+      </div>
+      <div class="area-chart dashboard-live-area-chart" role="img" aria-label="Grafico reale degli ultimi sette giorni">
+        <svg class="area-chart__svg" viewBox="0 0 860 330" preserveAspectRatio="none"></svg>
+        <div class="area-chart__tooltip" hidden></div>
+      </div>
+    `
+    : dashboardEmpty("Grafico pronto, ma senza dati", "Si accende automaticamente appena importi prospect reali, avvii contatti o crei clienti nel CRM.", "radar", "Aggiungi dati");
+
+  const chartRoot = root.querySelector(".dashboard-live-area-chart");
+  if (chartRoot) {
+    const theme = document.body.dataset.theme || "stripe";
+    createAreaChart(chartRoot, chartData, dashboardChartSeriesByTheme[theme] || dashboardChartSeriesByTheme.stripe);
+  }
+}
+
 function renderDashboardOverview(prospects, contacts, clients) {
   const overview = document.querySelector("#dashboardRealOverview");
   if (!overview) return;
@@ -1212,6 +1279,7 @@ function renderDashboardOverview(prospects, contacts, clients) {
   const automated = prospects.filter((prospect) => prospect.contact_mode === "automated_possible").length;
   const manual = prospects.filter((prospect) => prospect.contact_mode === "manual_assist").length;
   const lastSearchCount = workspace.radar.resultIds?.length || 0;
+  const chartData = buildDashboardChartData(prospects, contacts, clients);
 
   overview.innerHTML = `
     <div class="dashboard-real-grid">
@@ -1238,9 +1306,11 @@ function renderDashboardOverview(prospects, contacts, clients) {
     </div>
     <div class="dashboard-workspace-note">
       <strong>${contacts.length ? `${contacts.length} log contatto salvati` : "Nessun contatto reale ancora"}</strong>
-      <p>${clients} clienti nel CRM · ${sourceCount} fonti dati rilevate. Nessun numero viene simulato nella dashboard.</p>
+      <p>${clients.length} clienti nel CRM · ${sourceCount} fonti dati rilevate. Nessun numero viene simulato nella dashboard.</p>
     </div>
+    <div class="dashboard-live-chart" id="dashboardLiveChart"></div>
   `;
+  renderDashboardChart(overview.querySelector("#dashboardLiveChart"), chartData);
 }
 
 function renderDashboardActivity(prospects) {
@@ -1351,8 +1421,8 @@ function renderDashboardData() {
   const contactLogs = workspace.radar.contactLogs || [];
   const hotProspects = prospects.filter((prospect) => prospect.temperature === "hot").length;
   const contacted = contactLogs.length + prospects.filter((prospect) => /contact/.test(prospect.contact_state || "")).length;
-  const clients = workspace.leads.filter((lead) => lead.status === "client").length;
-  [prospects.length, hotProspects, contacted, clients].forEach((value, index) => {
+  const clients = workspace.leads.filter((lead) => lead.status === "client");
+  [prospects.length, hotProspects, contacted, clients.length].forEach((value, index) => {
     if (metricValues[index]) metricValues[index].textContent = formatMetric(value);
   });
   renderDashboardOverview(prospects, contactLogs, clients);
@@ -2215,6 +2285,124 @@ const radarCapabilityRows = [
   ["CRM/Import", "automated_possible", true, "solo opt-in, cliente importato o autorizzato"]
 ];
 
+const allRadarSourceValues = [
+  "Instagram",
+  "Facebook",
+  "TikTok",
+  "LinkedIn",
+  "Twitter/X",
+  "YouTube",
+  "Reddit",
+  "Telegram",
+  "Forum",
+  "Website",
+  "Blog",
+  "Directory",
+  "Reviews",
+  "CRM/Import"
+];
+
+const radarGuidedPresets = {
+  programming: {
+    title: "Clienti per programmazione, AI e automazioni",
+    summary: "Cerca persone e aziende che chiedono siti web, app, gestionali, bot, chatbot, automazioni AI o software su misura.",
+    fields: {
+      niche: "sviluppo software automazioni AI siti web app bot",
+      sector: "PMI creator ecommerce aziende locali startup",
+      country: "Italia",
+      city: "",
+      language: "it",
+      keywords:
+        "cerco sviluppatore, mi serve un sito, voglio creare un'app, automazione AI, chatbot, gestionale, landing page, ecommerce, software su misura, sito web professionale, integrazione API, tool AI",
+      hashtags: "#startupitalia, #businessitalia, #ecommerceitalia, #ai, #automazioni",
+      competitors: "web agency, software house, no-code agency, automazioni AI",
+      monitorUrls: "",
+      intentPhrases:
+        "cerco sviluppatore, quanto costa un sito, mi serve un'app, cerco qualcuno che mi faccia, voglio automatizzare, mi serve un gestionale, consigli software, non so da dove partire, preventivo sito, chatbot per azienda",
+      recencyMonths: "12",
+      minScore: "45",
+      limit: "60",
+      workspaceSeed: "programmazione-ai-italia",
+      cooldownHours: "24",
+      distributionMode: "balanced"
+    },
+    checks: { businessOnly: false, excludeBots: true, automationGuard: true },
+    sources: allRadarSourceValues
+  },
+  localBusiness: {
+    title: "Aziende locali che cercano clienti",
+    summary: "Trova attività locali, pagine contatto e directory utili per vendere siti, automazioni, CRM e acquisizione clienti.",
+    fields: {
+      niche: "attività locali acquisizione clienti sito web automazioni",
+      sector: "ristoranti centri estetici palestre studi professionali negozi",
+      country: "Italia",
+      city: "",
+      language: "it",
+      keywords: "sito vecchio, prenotazioni online, recensioni, gestione clienti, marketing locale, nuovi clienti, form contatto",
+      hashtags: "#businesslocale, #pmi, #marketinglocale, #imprenditori",
+      competitors: "agenzia marketing locale, web agency locale, consulente digital",
+      monitorUrls: "",
+      intentPhrases: "cerco clienti, vorrei più clienti, sito da rifare, gestione prenotazioni, preventivo sito, marketing locale",
+      recencyMonths: "12",
+      minScore: "50",
+      limit: "80",
+      workspaceSeed: "local-business-italia",
+      cooldownHours: "24",
+      distributionMode: "balanced"
+    },
+    checks: { businessOnly: true, excludeBots: true, automationGuard: true },
+    sources: ["Website", "Directory", "Reviews", "Facebook", "Instagram", "LinkedIn", "CRM/Import"]
+  },
+  networkers: {
+    title: "Networker che vogliono contatti",
+    summary: "Cerca networker, creator e venditori interessati a una piattaforma che trova prospect e organizza contatti.",
+    fields: {
+      niche: "network marketing lead generation prospect clienti contatti",
+      sector: "networker creator sales team consulenti",
+      country: "Italia",
+      city: "",
+      language: "it",
+      keywords: "cerco contatti, lead generation, prospect, network marketing, trovare clienti, automatizzare contatti, DM strategy",
+      hashtags: "#networkmarketing, #leadgeneration, #vendite, #businessonline",
+      competitors: "network marketing Italia, closer, lead generation tool",
+      monitorUrls: "",
+      intentPhrases: "cerco contatti, come trovare clienti, non riesco a trovare prospect, voglio automatizzare, mi servono lead",
+      recencyMonths: "12",
+      minScore: "45",
+      limit: "60",
+      workspaceSeed: "networker-italia",
+      cooldownHours: "24",
+      distributionMode: "freshness"
+    },
+    checks: { businessOnly: false, excludeBots: true, automationGuard: true },
+    sources: ["Instagram", "TikTok", "LinkedIn", "YouTube", "Reddit", "Telegram", "Forum", "CRM/Import"]
+  },
+  tradingEducation: {
+    title: "Trading / finanza educational",
+    summary: "Cerca segnali pubblici di interesse su formazione, prop firm, gestione community e strumenti trading senza promesse finanziarie.",
+    fields: {
+      niche: "trading educazione finanziaria prop firm community strumenti",
+      sector: "creator trader community educational",
+      country: "Italia",
+      city: "",
+      language: "it",
+      keywords: "come iniziare trading, prop firm, corso trading, community trading, XAUUSD, gestione rischio, backtest",
+      hashtags: "#tradingitalia, #propfirm, #forexitalia, #educazionefinanziaria",
+      competitors: "trading community, prop firm Italia, creator trading",
+      monitorUrls: "",
+      intentPhrases: "come iniziare, quale prop firm, cerco corso, non so da dove partire, consigli trading, community seria",
+      recencyMonths: "12",
+      minScore: "45",
+      limit: "60",
+      workspaceSeed: "trading-education-italia",
+      cooldownHours: "24",
+      distributionMode: "freshness"
+    },
+    checks: { businessOnly: false, excludeBots: true, automationGuard: true },
+    sources: ["YouTube", "Reddit", "Telegram", "Forum", "Instagram", "TikTok", "Twitter/X", "CRM/Import"]
+  }
+};
+
 function splitList(value = "") {
   return String(value)
     .split(/[\n,;|]+/)
@@ -2390,6 +2578,43 @@ function getRadarConfig(form = document.querySelector("#radarForm")) {
     excludeBots: data.get("excludeBots") === "on",
     automationGuard: data.get("automationGuard") === "on"
   };
+}
+
+function setRadarField(form, name, value) {
+  const field = form?.elements.namedItem(name);
+  if (!field) return;
+  field.value = value ?? "";
+}
+
+function renderRadarPresetSummary(key = document.querySelector("#radarPresetSelect")?.value || "programming") {
+  const summary = document.querySelector("#radarPresetSummary");
+  const preset = radarGuidedPresets[key] || radarGuidedPresets.programming;
+  if (!summary) return;
+  summary.innerHTML = `
+    <strong>${escapeHtml(preset.title)}</strong>
+    <p>${escapeHtml(preset.summary)}</p>
+    <span>Contatto social: manuale assistito · Web/email business: possibile solo con conferma e fonte tracciabile.</span>
+  `;
+}
+
+function applyRadarPreset(key = "programming", shouldRun = false) {
+  const form = document.querySelector("#radarForm");
+  const preset = radarGuidedPresets[key] || radarGuidedPresets.programming;
+  if (!form) return;
+  Object.entries(preset.fields).forEach(([name, value]) => setRadarField(form, name, value));
+  form.querySelectorAll('input[name="sources"]').forEach((input) => {
+    input.checked = preset.sources.includes(input.value);
+  });
+  Object.entries(preset.checks).forEach(([name, value]) => {
+    const field = form.elements.namedItem(name);
+    if (field) field.checked = Boolean(value);
+  });
+  renderRadarPresetSummary(key);
+  if (shouldRun) {
+    executeRadarSearch(getRadarConfig(form));
+    return;
+  }
+  setFeedback("#radarFeedback", `Preset "${preset.title}" applicato. Ora importa segnali reali o lancia il Radar.`);
 }
 
 function expandRadarKeywords(config = {}) {
@@ -2900,6 +3125,7 @@ function renderRadarDetail() {
 function renderRadar() {
   const root = document.querySelector('[data-page="radar"]');
   if (!root) return;
+  renderRadarPresetSummary();
   syncRadarSourceFilter();
   renderRadarStats();
   renderRadarMatrix();
@@ -2938,7 +3164,15 @@ function renderRadar() {
             `;
           })
           .join("")
-      : `<div class="system-list-item"><div><strong>Nessun prospect nel radar</strong><p>Importa segnali reali, collega una fonte o riduci i filtri.</p></div></div>`;
+      : `<div class="radar-empty-guide">
+          <strong>Nessun prospect ancora</strong>
+          <p>Il Radar non inventa contatti. Per testarlo davvero devi dargli una fonte: CSV, URL pubblici, commenti/API autorizzate o lead già nel CRM.</p>
+          <ol>
+            <li>Usa il preset in alto: <b>Clienti per programmazione</b>.</li>
+            <li>Importa segnali reali nel box a sinistra.</li>
+            <li>Premi <b>Lancia Radar 360</b>.</li>
+          </ol>
+        </div>`;
   }
 
   renderRadarDetail();
@@ -3144,20 +3378,20 @@ Object.assign(helpContent, {
   radarOverview: {
     title: "AI Social & Web Radar 360",
     intro: "Serve a trasformare segnali pubblici in prospect ordinati per qualità, senza fare DM automatici sui social.",
-    steps: ["Inserisci nicchia e area.", "Importa segnali reali o collega fonti.", "Lancia il radar.", "Usa Contatta in base al contact mode."],
-    example: "Per estetica Roma trova commenti, forum, directory e pagine contatto, poi separa social manuali da email/form business."
+    steps: ["Scegli un obiettivo dalla Modalità semplice.", "Premi Configura automatico.", "Importa segnali reali o collega fonti.", "Lancia il radar.", "Usa Contatta in base al contact mode."],
+    example: "Per programmazione cerca richieste tipo cerco sviluppatore, mi serve un sito, voglio automatizzare, poi separa social manuali da email/form business."
   },
   radarNiche: {
     title: "Nicchia",
     intro: "Il tema centrale dei clienti che vuoi trovare.",
     steps: ["Scrivi parole naturali.", "Non serve una singola keyword perfetta.", "Il radar espande il target con termini correlati."],
-    example: "centri estetici laser epilazione"
+    example: "sviluppo software, automazioni AI, siti web, app, bot"
   },
   radarSector: {
     title: "Settore",
     intro: "Aiuta il radar a capire il mercato e il tipo di prospect.",
     steps: ["Usa parole ampie.", "Esempi: local business, B2B, fitness, trading, creator.", "Serve a migliorare score e messaggi."],
-    example: "beauty local business"
+    example: "PMI, creator, ecommerce, aziende locali, startup"
   },
   radarCountry: {
     title: "Paese",
@@ -3181,19 +3415,19 @@ Object.assign(helpContent, {
     title: "Keyword e frasi",
     intro: "Sono segnali che il radar cerca nel testo pubblico.",
     steps: ["Inserisci termini di nicchia.", "Aggiungi frasi tipo prezzo/info/cerco.", "Non deve essere troppo stretto."],
-    example: "laser diodo, quanto costa, centro estetico Roma"
+    example: "cerco sviluppatore, quanto costa un sito, mi serve un'app"
   },
   radarHashtags: {
     title: "Hashtag",
     intro: "Servono soprattutto per segnali social pubblici.",
     steps: ["Usa hashtag della nicchia.", "Il cancelletto è opzionale.", "Più hashtag coerenti migliorano il match."],
-    example: "#epilazionelaser, #roma"
+    example: "#startupitalia, #businessitalia, #automazioni"
   },
   radarCompetitors: {
     title: "Competitor / creator",
     intro: "Pagine o persone da usare come contesto di ricerca.",
     steps: ["Inserisci @username, brand o creator.", "Il radar li usa come segnali, non come login.", "Serve per lookalike e fonti."],
-    example: "@centroestetico_roma"
+    example: "web agency, software house, creator AI"
   },
   radarUrls: {
     title: "URL da monitorare",
@@ -3361,6 +3595,20 @@ document.querySelector("#leadSort")?.addEventListener("change", renderLeads);
 document.querySelector("#radarForm")?.addEventListener("submit", (event) => {
   event.preventDefault();
   executeRadarSearch(getRadarConfig(event.currentTarget));
+});
+
+document.querySelector("#radarPresetSelect")?.addEventListener("change", (event) => {
+  renderRadarPresetSummary(event.target.value);
+});
+
+document.querySelector("#applyRadarPreset")?.addEventListener("click", () => {
+  const key = document.querySelector("#radarPresetSelect")?.value || "programming";
+  applyRadarPreset(key, false);
+});
+
+document.querySelector("#runRadarPreset")?.addEventListener("click", () => {
+  const key = document.querySelector("#radarPresetSelect")?.value || "programming";
+  applyRadarPreset(key, true);
 });
 
 document.querySelector("#importRadarSignals")?.addEventListener("click", () => {

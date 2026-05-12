@@ -2562,6 +2562,98 @@ body[data-theme="stripe"] .real-source-box > button {
   grid-area: detail;
 }
 
+.radar-guided-panel,
+.radar-howto-card,
+.radar-empty-guide {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(124, 77, 255, 0.08), rgba(31, 143, 255, 0.035)),
+    rgba(255, 255, 255, 0.028);
+}
+
+.radar-guided-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+}
+
+.radar-guided-panel span,
+.radar-preset-summary span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.radar-guided-panel h3 {
+  margin: 5px 0 0;
+  color: var(--text);
+  font-size: 17px;
+}
+
+.radar-guided-panel p,
+.radar-preset-summary p,
+.radar-howto-card li,
+.radar-empty-guide p,
+.radar-empty-guide li {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.radar-guided-panel p,
+.radar-preset-summary p {
+  margin: 7px 0 0;
+}
+
+.radar-guided-panel label {
+  display: grid;
+  gap: 7px;
+}
+
+.radar-preset-summary {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.12);
+  padding: 11px;
+}
+
+.radar-preset-summary strong,
+.radar-howto-card strong,
+.radar-empty-guide strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.radar-preset-summary span {
+  display: block;
+  margin-top: 9px;
+}
+
+.radar-guided-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+
+.radar-howto-card {
+  margin-top: 14px;
+  padding: 12px;
+}
+
+.radar-howto-card ol,
+.radar-empty-guide ol {
+  margin: 9px 0 0;
+  padding-left: 18px;
+}
+
+.radar-empty-guide {
+  padding: 18px;
+}
+
 .radar-form textarea,
 .radar-import-box textarea {
   min-height: 76px;
@@ -2626,6 +2718,7 @@ body[data-theme="stripe"] .real-source-box > button {
   height: 12px;
 }
 
+.radar-manual-fields,
 .radar-advanced {
   display: grid;
   gap: 10px;
@@ -2635,6 +2728,11 @@ body[data-theme="stripe"] .real-source-box > button {
   padding: 10px;
 }
 
+.radar-manual-fields {
+  margin-bottom: 10px;
+}
+
+.radar-manual-fields summary,
 .radar-advanced summary {
   color: var(--text);
   cursor: pointer;
@@ -2642,10 +2740,14 @@ body[data-theme="stripe"] .real-source-box > button {
   font-weight: 900;
 }
 
+.radar-manual-fields[open] summary,
 .radar-advanced[open] summary {
   margin-bottom: 10px;
 }
 
+.radar-manual-fields > label,
+.radar-manual-fields > div,
+.radar-manual-fields > details,
 .radar-advanced > label,
 .radar-advanced > div {
   margin-top: 10px;
@@ -2844,6 +2946,11 @@ body[data-theme="stripe"] .radar-row,
 body[data-theme="stripe"] .radar-matrix-row,
 body[data-theme="stripe"] .safety-check-grid span,
 body[data-theme="stripe"] .radar-source-group,
+body[data-theme="stripe"] .radar-guided-panel,
+body[data-theme="stripe"] .radar-preset-summary,
+body[data-theme="stripe"] .radar-howto-card,
+body[data-theme="stripe"] .radar-empty-guide,
+body[data-theme="stripe"] .radar-manual-fields,
 body[data-theme="stripe"] .radar-advanced {
   border-color: #d9e0ea;
   background: #ffffff;
@@ -2853,6 +2960,10 @@ body[data-theme="stripe"] .radar-advanced {
 body[data-theme="stripe"] .radar-row-main strong,
 body[data-theme="stripe"] .radar-matrix-row strong,
 body[data-theme="stripe"] .radar-source-group > strong,
+body[data-theme="stripe"] .radar-preset-summary strong,
+body[data-theme="stripe"] .radar-howto-card strong,
+body[data-theme="stripe"] .radar-empty-guide strong,
+body[data-theme="stripe"] .radar-manual-fields summary,
 body[data-theme="stripe"] .radar-advanced summary {
   color: #1e293b;
 }
@@ -3123,6 +3234,38 @@ body[data-theme="stripe"] .radar-message-preview textarea {
   display: block;
 }
 
+.dashboard-live-chart {
+  display: grid;
+  gap: 12px;
+}
+
+.dashboard-live-chart-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 12px 14px;
+}
+
+.dashboard-live-chart-head strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.dashboard-live-chart-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.dashboard-live-area-chart {
+  height: 280px;
+}
+
 .source-bars {
   width: 100%;
 }
@@ -3182,6 +3325,7 @@ body .dashboard-next-panel p {
 
 @media (max-width: 680px) {
   .dashboard-real-grid,
+  .radar-guided-actions,
   .source-bars span {
     grid-template-columns: 1fr;
   }
