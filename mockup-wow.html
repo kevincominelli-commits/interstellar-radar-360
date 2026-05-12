@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Interstellar Dashboard Mockup</title>
-    <link rel="stylesheet" href="mockup-wow.css?v=radar360-3" />
+    <link rel="stylesheet" href="mockup-wow.css?v=radar360-4" />
   </head>
   <body data-theme="stripe">
     <canvas id="starCanvas" aria-hidden="true"></canvas>
@@ -505,8 +505,8 @@
               <div class="radar-guided-panel">
                 <div>
                   <span>Modalità semplice</span>
-                  <h3>Parti da un obiettivo, il Radar prepara i filtri</h3>
-                  <p>Scegli cosa vuoi vendere. Il sistema compila target, segnali, fonti, score e sicurezza. Tu devi solo importare fonti reali o collegare API autorizzate.</p>
+                  <h3>Scegli cosa vendere, poi dagli fonti reali</h3>
+                  <p>Il Radar prepara filtri, score e sicurezza. Non inventa clienti: analizza dati che importi, URL pubblici, CSV o API autorizzate.</p>
                 </div>
                 <label>
                   <span>Obiettivo</span>
@@ -519,8 +519,9 @@
                 </label>
                 <div class="radar-preset-summary" id="radarPresetSummary"></div>
                 <div class="radar-guided-actions">
-                  <button type="button" id="applyRadarPreset">Configura automatico</button>
-                  <button type="button" class="ghost-button" id="runRadarPreset">Configura e lancia</button>
+                  <button type="button" id="applyRadarPreset">Preset automatico</button>
+                  <button type="button" id="runLiveOpenWebSearch">Cerca live</button>
+                  <button type="button" class="ghost-button" id="runRadarPreset">Analizza ora</button>
                 </div>
               </div>
 
@@ -659,15 +660,15 @@
                 </details>
                 </details>
 
-                <button type="submit">Lancia Radar 360 <span class="button-help" data-help="radarRun">?</span></button>
+                <button type="submit">Analizza dati importati <span class="button-help" data-help="radarRun">?</span></button>
               </form>
 
               <div class="radar-howto-card">
-                <strong>Come lo testi senza perderti</strong>
+                <strong>Ordine giusto</strong>
                 <ol>
-                  <li>Premi <b>Configura automatico</b>.</li>
+                  <li>Premi <b>Preset automatico</b>.</li>
                   <li>Apri una ricerca pronta, trova un segnale reale e incollalo sotto.</li>
-                  <li>Premi <b>Lancia Radar 360</b> e guarda Hot/Warm/Manual/Auto.</li>
+                  <li>Premi <b>Importa segnali reali</b>, poi <b>Analizza dati importati</b>.</li>
                 </ol>
               </div>
 
@@ -680,8 +681,8 @@
                   <span class="status-pill" id="radarProspectCount">0 prospect</span>
                 </div>
                 <div class="radar-source-starter">
-                  <strong>Non hai ancora dati? Parti da qui</strong>
-                  <p>Apri una ricerca, trova una richiesta reale, poi incollala nel formato semplice sotto.</p>
+                  <strong>Trova fonti pubbliche</strong>
+                  <p>Questi pulsanti aprono ricerche utili. Copia richieste reali trovate online e incollale sotto.</p>
                   <div class="button-row">
                     <button type="button" class="ghost-button" data-radar-open-search="programmingRequests">Richieste software</button>
                     <button type="button" class="ghost-button" data-radar-open-search="forumRequests">Forum / Reddit</button>
@@ -700,7 +701,7 @@
             <article class="panel system-card radar-results-card">
               <div class="panel-head">
                 <div>
-                  <span>Radar results</span>
+                  <span>Risultati Radar</span>
                   <h2>Prospect ordinati per qualità</h2>
                 </div>
                 <div class="panel-actions">
@@ -747,7 +748,7 @@
             <article class="panel system-card radar-detail-card">
               <div class="panel-head compact-head">
                 <div>
-                  <span>Prospect detail</span>
+                  <span>Dettaglio prospect</span>
                   <h2>Motivo, contatto e log</h2>
                 </div>
               </div>
@@ -965,6 +966,6 @@
       </main>
     </div>
 
-    <script src="mockup-wow.js?v=radar360-3"></script>
+    <script src="mockup-wow.js?v=radar360-4"></script>
   </body>
 </html>

@@ -913,6 +913,7 @@ saveWorkspace();
 
 function navigateTo(page) {
   activePage = page;
+  document.body.dataset.activePage = page;
   document.querySelectorAll("[data-nav]").forEach((button) => {
     button.classList.toggle("active", button.dataset.nav === page);
   });
@@ -3337,6 +3338,12 @@ function importRadarSignalsFromText(text) {
       });
     });
 
+  const fresh = addRadarProspects(prospects);
+  return fresh.length;
+}
+
+function addRadarProspects(prospects = []) {
+  const normalizedProspects = prospects.map((prospect) => normalizeRadarProspect(prospect));
   const knownKeys = new Set(
     workspace.radarProspects.map((prospect) =>
       [prospect.platform, prospect.username_public, prospect.business_name, prospect.source_url, prospect.relevant_text.slice(0, 60)]
@@ -3344,7 +3351,7 @@ function importRadarSignalsFromText(text) {
         .toLowerCase()
     )
   );
-  const fresh = prospects.filter((prospect) => {
+  const fresh = normalizedProspects.filter((prospect) => {
     const key = [prospect.platform, prospect.username_public, prospect.business_name, prospect.source_url, prospect.relevant_text.slice(0, 60)]
       .join("|")
       .toLowerCase();
@@ -3356,7 +3363,7 @@ function importRadarSignalsFromText(text) {
   selectedRadarId = fresh[0]?.lead_id || selectedRadarId;
   saveWorkspace();
   renderAll();
-  return fresh.length;
+  return fresh;
 }
 
 function exportRadarCsv() {
@@ -3426,6 +3433,55 @@ async function copyRadarSimpleTemplate() {
   const textarea = document.querySelector("#radarImportText");
   if (textarea && !textarea.value.trim()) textarea.value = template;
   setFeedback("#radarFeedback", copied ? "Formato copiato. Sostituisci le righe esempio con dati reali trovati." : "Formato inserito nel box. Sostituiscilo con dati reali trovati.");
+}
+
+function radarApiBaseUrl() {
+  if (window.location.protocol === "file:") return "https://interstellar-radar-360.vercel.app";
+  return window.location.origin;
+}
+
+async function runLiveOpenWebSearch() {
+  const button = document.querySelector("#runLiveOpenWebSearch");
+  const config = getRadarConfig();
+  const params = new URLSearchParams({
+    niche: config.niche,
+    country: config.country,
+    city: config.city,
+    language: config.language,
+    keywords: [...config.keywords, ...config.intentPhrases].join(", "),
+    limit: String(config.limit || 30)
+  });
+  const previousText = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = "Cerco fonti live...";
+  }
+  setFeedback("#radarFeedback", "Ricerca live in corso su fonti pubbliche open web. Non usa login social e non invia messaggi.");
+  try {
+    const response = await fetch(`${radarApiBaseUrl()}/api/radar-search?${params.toString()}`);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload.error || "Ricerca live non disponibile.");
+    }
+    const fresh = addRadarProspects(payload.prospects || []);
+    executeRadarSearch(getRadarConfig());
+    setFeedback(
+      "#radarFeedback",
+      fresh.length
+        ? `${fresh.length} prospect live importati da ${payload.providers?.join(", ") || "fonti pubbliche"}.`
+        : "Ricerca live completata, ma nessun nuovo prospect diverso da quelli già salvati."
+    );
+  } catch (error) {
+    setFeedback(
+      "#radarFeedback",
+      `Ricerca live non riuscita: ${error.message}. Usa i pulsanti di ricerca pubblica o configura il backend/API.`
+    );
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = previousText;
+    }
+  }
 }
 
 Object.assign(helpContent, {
@@ -3663,6 +3719,10 @@ document.querySelector("#applyRadarPreset")?.addEventListener("click", () => {
 document.querySelector("#runRadarPreset")?.addEventListener("click", () => {
   const key = document.querySelector("#radarPresetSelect")?.value || "programming";
   applyRadarPreset(key, true);
+});
+
+document.querySelector("#runLiveOpenWebSearch")?.addEventListener("click", () => {
+  runLiveOpenWebSearch();
 });
 
 document.querySelectorAll("[data-radar-open-search]").forEach((button) => {
@@ -3953,4 +4013,6 @@ document.querySelector("#resetWorkspaceData")?.addEventListener("click", () => {
   document.querySelector("#settingsFeedback").textContent = "Workspace operativo svuotato.";
 });
 
+document.body.dataset.activePage = activePage;
+document.querySelector(".radar-manual-fields")?.removeAttribute("open");
 renderAll();
