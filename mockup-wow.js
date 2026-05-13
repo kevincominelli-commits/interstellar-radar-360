@@ -4496,9 +4496,11 @@ function radarSearchQuery(kind) {
   const country = config.country || "Italia";
   const city = config.city ? ` ${config.city}` : "";
   const queries = {
-    programmingRequests: `"cerco sviluppatore" OR "mi serve un sito" OR "voglio creare un'app" ${country}${city}`,
-    forumRequests: `site:reddit.com OR site:forumfree.it "cerco sviluppatore" OR "quanto costa un sito" ${country}`,
-    businessWeb: `"sito in costruzione" OR "pagina contatti" "azienda" "preventivo sito" ${country}${city}`
+    programmingRequests: `"cerco sviluppatore" OR "mi serve un sito" OR "voglio creare un'app" OR "preventivo sito" ${country}${city}`,
+    forumRequests: `("cerco sviluppatore" OR "quanto costa un sito" OR "mi serve un gestionale") (forum OR reddit OR community) ${country}${city}`,
+    businessWeb: `("sito in costruzione" OR "pagina contatti" OR "richiedi preventivo") "azienda" ${country}${city}`,
+    stackRequests: `("how to build a website" OR "need a developer" OR "website quote" OR "custom software")`,
+    blogRequests: `("cerco sviluppatore" OR "voglio automatizzare" OR "software su misura" OR "chatbot azienda") ${country}${city}`
   };
   return queries[kind] || queries.programmingRequests;
 }
@@ -4525,7 +4527,15 @@ async function copyRadarSimpleTemplate() {
 }
 
 function radarApiBaseUrl() {
-  if (window.location.protocol === "file:") return "https://interstellar-radar-360.vercel.app";
+  const host = window.location.hostname;
+  if (
+    window.location.protocol === "file:" ||
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "::1"
+  ) {
+    return "https://interstellar-radar-360.vercel.app";
+  }
   return window.location.origin;
 }
 
@@ -4538,6 +4548,9 @@ async function runLiveOpenWebSearch() {
     city: config.city,
     language: config.language,
     keywords: [...config.keywords, ...config.intentPhrases].join(", "),
+    sources: config.sources.join(","),
+    monitorUrls: config.monitorUrls.join(","),
+    recencyMonths: String(config.recencyMonths || 12),
     limit: String(config.limit || 30)
   });
   const previousText = button?.textContent || "";
@@ -4554,11 +4567,15 @@ async function runLiveOpenWebSearch() {
     }
     const fresh = addRadarProspects(payload.prospects || []);
     executeRadarSearch(getRadarConfig());
+    const providerSummary = (payload.provider_status || [])
+      .filter((provider) => provider.status === "fulfilled")
+      .map((provider) => `${provider.name} ${provider.count}`)
+      .join(" · ");
     setFeedback(
       "#radarFeedback",
       fresh.length
-        ? `${fresh.length} prospect live importati da ${payload.providers?.join(", ") || "fonti pubbliche"}.`
-        : "Ricerca live completata, ma nessun nuovo prospect diverso da quelli già salvati."
+        ? `${fresh.length} prospect live importati. Fonti: ${providerSummary || payload.providers?.join(", ") || "fonti pubbliche"}.`
+        : `Ricerca live completata, ma nessun nuovo prospect diverso da quelli già salvati. Fonti controllate: ${providerSummary || "nessuna fonte utile"}.`
     );
   } catch (error) {
     setFeedback(

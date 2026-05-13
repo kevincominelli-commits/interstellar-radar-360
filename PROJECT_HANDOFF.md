@@ -56,7 +56,11 @@ La piattaforma si chiama **Interstellar Radar 360**.
 - Ricerca live tramite API interna su fonti aperte disponibili:
   - Reddit pubblico
   - Hacker News Algolia
+  - Stack Exchange / Q&A pubblici
+  - DEV Community
+  - WordPress.com public search
   - GitHub Issues
+  - URL diretti inseriti dall'utente
 - Import CSV/manuale.
 - Scoring AI-like dei prospect.
 - Distinzione tra contatto manuale assistito e automazione possibile.
@@ -122,6 +126,9 @@ Sempre con:
 - Aggiunto Campaign Launcher collegato alle offerte: una proposta puo creare una campagna con piano operativo e canale coerente, senza invii automatici social.
 - Aggiunto Appointment Manager nella sezione Automations: le call proposte vengono salvate, si copia la conferma e si puo aprire un invito Google Calendar.
 - Aggiornata cache asset a `radar360-9`.
+- Esteso il backend Radar live oltre GitHub/Reddit: aggiunti Stack Exchange, DEV, WordPress public search e analisi URL diretti, con filtro sugli ultimi mesi e provider status.
+- Sistemata ricerca live in locale: se la pagina e aperta con `file://`, `localhost` o `127.0.0.1`, usa comunque l'API online Vercel invece di chiamare il server statico locale.
+- Aggiornata cache asset a `radar360-10`.
 
 ## Regola operativa per il PDF completo
 

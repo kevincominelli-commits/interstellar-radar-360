@@ -1,4 +1,45 @@
 const DEFAULT_LIMIT = 30;
+const MAX_PROVIDER_RESULTS = 10;
+const DEFAULT_RECENCY_MONTHS = 12;
+
+const providerSourceMap = {
+  reddit: ["Reddit", "Forum"],
+  hackerNews: ["Forum", "Website", "Blog"],
+  stackExchange: ["Forum", "Website", "Blog"],
+  devTo: ["Blog", "Website", "Forum"],
+  wordpress: ["Blog", "Website"],
+  github: ["Forum", "Website"],
+  directUrls: ["Website", "Blog", "Directory", "Reviews", "CRM/Import"]
+};
+
+const italianSignals = [
+  "cerco sviluppatore",
+  "mi serve un sito",
+  "quanto costa un sito",
+  "preventivo sito",
+  "voglio creare un'app",
+  "mi serve un gestionale",
+  "voglio automatizzare",
+  "cerco qualcuno che mi faccia",
+  "aiuto sito wordpress",
+  "problema sito ecommerce",
+  "non funziona il mio sito",
+  "software gestionale azienda",
+  "chatbot per azienda",
+  "software su misura"
+];
+
+const englishSignals = [
+  "looking for a developer",
+  "need a website developer",
+  "hire web developer",
+  "need app developer",
+  "build a custom software",
+  "automation developer",
+  "chatbot for my business",
+  "website quote",
+  "software for my business"
+];
 
 function asText(value = "") {
   return String(value || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -11,15 +52,100 @@ function compact(value = "", max = 520) {
 
 function inferIntent(text = "") {
   const lower = text.toLowerCase();
-  if (/quanto costa|prezzo|preventivo|budget|costo/.test(lower)) return "prezzo / preventivo";
-  if (/cerco|mi serve|sto cercando|looking for|need (a|an)|hire/.test(lower)) return "ricerca servizio";
-  if (/non riesco|problema|aiuto|bloccato|help/.test(lower)) return "problema espresso";
-  if (/app|sito|website|software|automazione|chatbot|gestionale|bot/.test(lower)) return "sviluppo / automazione";
+  if (/quanto costa|prezzo|preventivo|budget|costo|quote|pricing|price/.test(lower)) return "prezzo / preventivo";
+  if (/cerco|mi serve|sto cercando|looking for|need (a|an)|hire|someone to build|developer needed|freelancer/.test(lower)) return "ricerca servizio";
+  if (/non riesco|problema|aiuto|bloccato|help|issue|stuck|can't/.test(lower)) return "problema espresso";
+  if (/app|sito|website|software|automazione|automation|chatbot|gestionale|bot|crm|landing|ecommerce|shopify|wordpress/.test(lower)) return "sviluppo / automazione";
   return "interesse potenziale";
+}
+
+function hasClientIntent(text = "") {
+  return /quanto costa|prezzo|preventivo|budget|cerco|mi serve|sto cercando|looking for|need (a|an)|hire|someone to build|developer needed|freelancer|for my business|my website|my app|non riesco|problema|aiuto|bloccato|stuck|can't|help/i.test(
+    text
+  );
+}
+
+function hasDevelopmentTerm(text = "") {
+  return /sviluppatore|programmatore|sito|app\b|applicazione|software|automazione|chatbot|gestionale|bot\b|crm\b|landing|ecommerce|shopify|wordpress|api\b|web developer|website|app developer|custom software|automation|developer|freelancer/i.test(
+    text
+  );
+}
+
+function hasServiceBuyingIntent(text = "") {
+  return /cerco (uno |una |un |qualcuno |)(sviluppatore|programmatore|freelancer|web agency|software house)|mi serve (un |una |)(sito|app|applicazione|gestionale|software|bot|chatbot|automazione)|voglio creare (un |una |)(sito|app|software|bot|chatbot|gestionale)|quanto costa (un |una |)(sito|app|software|bot|chatbot|gestionale)|preventivo (sito|app|software|bot|chatbot|gestionale)|qualcuno che (mi |)(faccia|sviluppi|crei).*(sito|app|software|bot|chatbot|gestionale)|looking for (a |an |)(developer|freelancer|agency)|need (a |an |)(website|app|developer|software|automation|chatbot)|hire (a |an |)(developer|freelancer|agency)|someone to build/i.test(
+    text
+  );
+}
+
+function hasOwnedProjectProblem(text = "") {
+  return /(il mio|la mia|per la mia|per il mio|my|for my).{0,30}(sito|app|website|software|store|ecommerce|shop|crm|bot|chatbot|gestionale|business|azienda)|errore.{0,40}(sito|app|website|wordpress|shopify)|non funziona.{0,40}(sito|app|website|wordpress|shopify)/i.test(
+    text
+  );
+}
+
+function isCareerOrNoise(text = "") {
+  return /junior|senior|carriera|stipendio|ral\b|colloquio|assunzione|lavoro come|lavorare come|laurea|stage|curriculum|\bcv\b|portfolio personale|amici|conoscere qualcuno|dating|revshare|revenue share|cerca tester|cerco tester/i.test(
+    text
+  );
+}
+
+function isProgrammingSearch(config = {}) {
+  return hasDevelopmentTerm(`${config.q} ${config.niche} ${config.keywords}`);
+}
+
+function isUsefulProspectForSearch(prospect = {}, config = {}) {
+  if (!isProgrammingSearch(config)) return true;
+  const text = `${prospect.source_item || ""} ${prospect.relevant_text || ""} ${prospect.bio_public || ""} ${prospect.source_type || ""}`;
+  if (/revshare|revenue share/i.test(text)) return false;
+  if ((prospect.email_business_public || prospect.contact_form_url) && /business|website|directory|contact|direct_url/i.test(prospect.source_type || "")) {
+    return true;
+  }
+  const strongBuyingIntent = hasServiceBuyingIntent(text) || hasOwnedProjectProblem(text);
+  if (isCareerOrNoise(text) && !strongBuyingIntent) return false;
+  return strongBuyingIntent || (hasClientIntent(text) && hasDevelopmentTerm(text) && /azienda|business|progetto|project|cliente|client|shop|store|ecommerce|startup/i.test(text));
+}
+
+function inferLanguage(text = "", fallback = "it") {
+  const lower = text.toLowerCase();
+  if (/[àèéìòù]|\b(cerco|quanto|sito|sviluppatore|preventivo|azienda|gestionale)\b/.test(lower)) return "it";
+  if (/\b(need|looking|hire|website|developer|business|software|automation)\b/.test(lower)) return "en";
+  return fallback === "any" ? "en" : fallback;
 }
 
 function isoFromUnix(seconds) {
   return seconds ? new Date(seconds * 1000).toISOString() : new Date().toISOString();
+}
+
+function monthsSince(value) {
+  const time = Date.parse(value || "");
+  if (!Number.isFinite(time)) return 0;
+  return Math.max(0, (Date.now() - time) / (1000 * 60 * 60 * 24 * 30.44));
+}
+
+function decodeHtml(value = "") {
+  return String(value || "")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
+}
+
+function extractEmails(text = "") {
+  const emails = String(text || "").match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) || [];
+  return [...new Set(emails)].slice(0, 5);
+}
+
+function firstBusinessEmail(text = "") {
+  return (
+    extractEmails(text).find(
+      (email) =>
+        !/(gmail|hotmail|outlook|icloud|yahoo|libero|virgilio|proton|mail\.com)\./i.test(email) &&
+        !/@(example|test|invalid|localhost|mare\.aperto)\./i.test(email) &&
+        !/\.(blabla|local)$/i.test(email)
+    ) ||
+    ""
+  );
 }
 
 function json(res, status, body) {
@@ -38,14 +164,37 @@ function getQuery(req) {
   const keywords = params.get("keywords") || "";
   const country = params.get("country") || "Italia";
   const city = params.get("city") || "";
+  const language = params.get("language") || "it";
+  const sources = (params.get("sources") || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const monitorUrls = (params.get("monitorUrls") || "")
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter((item) => /^https?:\/\//i.test(item))
+    .slice(0, 12);
+  const recencyMonths = Math.max(1, Math.min(60, Number(params.get("recencyMonths") || DEFAULT_RECENCY_MONTHS)));
   const limit = Math.max(5, Math.min(80, Number(params.get("limit") || DEFAULT_LIMIT)));
   const base = [niche, keywords, country, city].filter(Boolean).join(" ");
   return {
     q: compact(base, 180),
+    niche,
+    keywords,
     country,
     city,
+    language,
+    sources,
+    monitorUrls,
+    recencyMonths,
     limit
   };
+}
+
+function providerEnabled(config, providerKey) {
+  if (!config.sources.length) return true;
+  const values = providerSourceMap[providerKey] || [];
+  return values.some((value) => config.sources.includes(value));
 }
 
 async function fetchJson(url, options = {}) {
@@ -62,14 +211,15 @@ async function fetchJson(url, options = {}) {
 }
 
 function liveQueries(config) {
-  return [
-    config.q,
-    "need a website developer",
-    "looking for web developer",
-    "hire developer website app",
-    "need app developer",
-    "automation chatbot developer"
-  ].filter(Boolean);
+  const city = config.city ? ` ${config.city}` : "";
+  const country = config.country ? ` ${config.country}` : "";
+  const signals = config.language === "en" ? englishSignals : config.language === "any" ? [...italianSignals, ...englishSignals] : italianSignals;
+  const custom = String(config.keywords || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+  return [...new Set([config.q, ...custom, ...signals.map((signal) => `${signal}${country}${city}`)])].filter(Boolean).slice(0, 16);
 }
 
 async function searchReddit(config) {
@@ -137,6 +287,123 @@ async function searchHackerNews(config) {
   );
 }
 
+async function searchStackExchange(config) {
+  const sites = ["stackoverflow", "webmasters", "wordpress", "webapps", "softwarerecs", "softwareengineering"];
+  const queries = liveQueries(config).slice(0, 5);
+  const jobs = [];
+  for (const site of sites) {
+    for (const query of queries) {
+      jobs.push(
+        fetchJson(
+          `https://api.stackexchange.com/2.3/search/advanced?order=desc&sort=creation&q=${encodeURIComponent(query)}&site=${encodeURIComponent(site)}&pagesize=${Math.min(MAX_PROVIDER_RESULTS, 5)}&filter=default`
+        )
+      );
+    }
+  }
+  const settled = await Promise.allSettled(jobs);
+  return settled.flatMap((result) =>
+    result.status === "fulfilled"
+      ? (result.value.items || []).map((item) => {
+          const text = decodeHtml(compact(`${item.title || ""}. ${(item.tags || []).join(", ")}`));
+          return {
+            platform: "Forum",
+            source_type: "q_and_a_public_signal",
+            username_public: item.owner?.display_name ? `@${asText(decodeHtml(item.owner.display_name)).replace(/\s+/g, "_")}` : "",
+            public_name: asText(decodeHtml(item.owner?.display_name || "")),
+            profile_link: item.owner?.link || "",
+            source_url: item.link,
+            source_page: "Stack Exchange",
+            source_item: decodeHtml(item.title || ""),
+            relevant_text: text,
+            city: config.city,
+            country: config.country,
+            estimated_language: inferLanguage(text, config.language),
+            detected_intent: inferIntent(text),
+            interactions_detected: Number(item.answer_count || 0) + Number(item.view_count || 0) + Number(item.score || 0),
+            last_interaction: isoFromUnix(item.creation_date || item.last_activity_date),
+            provider_source: "Stack Exchange public API",
+            source_reliability: 66
+          };
+        })
+      : []
+  );
+}
+
+async function searchDevTo(config) {
+  const tags = ["help", "discuss", "webdev", "wordpress", "startup", "productivity"];
+  const settled = await Promise.allSettled(
+    tags.map((tag) => fetchJson(`https://dev.to/api/articles?tag=${encodeURIComponent(tag)}&per_page=${Math.min(MAX_PROVIDER_RESULTS, 8)}&top=7`))
+  );
+  const keywords = liveQueries(config).join(" ").toLowerCase();
+  return settled.flatMap((result) =>
+    result.status === "fulfilled"
+      ? (result.value || [])
+          .map((article) => {
+            const text = compact(`${article.title || ""}. ${article.description || ""}`);
+            return {
+              platform: "Blog",
+              source_type: "blog_public_signal",
+              username_public: article.user?.username ? `@${article.user.username}` : "",
+              public_name: article.user?.name || article.user?.username || "",
+              profile_link: article.user?.username ? `https://dev.to/${article.user.username}` : "",
+              source_url: article.url,
+              source_page: "DEV Community",
+              source_item: article.title || "",
+              relevant_text: text,
+              city: config.city,
+              country: config.country,
+              estimated_language: article.language || inferLanguage(text, config.language),
+              detected_intent: inferIntent(text),
+              interactions_detected: Number(article.comments_count || 0) + Number(article.public_reactions_count || 0),
+              last_interaction: article.published_timestamp || new Date().toISOString(),
+              provider_source: "DEV public API",
+              source_reliability: keywords.split(/\s+/).some((word) => word.length > 4 && text.toLowerCase().includes(word)) ? 63 : 50
+            };
+          })
+          .filter((prospect) => inferIntent(prospect.relevant_text) !== "interesse potenziale" || prospect.source_reliability >= 60)
+          .filter((prospect) => hasClientIntent(prospect.relevant_text) || prospect.source_reliability >= 60)
+      : []
+  );
+}
+
+async function searchWordPress(config) {
+  const settled = await Promise.allSettled(
+    liveQueries(config)
+      .slice(0, 8)
+      .map((query) =>
+        fetchJson(`https://public-api.wordpress.com/rest/v1.1/read/search?q=${encodeURIComponent(query)}&number=${Math.min(MAX_PROVIDER_RESULTS, 6)}`)
+      )
+  );
+  return settled.flatMap((result) =>
+    result.status === "fulfilled"
+      ? (result.value.posts || []).map((post) => {
+          const text = compact(`${post.title || ""}. ${post.excerpt || post.content || ""}`);
+          return {
+            platform: "Blog",
+            source_type: "blog_public_signal",
+            username_public: post.author?.login ? `@${post.author.login}` : "",
+            public_name: post.author?.name || post.author?.login || "",
+            profile_link: post.author?.profile_URL || "",
+            website: post.site_URL || "",
+            email_business_public: firstBusinessEmail(`${post.content || ""} ${post.excerpt || ""}`),
+            source_url: post.URL || post.short_URL,
+            source_page: post.site_name || "WordPress.com",
+            source_item: asText(post.title || ""),
+            relevant_text: text,
+            city: config.city,
+            country: config.country,
+            estimated_language: inferLanguage(text, config.language),
+            detected_intent: inferIntent(text),
+            interactions_detected: Number(post.like_count || 0) + Number(post.comment_count || 0),
+            last_interaction: post.date || post.modified || new Date().toISOString(),
+            provider_source: "WordPress.com public search",
+            source_reliability: 58
+          };
+        }).filter((prospect) => hasClientIntent(prospect.relevant_text) || prospect.email_business_public)
+      : []
+  );
+}
+
 async function searchGitHubIssues(config) {
   const settled = await Promise.allSettled(
     liveQueries(config).map((query) =>
@@ -167,10 +434,57 @@ async function searchGitHubIssues(config) {
       interactions_detected: Number(item.comments || 0),
       last_interaction: item.created_at || new Date().toISOString(),
       provider_source: "GitHub public search API",
-      source_reliability: 64
+      source_reliability: 52
     };
   }) : []
   );
+}
+
+async function searchDirectUrls(config) {
+  const settled = await Promise.allSettled(
+    config.monitorUrls.map(async (url) => {
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "InterstellarRadar360/1.0",
+          Accept: "text/html,application/xhtml+xml,text/plain;q=0.8,*/*;q=0.5"
+        }
+      });
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      const html = await response.text();
+      const title = asText(decodeHtml((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || url));
+      const description = asText(
+        decodeHtml(
+          (html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) || [])[1] ||
+            (html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i) || [])[1] ||
+            ""
+        )
+      );
+      const bodyText = compact(html, 700);
+      const email = firstBusinessEmail(html);
+      const hasForm = /<form[\s\S]+?(contact|email|message|richiesta|preventivo)/i.test(html) || /contatti|contact|preventivo/i.test(url);
+      return {
+        platform: "Website",
+        source_type: hasForm || email ? "business_website_public_contact" : "direct_url_public_signal",
+        business_name: title,
+        website: url,
+        email_business_public: email,
+        contact_form_url: hasForm ? url : "",
+        source_url: url,
+        source_page: title,
+        source_item: title,
+        relevant_text: compact(`${title}. ${description}. ${bodyText}`, 520),
+        city: config.city,
+        country: config.country,
+        estimated_language: inferLanguage(`${title} ${description} ${bodyText}`, config.language),
+        detected_intent: email || hasForm ? "contatto business pubblico" : inferIntent(`${title} ${description}`),
+        interactions_detected: email || hasForm ? 12 : 1,
+        last_interaction: new Date().toISOString(),
+        provider_source: "Direct URL analyzer",
+        source_reliability: email || hasForm ? 76 : 62
+      };
+    })
+  );
+  return settled.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
 }
 
 module.exports = async function handler(req, res) {
@@ -178,11 +492,28 @@ module.exports = async function handler(req, res) {
   if (req.method !== "GET") return json(res, 405, { error: "Method not allowed" });
 
   const config = getQuery(req);
-  const settled = await Promise.allSettled([searchReddit(config), searchHackerNews(config), searchGitHubIssues(config)]);
-  const providers = ["Reddit", "Hacker News", "GitHub"].filter((_, index) => settled[index].status === "fulfilled");
+  const providerJobs = [
+    ["Reddit", "reddit", searchReddit],
+    ["Hacker News", "hackerNews", searchHackerNews],
+    ["Stack Exchange", "stackExchange", searchStackExchange],
+    ["DEV", "devTo", searchDevTo],
+    ["WordPress", "wordpress", searchWordPress],
+    ["GitHub", "github", searchGitHubIssues],
+    ["Direct URL", "directUrls", searchDirectUrls]
+  ].filter(([, key]) => providerEnabled(config, key) && (key !== "directUrls" || config.monitorUrls.length));
+  const settled = await Promise.allSettled(providerJobs.map(([, , fn]) => fn(config)));
+  const providers = providerJobs.filter((_, index) => settled[index].status === "fulfilled").map(([name]) => name);
+  const provider_status = providerJobs.map(([name], index) => ({
+    name,
+    status: settled[index].status,
+    count: settled[index].status === "fulfilled" ? settled[index].value.length : 0,
+    error: settled[index].status === "rejected" ? settled[index].reason?.message || "provider failed" : ""
+  }));
   const prospects = settled
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
-    .filter((prospect) => prospect.source_url && prospect.relevant_text);
+    .filter((prospect) => prospect.source_url && prospect.relevant_text)
+    .filter((prospect) => monthsSince(prospect.last_interaction) <= config.recencyMonths)
+    .filter((prospect) => isUsefulProspectForSearch(prospect, config));
 
   const seen = new Set();
   const unique = prospects
@@ -198,6 +529,7 @@ module.exports = async function handler(req, res) {
     generated_at: new Date().toISOString(),
     query: config.q,
     providers,
+    provider_status,
     prospects: unique
   });
 };

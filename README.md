@@ -46,7 +46,7 @@ npm run check
 - `mockup-wow.html`: struttura app.
 - `mockup-wow.css`: grafica, layout, temi.
 - `mockup-wow.js`: logica dashboard, Radar 360, CRM, localStorage.
-- `api/radar-search.js`: ricerca live su fonti open web supportate.
+- `api/radar-search.js`: ricerca live su fonti open web supportate: Reddit, Q&A, DEV, WordPress, GitHub tecnico e URL diretti.
 - `vercel.json`: configurazione deploy.
 
 ## Regola prodotto fondamentale
