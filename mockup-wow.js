@@ -3637,9 +3637,11 @@ function estimateRadarCreditsFromFunnel(funnel = {}, config = {}) {
   };
 }
 
-function buildRadarPipeline(config = getRadarConfig()) {
+function buildRadarPipeline(config = getRadarConfig(), candidateIds) {
   const profile = radarModeProfile(config);
-  const raw = allRadarProspects().map((prospect) => createRadarScoredProspect(prospect, config));
+  const candidateSet = Array.isArray(candidateIds) ? new Set(candidateIds) : null;
+  const sourceProspects = candidateSet ? allRadarProspects().filter((prospect) => candidateSet.has(prospect.lead_id)) : allRadarProspects();
+  const raw = sourceProspects.map((prospect) => createRadarScoredProspect(prospect, config));
   const cleaned = raw.filter((prospect) => radarHasUsefulText(prospect) && (!config.excludeBots || !radarNoiseDetected(prospect)));
   const preFiltered = cleaned.filter((prospect) => radarHasBuyingSignal(prospect, config));
   const semantic = preFiltered.filter((prospect) => radarSemanticFit(prospect, config));
@@ -3877,10 +3879,10 @@ function radarDistributionRank(prospect, config = {}) {
   return prospect.score_ai + randomOffset + Math.round(recencyBoost) + automationBalance - cooldownPenalty;
 }
 
-function executeRadarSearch(config = getRadarConfig()) {
+function executeRadarSearch(config = getRadarConfig(), candidateIds) {
   if (!canUsePlanFeature("radar_search", "#radarFeedback")) return;
   const now = Date.now();
-  const { results, funnel, estimate } = buildRadarPipeline(config);
+  const { results, funnel, estimate } = buildRadarPipeline(config, candidateIds);
   if (estimate.total > Number(workspace.credits.balance || 0)) {
     workspace.radar.lastFunnel = funnel;
     workspace.radar.lastCreditEstimate = estimate;
@@ -4751,19 +4753,17 @@ function importRadarSignalsFromText(text) {
   return fresh.length;
 }
 
+function radarProspectIdentity(prospect = {}) {
+  return [prospect.platform, prospect.username_public, prospect.business_name, prospect.source_url, String(prospect.relevant_text || "").slice(0, 60)]
+    .join("|")
+    .toLowerCase();
+}
+
 function addRadarProspects(prospects = []) {
   const normalizedProspects = prospects.map((prospect) => normalizeRadarProspect(prospect));
-  const knownKeys = new Set(
-    workspace.radarProspects.map((prospect) =>
-      [prospect.platform, prospect.username_public, prospect.business_name, prospect.source_url, prospect.relevant_text.slice(0, 60)]
-        .join("|")
-        .toLowerCase()
-    )
-  );
+  const knownKeys = new Set(workspace.radarProspects.map(radarProspectIdentity));
   const fresh = normalizedProspects.filter((prospect) => {
-    const key = [prospect.platform, prospect.username_public, prospect.business_name, prospect.source_url, prospect.relevant_text.slice(0, 60)]
-      .join("|")
-      .toLowerCase();
+    const key = radarProspectIdentity(prospect);
     if (knownKeys.has(key)) return false;
     knownKeys.add(key);
     return true;
@@ -4774,6 +4774,17 @@ function addRadarProspects(prospects = []) {
   saveWorkspace();
   renderAll();
   return fresh;
+}
+
+function radarIdsForImportedProspects(prospects = []) {
+  const normalized = prospects.map((prospect) => normalizeRadarProspect(prospect));
+  const ids = normalized
+    .map((prospect) => {
+      const key = radarProspectIdentity(prospect);
+      return workspace.radarProspects.find((stored) => radarProspectIdentity(stored) === key)?.lead_id || "";
+    })
+    .filter(Boolean);
+  return [...new Set(ids)];
 }
 
 function exportRadarCsv() {
@@ -4895,7 +4906,9 @@ async function runLiveOpenWebSearch() {
       fallback_relaxed: Boolean(payload.fallback_relaxed)
     });
     const fresh = addRadarProspects(payload.prospects || []);
-    executeRadarSearch(getRadarConfig());
+    const liveResultIds = radarIdsForImportedProspects(payload.prospects || []);
+    activeRadarTab = "all";
+    executeRadarSearch(getRadarConfig(), liveResultIds);
     const providerSummary = (payload.provider_status || [])
       .filter((provider) => provider.status === "fulfilled")
       .map((provider) => `${provider.name} ${provider.count}`)

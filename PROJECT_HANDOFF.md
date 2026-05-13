@@ -140,6 +140,8 @@ Sempre con:
 - Integrato provider Serper nel backend Radar: usa `SERPER_API_KEY` da Vercel, massimo 6 query mirate per ricerca, `gl=it`/`hl=it` in modalita Italia, parsing risultati organici e People Also Ask.
 - La UI Radar ora mostra anche errori provider, per esempio quando Serper non e ancora configurato.
 - Aggiornata cache asset a `radar360-13`.
+- Corretta la UX della ricerca live: dopo "Cerca clienti" la UI mostra solo i risultati dell'ultima ricerca live, non li rimescola con vecchi prospect salvati nel browser/localStorage.
+- Aggiornata cache asset a `radar360-14`.
 
 ## Regola operativa per il PDF completo
 
