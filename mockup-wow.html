@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Interstellar Dashboard Mockup</title>
-    <link rel="stylesheet" href="mockup-wow.css?v=radar360-7" />
+    <link rel="stylesheet" href="mockup-wow.css?v=radar360-8" />
   </head>
   <body data-theme="stripe">
     <canvas id="starCanvas" aria-hidden="true"></canvas>
@@ -857,6 +857,35 @@
               </div>
               <textarea class="message-output" id="messageOutput" placeholder="La bozza apparirà qui."></textarea>
             </article>
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Manual reply assistant</span>
+                  <h2>Analizza una risposta ricevuta</h2>
+                </div>
+              </div>
+              <form class="system-form" id="replyAssistantForm">
+                <label>
+                  <span>Lead</span>
+                  <select name="lead" id="replyLeadSelect"></select>
+                </label>
+                <label>
+                  <span>Risposta incollata</span>
+                  <textarea name="reply" placeholder="Incolla qui la risposta ricevuta dal prospect..."></textarea>
+                </label>
+                <button type="submit">Analizza risposta</button>
+              </form>
+            </article>
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Risposta suggerita</span>
+                  <h2>Obiezione, interesse e prossima azione</h2>
+                </div>
+                <button type="button" id="copyReplySuggestion">Copia risposta</button>
+              </div>
+              <textarea class="message-output" id="replyOutput" placeholder="Il suggerimento apparirà qui."></textarea>
+            </article>
           </div>
         </section>
 
@@ -982,6 +1011,6 @@
       </main>
     </div>
 
-    <script src="mockup-wow.js?v=radar360-7"></script>
+    <script src="mockup-wow.js?v=radar360-8"></script>
   </body>
 </html>

@@ -1185,10 +1185,8 @@ function renderCampaigns() {
 function renderAutomations() {
   const list = document.querySelector("#automationList");
   if (!list) return;
-  list.innerHTML = workspace.automations.length
-    ? workspace.automations
-    .map(
-      (automation) => `
+  const automationItems = workspace.automations.map(
+    (automation) => `
         <div class="system-list-item">
           <div>
             <strong>${escapeHtml(automation.trigger)}</strong>
@@ -1197,8 +1195,23 @@ function renderAutomations() {
           <button type="button" data-toggle-auto="${automation.id}">${automation.enabled ? "Attiva" : "Pausa"}</button>
         </div>
       `
-    )
-    .join("")
+  );
+  const taskItems = (workspace.tasks || [])
+    .filter((task) => task.status !== "done")
+    .slice(0, 8)
+    .map(
+      (task) => `
+        <div class="system-list-item">
+          <div>
+            <strong>${escapeHtml(task.title)}</strong>
+            <p>${escapeHtml(task.type)} · ${formatDate(task.due_at)} · ${escapeHtml(task.status)}</p>
+          </div>
+          <button type="button" data-complete-task="${task.id}">Fatto</button>
+        </div>
+      `
+    );
+  list.innerHTML = [...automationItems, ...taskItems].length
+    ? [...automationItems, ...taskItems].join("")
     : `<div class="system-list-item"><div><strong>Nessuna automazione</strong><p>Aggiungi regole quando hai iniziato l'outreach.</p></div></div>`;
 }
 
@@ -1219,6 +1232,10 @@ function renderCrm() {
                   <p>${escapeHtml(lead.name)} · score ${lead.score}</p>
                   <p>${escapeHtml(lead.offer)}</p>
                   <button type="button" data-advance-lead="${lead.id}">Avanza</button>
+                  <button type="button" data-crm-reply="${lead.id}">Risposta</button>
+                  <button type="button" data-crm-followup="${lead.id}">Follow-up</button>
+                  <button type="button" data-crm-appointment="${lead.id}">Appuntamento</button>
+                  <button type="button" data-crm-lost="${lead.id}">Perso</button>
                 </div>
               `
             )
@@ -2161,13 +2178,15 @@ function renderLeadDetail() {
 }
 
 function renderLeadSelect() {
-  const select = document.querySelector("#messageLeadSelect");
-  if (!select) return;
-  select.innerHTML = workspace.leads.length
+  const options = workspace.leads.length
     ? workspace.leads
-        .map((lead) => `<option value="${lead.id}">${escapeHtml(lead.username || lead.company)} - ${escapeHtml(lead.platform)}</option>`)
+        .map((lead) => `<option value="${lead.id}">${escapeHtml(lead.username || lead.company)} - ${escapeHtml(lead.platform || lead.source)}</option>`)
         .join("")
     : `<option value="">Nessun lead disponibile</option>`;
+  ["#messageLeadSelect", "#replyLeadSelect"].forEach((selector) => {
+    const select = document.querySelector(selector);
+    if (select) select.innerHTML = options;
+  });
 }
 
 function importLeadsFromText(text) {
@@ -2950,6 +2969,58 @@ ${workspace.settings.signature}`
     objective,
     antiSpamScore
   };
+}
+
+function analyzeManualReply(reply = "", target = {}) {
+  const text = String(reply || "").trim();
+  const lower = text.toLowerCase();
+  const hasPrice = /prezzo|costo|quanto|preventivo|tariffa|budget/.test(lower);
+  const hasInfo = /info|informazioni|manda|mandami|dettagli|capire|spiega/.test(lower);
+  const hasPositive = /interessa|ok|va bene|sentiamoci|call|telefono|quando|disponibile|sì|si /.test(lower);
+  const hasObjection = /ci penso|non ora|troppo|non mi interessa|non posso|magari più avanti|gia|già/.test(lower);
+  const hasUrgency = /subito|urgente|oggi|domani|questa settimana|asap|prima possibile/.test(lower);
+  const appointmentReady = hasPositive || /appuntamento|riunione|meet|zoom|chiamata/.test(lower);
+  const interestScore = Math.max(
+    5,
+    Math.min(100, 30 + (hasPositive ? 28 : 0) + (hasPrice ? 18 : 0) + (hasInfo ? 12 : 0) + (hasUrgency ? 18 : 0) - (hasObjection ? 18 : 0))
+  );
+  const label = appointmentReady ? "pronto per appuntamento" : hasPrice ? "richiesta prezzo" : hasInfo ? "richiesta informazioni" : hasObjection ? "obiezione" : "interesse da qualificare";
+  const firstName = cleanFirstName(target.name || target.public_name);
+  const greeting = firstName ? `Ciao ${firstName},` : "Ciao,";
+  const suggested =
+    appointmentReady
+      ? `${greeting} perfetto. Ti propongo una call veloce di 15/20 minuti: posso mostrarti cosa farei nel tuo caso e capire se ha senso procedere. Ti va bene domani mattina o preferisci pomeriggio?`
+      : hasPrice
+        ? `${greeting} certo. Il costo dipende da obiettivo, complessità e tempi. Per non spararti una cifra a caso, ti faccio prima 3 domande veloci e poi ti do una fascia realistica.`
+        : hasInfo
+          ? `${greeting} ti mando volentieri le info. Ti sintetizzo tutto in modo pratico: cosa possiamo fare, tempi indicativi e cosa mi serve da te per valutare bene.`
+          : hasObjection
+            ? `${greeting} ci sta, nessun problema. Ti lascio solo un punto pratico: se questa cosa oggi ti fa perdere tempo/clienti, anche una mini analisi può chiarire se vale la pena.`
+            : `${greeting} grazie per la risposta. Per capire se posso aiutarti davvero, ti chiedo una cosa: qual è il risultato principale che vuoi ottenere nei prossimi 30 giorni?`;
+  return {
+    label,
+    interestScore,
+    urgency: hasUrgency ? "alta" : interestScore >= 65 ? "media" : "bassa",
+    appointmentReady,
+    nextAction: appointmentReady ? "proporre appuntamento" : hasObjection ? "follow-up leggero o archiviare" : "rispondere e qualificare",
+    suggested
+  };
+}
+
+function formatReplyAssistantOutput(lead, reply) {
+  const analysis = analyzeManualReply(reply, lead || {});
+  return `ANALISI RISPOSTA
+Intent rilevato: ${analysis.label}
+Interesse: ${analysis.interestScore}/100
+Urgenza: ${analysis.urgency}
+Prossima azione: ${analysis.nextAction}
+Appuntamento: ${analysis.appointmentReady ? "consigliato" : "non ancora"}
+
+RISPOSTA SUGGERITA
+${analysis.suggested}
+
+NOTA OPERATIVA
+${analysis.appointmentReady ? "Se accetta, crea appuntamento dal CRM e poi conferma manualmente il link/call." : "Mantieni tono naturale. Non forzare vendita se l'interesse è basso."}`;
 }
 
 function normalizeRadarProspect(input = {}) {
@@ -3778,10 +3849,11 @@ async function runRadarContact(prospectId) {
       message,
       created_at: new Date().toISOString()
     });
+    scheduleFollowUpsForProspect(prospect);
     saveWorkspace();
     if (link) window.open(link, "_blank", "noopener");
     renderAll();
-    setFeedback("#radarFeedback", "Messaggio copiato. Apri la piattaforma e invialo manualmente.");
+    setFeedback("#radarFeedback", "Messaggio copiato. Apri la piattaforma, invialo manualmente e lavora i follow-up già creati.");
     return;
   }
 
@@ -3808,6 +3880,7 @@ async function runRadarContact(prospectId) {
     message,
     created_at: new Date().toISOString()
   });
+  scheduleFollowUpsForProspect(prospect);
   saveWorkspace();
 
   if (isBusinessEmail(prospect.email_business_public)) {
@@ -3826,6 +3899,10 @@ function radarProspectLabel(prospect = {}) {
 }
 
 function createTaskForProspect(prospect, type, title, dueAt) {
+  const existing = workspace.tasks.find(
+    (task) => task.lead_id === prospect.lead_id && task.type === type && task.status !== "done" && task.title === title
+  );
+  if (existing) return existing;
   const task = {
     id: uid("task"),
     lead_id: prospect.lead_id,
@@ -3838,6 +3915,26 @@ function createTaskForProspect(prospect, type, title, dueAt) {
   workspace.tasks.unshift(task);
   workspace.tasks = workspace.tasks.slice(0, 200);
   return task;
+}
+
+function followUpScheduleForTemperature(temperature = "warm") {
+  if (temperature === "hot") return [1, 2];
+  if (temperature === "warm") return [3, 7];
+  return [5];
+}
+
+function scheduleFollowUpsForProspect(prospect) {
+  const schedule = followUpScheduleForTemperature(prospect.temperature);
+  schedule.forEach((days, index) => {
+    const due = new Date(Date.now() + days * 86400000).toISOString();
+    createTaskForProspect(
+      prospect,
+      "follow_up",
+      `${index + 1}/${schedule.length} follow-up ${radarProspectLabel(prospect)}`,
+      due
+    );
+  });
+  return schedule.length;
 }
 
 function postponeRadarProspect(prospectId) {
@@ -3859,6 +3956,57 @@ function postponeRadarProspect(prospectId) {
   saveWorkspace();
   renderAll();
   setFeedback("#radarFeedback", `Follow-up creato tra ${delayDays} giorni.`);
+}
+
+function leadAsTaskTarget(lead) {
+  return {
+    lead_id: lead.sourceRadarId || `lead_${lead.id}`,
+    temperature: lead.score >= 80 ? "hot" : lead.score >= 58 ? "warm" : "cold",
+    public_name: lead.name,
+    business_name: lead.company,
+    platform: lead.platform || lead.source,
+    source_url: lead.url,
+    contact_state: lead.status
+  };
+}
+
+function scheduleLeadFollowups(leadId) {
+  const lead = workspace.leads.find((item) => item.id === leadId);
+  if (!lead) return 0;
+  const target = leadAsTaskTarget(lead);
+  const count = scheduleFollowUpsForProspect(target);
+  lead.nextAction = "Follow-up programmato";
+  lead.nextDue = workspace.tasks.find((task) => task.lead_id === target.lead_id && task.status !== "done")?.due_at || lead.nextDue;
+  lead.updatedAt = new Date().toISOString();
+  saveWorkspace();
+  renderAll();
+  return count;
+}
+
+function createAppointmentFromLead(leadId) {
+  const lead = workspace.leads.find((item) => item.id === leadId);
+  if (!lead) return null;
+  const scheduledAt = new Date(Date.now() + 86400000);
+  scheduledAt.setHours(10, 0, 0, 0);
+  const appointment = {
+    id: uid("appointment"),
+    lead_id: lead.sourceRadarId || `lead_${lead.id}`,
+    title: `Call con ${lead.company}`,
+    status: "proposed",
+    scheduled_at: scheduledAt.toISOString(),
+    duration_minutes: 30,
+    meeting_url: "",
+    value_estimate: lead.score >= 80 ? 1500 : 600,
+    created_at: new Date().toISOString()
+  };
+  workspace.appointments.unshift(appointment);
+  lead.status = "interested";
+  lead.nextAction = "Confermare appuntamento";
+  lead.nextDue = appointment.scheduled_at;
+  lead.updatedAt = new Date().toISOString();
+  saveWorkspace();
+  renderAll();
+  return appointment;
 }
 
 function archiveRadarProspect(prospectId) {
@@ -4625,6 +4773,56 @@ document.addEventListener("click", (event) => {
       saveWorkspace();
       renderAll();
     }
+    return;
+  }
+
+  const completeTaskId = event.target?.dataset?.completeTask;
+  if (completeTaskId) {
+    const task = workspace.tasks.find((item) => item.id === completeTaskId);
+    if (task) {
+      task.status = "done";
+      task.completed_at = new Date().toISOString();
+      saveWorkspace();
+      renderAll();
+    }
+    return;
+  }
+
+  const crmReplyId = event.target?.dataset?.crmReply;
+  if (crmReplyId) {
+    const select = document.querySelector("#replyLeadSelect");
+    if (select) select.value = crmReplyId;
+    selectedLeadId = crmReplyId;
+    navigateTo("content");
+    return;
+  }
+
+  const crmFollowupId = event.target?.dataset?.crmFollowup;
+  if (crmFollowupId) {
+    const count = scheduleLeadFollowups(crmFollowupId);
+    setFeedback("#settingsFeedback", "");
+    if (count) navigateTo("automations");
+    return;
+  }
+
+  const crmAppointmentId = event.target?.dataset?.crmAppointment;
+  if (crmAppointmentId) {
+    createAppointmentFromLead(crmAppointmentId);
+    navigateTo("automations");
+    return;
+  }
+
+  const crmLostId = event.target?.dataset?.crmLost;
+  if (crmLostId) {
+    const lead = workspace.leads.find((item) => item.id === crmLostId);
+    if (lead) {
+      lead.status = "discarded";
+      lead.nextAction = "Archiviato come perso";
+      lead.updatedAt = new Date().toISOString();
+      saveWorkspace();
+      renderAll();
+    }
+    return;
   }
 });
 
@@ -4694,6 +4892,48 @@ document.querySelector("#saveDraftToLead")?.addEventListener("click", () => {
   selectedLeadId = lead.id;
   saveWorkspace();
   renderAll();
+});
+
+document.querySelector("#replyAssistantForm")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  const lead = workspace.leads.find((item) => item.id === data.get("lead"));
+  const reply = String(data.get("reply") || "").trim();
+  const output = document.querySelector("#replyOutput");
+  if (!lead || !reply) {
+    if (output) output.value = "Seleziona un lead e incolla una risposta ricevuta.";
+    return;
+  }
+  const analysis = analyzeManualReply(reply, lead);
+  const suggestion = formatReplyAssistantOutput(lead, reply);
+  if (output) output.value = suggestion;
+  workspace.conversations.unshift({
+    id: uid("conversation"),
+    lead_id: lead.id,
+    reply,
+    analysis,
+    suggested_response: analysis.suggested,
+    created_at: new Date().toISOString()
+  });
+  if (analysis.appointmentReady) {
+    lead.status = "interested";
+    lead.nextAction = "Proporre appuntamento";
+  } else if (analysis.interestScore >= 55) {
+    lead.status = lead.status === "new" || lead.status === "qualified" ? "contacted" : lead.status;
+    lead.nextAction = "Rispondere e qualificare";
+  } else if (analysis.label === "obiezione") {
+    lead.nextAction = "Follow-up leggero o archiviare";
+  }
+  lead.updatedAt = new Date().toISOString();
+  saveWorkspace();
+  renderAll();
+});
+
+document.querySelector("#copyReplySuggestion")?.addEventListener("click", async () => {
+  const output = document.querySelector("#replyOutput")?.value?.trim();
+  if (!output) return;
+  const copied = await copyText(output);
+  if (!copied) downloadTextFile("interstellar-reply-suggestion.txt", output, "text/plain");
 });
 
 document.querySelector("#automationForm")?.addEventListener("submit", (event) => {

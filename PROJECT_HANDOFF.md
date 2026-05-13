@@ -115,6 +115,9 @@ Sempre con:
 - Aggiunto Opportunity Radar nel motore: cluster domanda locale, richieste prezzo, ricerca servizio, problemi urgenti, aziende con contatto business e lead pronti per appuntamento.
 - Aggiunto Conversation Starter: versioni breve/naturale/professionale, risposte alle obiezioni e anti-spam score.
 - Collegati i prospect Radar a AI Content e CRM senza cambiare layout: da Dettaglio prospect si puo aprire il contenuto AI o creare/qualificare il lead nel CRM.
+- Aggiunto Manual Reply Assistant in AI Content: l'utente incolla una risposta ricevuta, il motore rileva intento/obiezione/urgenza/appuntamento e genera la risposta suggerita.
+- Aggiunto Follow-up Reminder avanzato: Hot = 24/48h, Warm = 3/7 giorni, Cold = 1 follow-up; i task appaiono nella sezione Automations e possono essere completati.
+- CRM reso piu operativo: ogni card ha azioni rapide Risposta, Follow-up, Appuntamento e Perso.
 
 ## Regola operativa per il PDF completo
 
@@ -138,7 +141,7 @@ Prima fase immediata prima del lavoro dal PDF:
 
 ## Prossimi step consigliati
 
-1. Continuare il motore dal PDF: Manual Reply Assistant, Follow-up Reminder avanzato e CRM Kanban piu operativo.
+1. Continuare il motore dal PDF: Appointment Manager, Google Calendar/Meet stub, Offer & Ad Launcher.
 2. Rendere Radar 360 ancora piu semplice per un cliente non tecnico, senza stravolgere la grafica.
 3. Migliorare i risultati per la nicchia "clienti interessati a programmazione".
 4. Aggiungere fonti reali autorizzate/provider seri per web e directory.
