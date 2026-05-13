@@ -3215,29 +3215,84 @@ function scoreRadarProspect(prospect, config = {}) {
   };
 }
 
+function prospectLooksItalian(prospect = {}) {
+  const text = radarText(prospect);
+  return /[àèéìòù]|\b(cerco|serve|servirebbe|vorrei|qualcuno|preventivo|prezzo|quanto costa|sito|sviluppatore|programmatore|gestionale|azienda|attività|italia|roma|milano|napoli|torino|bologna|veneto|lombardia|lazio|non|che|per|con|una|della)\b/i.test(
+    text
+  );
+}
+
+function extractMessageSignal(prospect = {}) {
+  const raw = String(prospect.relevant_text || prospect.source_item || prospect.bio_public || "").replace(/\s+/g, " ").trim();
+  if (!raw) return "";
+  const sentences = raw
+    .split(/(?<=[.!?])\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const intentSentence =
+    sentences.find((sentence) => /cerco|serve|servirebbe|quanto|prezzo|preventivo|problema|non riesco|sito|app|software|gestionale|chatbot|automazione/i.test(sentence)) ||
+    sentences[0] ||
+    raw;
+  return intentSentence.length > 170 ? `${intentSentence.slice(0, 167)}...` : intentSentence;
+}
+
+function detectRequestedSolution(prospect = {}) {
+  const text = radarText(prospect);
+  if (/ecommerce|shopify|woocommerce|shop online|negozio online/i.test(text)) return "ecommerce";
+  if (/\bapp\b|applicazione|mobile/i.test(text)) return "app";
+  if (/gestionale|crm|database|dashboard/i.test(text)) return "gestionale/CRM";
+  if (/chatbot|bot\b|whatsapp/i.test(text)) return "chatbot o automazione";
+  if (/automazione|automatizzare|workflow|integrazione api|api\b/i.test(text)) return "automazione";
+  if (/landing|funnel/i.test(text)) return "landing/funnel";
+  if (/sito|wordpress|web agency|website/i.test(text)) return "sito web";
+  return "progetto digitale";
+}
+
 function buildRadarMessage(prospect = {}) {
   const firstName = cleanFirstName(prospect.public_name);
-  const greeting = firstName ? `Ciao ${firstName},` : "Ciao, piacere,";
-  const context = prospect.relevant_text
-    ? `ho visto questo tuo segnale pubblico: "${prospect.relevant_text.slice(0, 150)}"`
-    : prospect.business_name
-      ? `ho visto ${prospect.business_name}${prospect.city ? ` a ${prospect.city}` : ""}`
-      : `ho visto il tuo profilo pubblico su ${prospect.platform || "questa piattaforma"}`;
-  const offer = prospect.detected_intent?.includes("prezzo")
-    ? "posso mandarti due indicazioni pratiche sui costi e su come valutare una soluzione seria"
-    : "posso mandarti due idee pratiche per capire se ha senso parlarne";
+  const isAutomated = prospect.contact_mode === "automated_possible";
+  const greeting = firstName ? `Ciao ${firstName},` : isAutomated ? "Buongiorno," : "Ciao, piacere,";
+  const signal = extractMessageSignal(prospect);
+  const solution = detectRequestedSolution(prospect);
+  const place = prospect.city ? ` a ${prospect.city}` : prospect.country ? ` in ${prospect.country}` : "";
+  const target = prospect.business_name || prospect.public_name || prospect.username_public || "la tua attività";
+  const source = prospect.source_page || prospect.platform || "una fonte pubblica";
+  const hasPriceIntent = /prezzo|preventivo|costo|quanto costa|budget/i.test(`${prospect.detected_intent || ""} ${prospect.relevant_text || ""}`);
+  const hasProblemIntent = /problema|non riesco|bloccato|aiuto|non funziona/i.test(`${prospect.detected_intent || ""} ${prospect.relevant_text || ""}`);
+  const context = signal
+    ? `ho visto su ${source} questo segnale: "${signal}"`
+    : `ho visto ${target}${place} e mi sembra collegato a un possibile bisogno su ${solution}`;
+  const usefulAngle = hasPriceIntent
+    ? `posso darti una fascia realistica di costi per un ${solution}, spiegandoti cosa incide davvero sul prezzo`
+    : hasProblemIntent
+      ? `posso indicarti 2-3 strade pratiche per risolvere il problema senza complicarti il progetto`
+      : `posso mandarti 2 idee concrete su come impostare bene un ${solution}, prima ancora di parlare di preventivi`;
   const optOut =
-    prospect.contact_mode === "automated_possible"
+    isAutomated
       ? "\n\nSe non vuoi ricevere altri messaggi, dimmelo pure e non ti ricontatto."
       : "";
+
+  if (isAutomated) {
+    return `${greeting}
+
+${context}.
+
+Mi occupo di siti, app, automazioni AI e sistemi CRM per trasformare richieste reali in contatti gestibili.
+
+Se ha senso, posso prepararti una mini analisi concreta su ${solution}: cosa farei, priorità e stima indicativa dei passaggi.
+
+Ti va se ti mando una sintesi breve?
+
+${workspace.settings.signature}${optOut}`;
+  }
 
   return `${greeting}
 
 ${context}.
 
-Te lo scrivo in modo diretto: ${offer}, senza promesse strane e senza farti perdere tempo.
+Non ti scrivo un messaggio copia-incolla: lavoro su siti, app, bot e automazioni AI, quindi potrei aiutarti a capire come impostare bene questo ${solution}.
 
-Se ti va, ti mando un esempio concreto in base alla tua situazione.
+Se vuoi, ti mando un parere veloce e concreto su cosa farei nel tuo caso.
 
 ${workspace.settings.signature}${optOut}`;
 }
@@ -3765,7 +3820,7 @@ function currentOpportunityClusters() {
 
 function passesRadarConfig(prospect, config, scored) {
   const sourceOk = !config.sources.length || config.sources.includes(prospect.platform);
-  const languageOk = config.language === "any" || prospect.estimated_language === config.language;
+  const languageOk = config.language === "any" || prospect.estimated_language === config.language || (config.language === "it" && prospectLooksItalian(prospect));
   const countryOk = !config.country || radarText(prospect).includes(config.country.toLowerCase());
   const cityOk = !config.city || radarText(prospect).includes(config.city.toLowerCase());
   const recencyOk = monthsSince(prospect.last_interaction || prospect.collected_at) <= config.recencyMonths;
@@ -4768,8 +4823,8 @@ function radarSearchQuery(kind) {
     programmingRequests: `"cerco sviluppatore" OR "mi serve un sito" OR "voglio creare un'app" OR "preventivo sito" ${country}${city}`,
     forumRequests: `("cerco sviluppatore" OR "quanto costa un sito" OR "mi serve un gestionale") (forum OR reddit OR community) ${country}${city}`,
     businessWeb: `("sito in costruzione" OR "pagina contatti" OR "richiedi preventivo") "azienda" ${country}${city}`,
-    stackRequests: `("how to build a website" OR "need a developer" OR "website quote" OR "custom software")`,
-    blogRequests: `("cerco sviluppatore" OR "voglio automatizzare" OR "software su misura" OR "chatbot azienda") ${country}${city}`
+    italianForumRequests: `("cerco programmatore" OR "cerco freelance" OR "preventivo app" OR "software gestionale") ("forum italiano" OR forum OR community OR reddit) ${country}${city}`,
+    blogRequests: `("cerco sviluppatore" OR "voglio automatizzare" OR "software su misura" OR "chatbot azienda" OR "rifare sito") ${country}${city}`
   };
   return queries[kind] || queries.programmingRequests;
 }
@@ -4828,7 +4883,7 @@ async function runLiveOpenWebSearch() {
     button.disabled = true;
     button.textContent = "Cerco fonti live...";
   }
-  setFeedback("#radarFeedback", "Ricerca live in corso su fonti pubbliche open web. Non usa login social e non invia messaggi.");
+  setFeedback("#radarFeedback", "Ricerca live in corso su fonti pubbliche italiane. Escludo provider inglesi e non invio messaggi.");
   try {
     const response = await fetch(`${radarApiBaseUrl()}/api/radar-search?${params.toString()}`);
     const payload = await response.json().catch(() => ({}));
@@ -4848,8 +4903,8 @@ async function runLiveOpenWebSearch() {
     setFeedback(
       "#radarFeedback",
       fresh.length
-        ? `${fresh.length} prospect live importati${payload.fallback_relaxed ? " con filtro allargato" : ""}. Fonti: ${providerSummary || payload.providers?.join(", ") || "fonti pubbliche"}.`
-        : `Ricerca live completata, ma nessun nuovo prospect diverso da quelli già salvati. Fonti controllate: ${providerSummary || "nessuna fonte utile"}.`
+        ? `${fresh.length} prospect live importati${payload.fallback_relaxed ? " con filtro allargato" : ""}. Modalità Italia attiva. Fonti: ${providerSummary || payload.providers?.join(", ") || "fonti pubbliche"}.`
+        : `Ricerca live completata in modalità Italia, ma nessun nuovo prospect buono diverso da quelli già salvati. Fonti controllate: ${providerSummary || "nessuna fonte utile"}.`
     );
   } catch (error) {
     setFeedback(

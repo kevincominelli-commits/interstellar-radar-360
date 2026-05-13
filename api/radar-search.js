@@ -8,6 +8,7 @@ const providerSourceMap = {
   stackExchange: ["Forum", "Website", "Blog"],
   devTo: ["Blog", "Website", "Forum"],
   wordpress: ["Blog", "Website"],
+  searchEngine: ["Forum", "Website", "Blog", "Directory", "Reviews"],
   github: ["Forum", "Website"],
   directUrls: ["Website", "Blog", "Directory", "Reviews", "CRM/Import"]
 };
@@ -39,6 +40,31 @@ const englishSignals = [
   "chatbot for my business",
   "website quote",
   "software for my business"
+];
+
+const italianModeDisabledProviders = new Set(["hackerNews", "stackExchange", "devTo", "github"]);
+
+const italianRedditCommunities = [
+  "Italia",
+  "italy",
+  "italyinformatica",
+  "imprenditoria"
+];
+
+const italianProgrammingSignals = [
+  "cerco programmatore",
+  "cerco freelance sito web",
+  "cerco web agency",
+  "devo creare un sito",
+  "devo fare un ecommerce",
+  "rifare sito aziendale",
+  "preventivo app",
+  "preventivo gestionale",
+  "automazione processi aziendali",
+  "integrare api",
+  "sito per la mia attività",
+  "crm per azienda",
+  "software per azienda"
 ];
 
 function asText(value = "") {
@@ -84,7 +110,7 @@ function hasOwnedProjectProblem(text = "") {
 }
 
 function isCareerOrNoise(text = "") {
-  return /junior|senior|carriera|stipendio|ral\b|colloquio|assunzione|lavoro come|lavorare come|laurea|stage|curriculum|\bcv\b|portfolio personale|amici|conoscere qualcuno|dating|revshare|revenue share|cerca tester|cerco tester/i.test(
+  return /junior|senior|carriera|stipendio|ral\b|colloquio|assunzione|apprendistato|contratto|datore di lavoro|dichiarazione dei redditi|commercialista|iva|lavoro come|lavorare come|laurea|stage|curriculum|\bcv\b|portfolio personale|amici|conoscere qualcuno|dating|revshare|revenue share|cerca tester|cerco tester/i.test(
     text
   );
 }
@@ -100,15 +126,57 @@ function isUsefulProspectForSearch(prospect = {}, config = {}) {
   if ((prospect.email_business_public || prospect.contact_form_url) && /business|website|directory|contact|direct_url/i.test(prospect.source_type || "")) {
     return true;
   }
-  const strongBuyingIntent = hasServiceBuyingIntent(text) || hasOwnedProjectProblem(text);
+  const strongBuyingIntent = hasServiceBuyingIntent(text) || (hasOwnedProjectProblem(text) && hasDevelopmentTerm(text));
   if (isCareerOrNoise(text) && !strongBuyingIntent) return false;
   return strongBuyingIntent || (hasClientIntent(text) && hasDevelopmentTerm(text) && /azienda|business|progetto|project|cliente|client|shop|store|ecommerce|startup/i.test(text));
+}
+
+function isItalianMode(config = {}) {
+  const language = String(config.language || "").toLowerCase();
+  const country = String(config.country || "").toLowerCase();
+  return language === "it" || /\bitalia\b|\bitaly\b/.test(country);
+}
+
+function italianTextScore(text = "") {
+  const lower = asText(text).toLowerCase();
+  let score = 0;
+  if (/[àèéìòù]/.test(lower)) score += 2;
+  if (
+    /\b(cerco|serve|servirebbe|vorrei|qualcuno|consigli|preventivo|prezzo|costo|quanto costa|sito|sviluppatore|programmatore|gestionale|automazione|azienda|attività|italia|roma|milano|napoli|torino|bologna|veneto|lombardia|lazio)\b/.test(
+      lower
+    )
+  ) {
+    score += 3;
+  }
+  const commonWords =
+    lower.match(/\b(il|lo|la|gli|le|un|una|che|per|con|non|sono|ho|mi|di|da|nel|della|delle|dei|del|come|dove|quando|qualcuno|vorrei)\b/g) ||
+    [];
+  score += Math.min(4, Math.floor(commonWords.length / 2));
+  return score;
+}
+
+function looksItalian(text = "") {
+  return italianTextScore(text) >= 3;
+}
+
+function languageMatchesConfig(prospect = {}, config = {}) {
+  if (!isItalianMode(config)) return true;
+  const text = `${prospect.source_page || ""} ${prospect.source_item || ""} ${prospect.relevant_text || ""} ${prospect.bio_public || ""} ${
+    prospect.source_url || ""
+  }`;
+  const lower = text.toLowerCase();
+  if (prospect.estimated_language === "en" && !looksItalian(text)) return false;
+  if (/\b(looking for|need a|need an|hire|website quote|custom software|developer needed|for my business|hacker news|stack exchange|dev community|github issues)\b/.test(lower)) {
+    return looksItalian(text);
+  }
+  return looksItalian(text);
 }
 
 function inferLanguage(text = "", fallback = "it") {
   const lower = text.toLowerCase();
   if (/[àèéìòù]|\b(cerco|quanto|sito|sviluppatore|preventivo|azienda|gestionale)\b/.test(lower)) return "it";
   if (/\b(need|looking|hire|website|developer|business|software|automation)\b/.test(lower)) return "en";
+  if (fallback === "it") return looksItalian(lower) ? "it" : "unknown";
   return fallback === "any" ? "en" : fallback;
 }
 
@@ -129,6 +197,23 @@ function decodeHtml(value = "") {
     .replace(/&#039;/g, "'")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">");
+}
+
+function stripHtml(value = "") {
+  return asText(decodeHtml(value));
+}
+
+function normalizeDuckDuckGoUrl(href = "") {
+  const raw = decodeHtml(href || "");
+  if (!raw) return "";
+  const absolute = raw.startsWith("//") ? `https:${raw}` : raw;
+  try {
+    const url = new URL(absolute);
+    const nested = url.searchParams.get("uddg");
+    return nested ? decodeURIComponent(nested) : absolute;
+  } catch {
+    return absolute;
+  }
 }
 
 function extractEmails(text = "") {
@@ -192,6 +277,7 @@ function getQuery(req) {
 }
 
 function providerEnabled(config, providerKey) {
+  if (isItalianMode(config) && italianModeDisabledProviders.has(providerKey)) return false;
   if (!config.sources.length) return true;
   const values = providerSourceMap[providerKey] || [];
   return values.some((value) => config.sources.includes(value));
@@ -213,21 +299,43 @@ async function fetchJson(url, options = {}) {
 function liveQueries(config) {
   const city = config.city ? ` ${config.city}` : "";
   const country = config.country ? ` ${config.country}` : "";
-  const signals = config.language === "en" ? englishSignals : config.language === "any" ? [...italianSignals, ...englishSignals] : italianSignals;
+  const signals = isItalianMode(config)
+    ? [...italianSignals, ...italianProgrammingSignals]
+    : config.language === "en"
+      ? englishSignals
+      : config.language === "any"
+        ? [...italianSignals, ...englishSignals]
+        : italianSignals;
   const custom = String(config.keywords || "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean)
     .slice(0, 8);
-  return [...new Set([config.q, ...custom, ...signals.map((signal) => `${signal}${country}${city}`)])].filter(Boolean).slice(0, 16);
+  return [...new Set([config.q, ...custom, ...signals.map((signal) => `${signal}${country}${city}`)])].filter(Boolean).slice(0, isItalianMode(config) ? 18 : 16);
 }
 
 async function searchReddit(config) {
-  const settled = await Promise.allSettled(
-    liveQueries(config).map((query) =>
-      fetchJson(`https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=new&t=year&limit=${Math.min(config.limit, 10)}`)
-    )
-  );
+  const queries = liveQueries(config).slice(0, isItalianMode(config) ? 7 : 16);
+  const jobs = [];
+  if (isItalianMode(config)) {
+    for (const subreddit of italianRedditCommunities) {
+      for (const query of queries) {
+        jobs.push(
+          fetchJson(
+            `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/search.json?q=${encodeURIComponent(query)}&restrict_sr=1&sort=new&t=year&limit=5`
+          )
+        );
+      }
+    }
+    queries.slice(0, 6).forEach((query) => {
+      jobs.push(fetchJson(`https://www.reddit.com/search.json?q=${encodeURIComponent(`${query} Italia`)}&sort=new&t=year&limit=7`));
+    });
+  } else {
+    queries.forEach((query) => {
+      jobs.push(fetchJson(`https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=new&t=year&limit=${Math.min(config.limit, 10)}`));
+    });
+  }
+  const settled = await Promise.allSettled(jobs);
   return settled.flatMap((result) =>
     result.status === "fulfilled" ? (result.value.data?.children || []).map(({ data }) => ({
     platform: "Reddit",
@@ -241,14 +349,84 @@ async function searchReddit(config) {
     relevant_text: compact(`${data.title || ""}. ${data.selftext || ""}`),
     city: config.city,
     country: config.country,
-    estimated_language: "it",
+    estimated_language: inferLanguage(`${data.title || ""} ${data.selftext || ""}`, config.language),
     detected_intent: inferIntent(`${data.title || ""} ${data.selftext || ""}`),
     interactions_detected: Number(data.num_comments || 0) + Number(data.score || 0),
     last_interaction: isoFromUnix(data.created_utc),
-    provider_source: "Reddit public search",
-    source_reliability: 72
+    provider_source: isItalianMode(config) ? "Reddit Italia public search" : "Reddit public search",
+    source_reliability: isItalianMode(config) ? 76 : 72
   })) : []
   );
+}
+
+async function searchDuckDuckGo(config) {
+  const focusedQueries = isItalianMode(config)
+    ? [
+        `"cerco sviluppatore" "sito" ${config.country || "Italia"} ${config.city || ""}`,
+        `"mi serve un sito" "preventivo" ${config.country || "Italia"} ${config.city || ""}`,
+        `"cerco programmatore" "app" ${config.country || "Italia"} ${config.city || ""}`,
+        `"software gestionale" "preventivo" "azienda" ${config.country || "Italia"} ${config.city || ""}`,
+        `"voglio automatizzare" "azienda" ${config.country || "Italia"} ${config.city || ""}`,
+        `"rifare sito" "azienda" ${config.country || "Italia"} ${config.city || ""}`,
+        `"cerco web agency" "preventivo" ${config.country || "Italia"} ${config.city || ""}`,
+        `"chatbot" "azienda" "preventivo" ${config.country || "Italia"} ${config.city || ""}`
+      ]
+    : liveQueries(config).slice(0, 8);
+
+  const settled = await Promise.allSettled(
+    focusedQueries
+      .map((query) => query.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .map(async (query) => {
+        const response = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+          headers: {
+            "User-Agent": "InterstellarRadar360/1.0",
+            Accept: "text/html,application/xhtml+xml"
+          }
+        });
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+        return { query, html: await response.text() };
+      })
+  );
+
+  return settled.flatMap((result) => {
+    if (result.status !== "fulfilled") return [];
+    const blocks = result.value.html.split(/<div class="result results_links[\s\S]*?web-result[^>]*>/i).slice(1, 6);
+    return blocks
+      .map((block) => {
+        const titleMatch = block.match(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+        const snippetMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/i) || block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/div>/i);
+        const rawUrl = normalizeDuckDuckGoUrl(titleMatch?.[1] || "");
+        const title = stripHtml(titleMatch?.[2] || "");
+        const snippet = stripHtml(snippetMatch?.[1] || "");
+        const text = compact(`${title}. ${snippet}`);
+        const isForum = /forum|community|reddit|discussioni|thread|domanda|risposte/i.test(`${rawUrl} ${title} ${snippet}`);
+        const hasContactIntent = hasServiceBuyingIntent(text) || (hasClientIntent(text) && hasDevelopmentTerm(text));
+        const isBusinessContact = /contatti|preventivo|richiedi|azienda|agenzia|servizi|software house|web agency/i.test(`${rawUrl} ${title} ${snippet}`);
+        if (!rawUrl || !title || (!hasContactIntent && !isBusinessContact)) return null;
+        return {
+          platform: isForum ? "Forum" : "Website",
+          source_type: isBusinessContact ? "search_engine_business_signal" : "search_engine_public_signal",
+          username_public: "",
+          public_name: "",
+          business_name: isBusinessContact ? title : "",
+          website: rawUrl,
+          source_url: rawUrl,
+          source_page: "DuckDuckGo public search",
+          source_item: title,
+          relevant_text: text,
+          city: config.city,
+          country: config.country,
+          estimated_language: inferLanguage(text, config.language),
+          detected_intent: inferIntent(text),
+          interactions_detected: 1,
+          last_interaction: new Date().toISOString(),
+          provider_source: "DuckDuckGo public search",
+          source_reliability: isForum ? 62 : 55
+        };
+      })
+      .filter(Boolean);
+  });
 }
 
 async function searchHackerNews(config) {
@@ -498,6 +676,7 @@ module.exports = async function handler(req, res) {
     ["Stack Exchange", "stackExchange", searchStackExchange],
     ["DEV", "devTo", searchDevTo],
     ["WordPress", "wordpress", searchWordPress],
+    ["Open Web IT", "searchEngine", searchDuckDuckGo],
     ["GitHub", "github", searchGitHubIssues],
     ["Direct URL", "directUrls", searchDirectUrls]
   ].filter(([, key]) => providerEnabled(config, key) && (key !== "directUrls" || config.monitorUrls.length));
@@ -512,6 +691,7 @@ module.exports = async function handler(req, res) {
   const prospects = settled
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
     .filter((prospect) => prospect.source_url && prospect.relevant_text)
+    .filter((prospect) => languageMatchesConfig(prospect, config))
     .filter((prospect) => monthsSince(prospect.last_interaction) <= config.recencyMonths);
 
   const strictProspects = prospects.filter((prospect) => isUsefulProspectForSearch(prospect, config));

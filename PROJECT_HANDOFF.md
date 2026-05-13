@@ -132,6 +132,11 @@ Sempre con:
 - Aggiunto SaaS Plan & Usage Engine: piani Free/Pro/Agency/Internal, crediti mensili, limiti per ricerche live, analisi Radar, export, campagne, offerte, appuntamenti e automazioni.
 - Settings ora mostra piano attivo, utilizzo mensile e usage log operativo. Il motore blocca le azioni quando il piano supera i limiti.
 - Aggiornata cache asset a `radar360-11`.
+- Sistemata modalita Italia del Radar live: esclusi provider inglesi/rumorosi per ricerche italiane, aggiunte query Reddit Italia piu mirate e filtro lingua prima dei risultati.
+- Aggiunto provider `Open Web IT` basato su ricerca pubblica DuckDuckGo HTML per ampliare siti/forum/blog italiani indicizzati senza login social.
+- Migliorati i messaggi suggeriti: ora usano segnale reale, soluzione richiesta, tono diverso tra manual assist e email/form business, domanda finale e opt-out dove serve.
+- Rimosso pulsante "Q&A tecnici" dalla UI Radar e sostituito con "Forum italiani".
+- Aggiornata cache asset a `radar360-12`.
 
 ## Regola operativa per il PDF completo
 
@@ -157,7 +162,7 @@ Prima fase immediata prima del lavoro dal PDF:
 
 1. Rendere Radar 360 ancora piu semplice per un cliente non tecnico, senza stravolgere la grafica.
 2. Migliorare i risultati per la nicchia "clienti interessati a programmazione".
-3. Aggiungere fonti reali autorizzate/provider seri per web e directory.
+3. Aggiungere fonti reali autorizzate/provider seri per aumentare davvero quantita e qualita: Google/Serper, Apify, Reddit API, YouTube API, directory/local business provider.
 4. Salvare utenti e workspace in database vero, non solo localStorage.
 5. Collegare Stripe reale ai piani gia presenti nel motore.
 6. Collegare Google Calendar/Meet con OAuth vero quando si passa da MVP locale a SaaS.
