@@ -260,6 +260,27 @@ function isItalianWebResult(link = "", text = "") {
   return looksItalian(text) && !/\b(looking for|need a|hire|developer wanted|busco|caut|desarrollador|programare)\b/i.test(text);
 }
 
+function hasDirectProgrammingRequest(text = "") {
+  return /cerco (uno |una |un |qualcuno |)(sviluppatore|programmatore|freelance|web agency|software house)|cerco (sviluppatore|programmatore|freelance)|sto cercando (uno |una |un |qualcuno |)(sviluppatore|programmatore|freelance)|mi serve (un |una |)(sito|app|applicazione|gestionale|software|bot|chatbot|automazione)|devo (fare|creare|sviluppare|sistemare|rifare) (un |una |)(sito|app|applicazione|gestionale|software|bot|chatbot|ecommerce)|voglio creare (un |una |)(sito|app|software|bot|chatbot|gestionale)|sistemare (gestionale|sito|app|software)|richiedo preventivo.{0,60}(sito|app|software|gestionale|chatbot)|budget.{0,80}(sito|app|software|gestionale|sviluppatore|programmatore)/i.test(
+    text
+  );
+}
+
+function isMarketplaceOrCommunityLead(link = "", text = "") {
+  const host = hostnameOf(link);
+  return /facebook\.com|freelancer\.|addlance\.com|techlance\.it|inforge\.net|forum\.|reddit\.com|italia\.it|iprogrammatori\.it|arduino\.cc/i.test(
+    `${host} ${link} ${text}`
+  );
+}
+
+function isMarketingContentNoise(link = "", text = "") {
+  const haystack = `${hostnameOf(link)} ${link} ${text}`;
+  if (hasDirectProgrammingRequest(text)) return false;
+  return /quanto costa (un |una |)(sito|app)|preventivo (gratis|per un sito|sito web)|realizzazione siti|creazione siti|web agency|agenzia web|sito web per aziende|migliori costruttori|consulenza gratuita|prenota consulenza|richiedi preventivo|servizio di web design|social media manager|seo|branding|marketing/i.test(
+    haystack
+  );
+}
+
 function explicitDateFromText(text = "") {
   const value = String(text || "");
   const numeric = value.match(/\b(\d{1,2})[/-](\d{1,2})[/-](20\d{2})\b/);
@@ -440,6 +461,8 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
   if (!link || !title) return null;
   if (isItalianMode(config) && !isItalianWebResult(link, text)) return null;
   if (!passesExplicitRecency(text, config)) return null;
+  if (isProgrammingSearch(config) && isMarketingContentNoise(link, text)) return null;
+  if (isProgrammingSearch(config) && !hasDirectProgrammingRequest(text) && !isMarketplaceOrCommunityLead(link, text)) return null;
   if (isProgrammingSearch(config) && !hasContactIntent && !hasOwnedProjectProblem(text) && !/forum|reddit|community|discussione/i.test(haystack)) {
     return null;
   }
