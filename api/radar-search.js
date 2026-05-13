@@ -53,6 +53,15 @@ const italianRedditCommunities = [
   "imprenditoria"
 ];
 
+const italianAllowedRedditCommunities = new Set([
+  "italia",
+  "italy",
+  "italyinformatica",
+  "italiacareeradvice",
+  "imprenditoria",
+  "commercialisti"
+]);
+
 const italianProgrammingSignals = [
   "cerco programmatore",
   "cerco freelance sito web",
@@ -218,6 +227,39 @@ function normalizeDuckDuckGoUrl(href = "") {
   }
 }
 
+function hostnameOf(value = "") {
+  try {
+    return new URL(value).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function redditCommunityFromUrl(value = "") {
+  const match = String(value || "").match(/reddit\.com\/r\/([^/?#]+)/i);
+  return match ? decodeURIComponent(match[1]).toLowerCase() : "";
+}
+
+function isTranslatedRedditUrl(value = "") {
+  try {
+    const url = new URL(value);
+    return url.hostname.includes("reddit.com") && url.searchParams.has("tl");
+  } catch {
+    return /reddit\.com\/.*[?&]tl=/i.test(value);
+  }
+}
+
+function isItalianWebResult(link = "", text = "") {
+  const host = hostnameOf(link);
+  const subreddit = redditCommunityFromUrl(link);
+  if (isTranslatedRedditUrl(link)) return false;
+  if (subreddit && !italianAllowedRedditCommunities.has(subreddit)) return false;
+  if (host.endsWith(".it")) return true;
+  if (/reddit\.com$/i.test(host) && italianAllowedRedditCommunities.has(subreddit)) return true;
+  if (/forum\.html\.it|html\.it|giorgiotave\.it|forumfree\.it|forumcommunity\.net|alfemminile\.com|finanzaonline\.com|hwupgrade\.it/i.test(host)) return true;
+  return looksItalian(text) && !/\b(looking for|need a|hire|developer wanted|busco|caut|desarrollador|programare)\b/i.test(text);
+}
+
 function extractEmails(text = "") {
   const emails = String(text || "").match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) || [];
   return [...new Set(emails)].slice(0, 5);
@@ -343,14 +385,16 @@ function serperQueries(config) {
   const city = config.city ? ` ${config.city}` : "";
   if (isItalianMode(config) && isProgrammingSearch(config)) {
     return [
-      `("cerco sviluppatore" OR "cerco programmatore") (forum OR community OR reddit) ${country}${city}`,
-      `("mi serve un sito" OR "devo fare un sito") (forum OR reddit OR discussione) ${country}${city}`,
-      `("preventivo sito" OR "quanto costa un sito") (forum OR reddit OR community) ${country}${city}`,
-      `("voglio creare un'app" OR "preventivo app") (forum OR community OR reddit) ${country}${city}`,
+      `("cerco sviluppatore" OR "cerco programmatore") (forum OR community OR discussione) ${country}${city} -site:reddit.com`,
+      `("mi serve un sito" OR "devo fare un sito") ("preventivo" OR "consigli") ${country}${city} -site:reddit.com`,
+      `("preventivo sito" OR "quanto costa un sito") (forum OR community OR discussione) ${country}${city} -site:reddit.com`,
+      `("voglio creare un'app" OR "preventivo app") (forum OR community OR discussione) ${country}${city} -site:reddit.com`,
       `("software gestionale" OR "crm") ("preventivo" OR "cerco") "azienda" ${country}${city}`,
       `("voglio automatizzare" OR "automazione processi") "azienda" ${country}${city}`,
-      `site:reddit.com/r/ItalyInformatica ("cerco" OR "serve" OR "preventivo") (sito OR app OR software OR gestionale)`,
-      `site:forum.html.it ("cerco" OR "serve" OR "preventivo") (sito OR app OR software)`
+      `site:reddit.com/r/ItalyInformatica ("cerco" OR "serve" OR "preventivo") (sito OR app OR software OR gestionale) -inurl:?tl=`,
+      `site:forum.html.it ("cerco" OR "serve" OR "preventivo") (sito OR app OR software)`,
+      `site:forumfree.it ("cerco" OR "serve" OR "preventivo") (sito OR app OR software)`,
+      `site:forumcommunity.net ("cerco" OR "serve" OR "preventivo") (sito OR app OR software)`
     ];
   }
   return liveQueries(config).slice(0, SERPER_MAX_QUERIES);
@@ -366,6 +410,7 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
   const isBusinessContact = /contatti|preventivo|richiedi|azienda|agenzia|servizi|software house|web agency|professionista|freelance/i.test(haystack);
   const hasContactIntent = hasServiceBuyingIntent(text) || (hasClientIntent(text) && hasDevelopmentTerm(text));
   if (!link || !title) return null;
+  if (isItalianMode(config) && !isItalianWebResult(link, text)) return null;
   if (isProgrammingSearch(config) && !hasContactIntent && !hasOwnedProjectProblem(text) && !/forum|reddit|community|discussione/i.test(haystack)) {
     return null;
   }
