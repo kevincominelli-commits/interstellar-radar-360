@@ -112,6 +112,9 @@ Sempre con:
 - Radar 360 ora usa una pipeline a imbuto: raw collected, cleaning, pre-filter, semantic matching, AI base, AI advanced e final leads.
 - Ogni ricerca Radar registra funnel metrics, crediti stimati/usati, costo per lead finale e usage log.
 - Lead card operative estese: Contatta, Posticipa, Archivia, Proponi appuntamento, Copia messaggio.
+- Aggiunto Opportunity Radar nel motore: cluster domanda locale, richieste prezzo, ricerca servizio, problemi urgenti, aziende con contatto business e lead pronti per appuntamento.
+- Aggiunto Conversation Starter: versioni breve/naturale/professionale, risposte alle obiezioni e anti-spam score.
+- Collegati i prospect Radar a AI Content e CRM senza cambiare layout: da Dettaglio prospect si puo aprire il contenuto AI o creare/qualificare il lead nel CRM.
 
 ## Regola operativa per il PDF completo
 
@@ -135,7 +138,7 @@ Prima fase immediata prima del lavoro dal PDF:
 
 ## Prossimi step consigliati
 
-1. Continuare il motore dal PDF: Opportunity Radar, cluster domanda, Conversation Starter e Manual Reply Assistant.
+1. Continuare il motore dal PDF: Manual Reply Assistant, Follow-up Reminder avanzato e CRM Kanban piu operativo.
 2. Rendere Radar 360 ancora piu semplice per un cliente non tecnico, senza stravolgere la grafica.
 3. Migliorare i risultati per la nicchia "clienti interessati a programmazione".
 4. Aggiungere fonti reali autorizzate/provider seri per web e directory.
