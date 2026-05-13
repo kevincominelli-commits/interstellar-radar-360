@@ -142,6 +142,8 @@ Sempre con:
 - Aggiornata cache asset a `radar360-13`.
 - Corretta la UX della ricerca live: dopo "Cerca clienti" la UI mostra solo i risultati dell'ultima ricerca live, non li rimescola con vecchi prospect salvati nel browser/localStorage.
 - Aggiornata cache asset a `radar360-14`.
+- Corretta copy feedback ricerca live: mostra risultati live analizzati e nuovi inseriti nel database separatamente.
+- Aggiornata cache asset a `radar360-15`.
 
 ## Regola operativa per il PDF completo
 

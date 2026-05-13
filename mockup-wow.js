@@ -4909,6 +4909,7 @@ async function runLiveOpenWebSearch() {
     const liveResultIds = radarIdsForImportedProspects(payload.prospects || []);
     activeRadarTab = "all";
     executeRadarSearch(getRadarConfig(), liveResultIds);
+    const visibleLiveCount = workspace.radar.resultIds?.length || liveResultIds.length || 0;
     const providerSummary = (payload.provider_status || [])
       .filter((provider) => provider.status === "fulfilled")
       .map((provider) => `${provider.name} ${provider.count}`)
@@ -4920,8 +4921,8 @@ async function runLiveOpenWebSearch() {
     const providerNote = providerErrors ? ` Provider da configurare/controllare: ${providerErrors}.` : "";
     setFeedback(
       "#radarFeedback",
-      fresh.length
-        ? `${fresh.length} prospect live importati${payload.fallback_relaxed ? " con filtro allargato" : ""}. Modalità Italia attiva. Fonti: ${providerSummary || payload.providers?.join(", ") || "fonti pubbliche"}.${providerNote}`
+      visibleLiveCount
+        ? `${visibleLiveCount} risultati live analizzati${fresh.length ? `, ${fresh.length} nuovi nel database` : ""}${payload.fallback_relaxed ? " con filtro allargato" : ""}. Modalità Italia attiva. Fonti: ${providerSummary || payload.providers?.join(", ") || "fonti pubbliche"}.${providerNote}`
         : `Ricerca live completata in modalità Italia, ma nessun nuovo prospect buono diverso da quelli già salvati. Fonti controllate: ${providerSummary || "nessuna fonte utile"}.${providerNote}`
     );
   } catch (error) {
