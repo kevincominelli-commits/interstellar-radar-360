@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Interstellar Dashboard Mockup</title>
-    <link rel="stylesheet" href="mockup-wow.css?v=radar360-10" />
+    <link rel="stylesheet" href="mockup-wow.css?v=radar360-11" />
   </head>
   <body data-theme="stripe">
     <canvas id="starCanvas" aria-hidden="true"></canvas>
@@ -1053,6 +1053,43 @@
                 <button type="submit">Salva impostazioni</button>
               </form>
             </article>
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Piano & limiti</span>
+                  <h2>Pacchetto vendibile e utilizzo mensile</h2>
+                </div>
+              </div>
+              <form class="system-form" id="planSettings">
+                <label>
+                  <span>Piano</span>
+                  <select name="tier" id="planTierSelect">
+                    <option value="free">Free</option>
+                    <option value="pro">Pro</option>
+                    <option value="agency">Agency</option>
+                    <option value="internal">Internal</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Fatturazione</span>
+                  <select name="interval" id="planIntervalSelect">
+                    <option value="monthly">Mensile</option>
+                    <option value="annual">Annuale</option>
+                  </select>
+                </label>
+                <button type="submit">Applica piano</button>
+              </form>
+              <div class="system-list" id="planUsagePanel"></div>
+            </article>
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Usage log</span>
+                  <h2>Ricerche, export e azioni conteggiate</h2>
+                </div>
+              </div>
+              <div class="system-list" id="usageLogPanel"></div>
+            </article>
             <article class="panel system-card danger-card">
               <div class="panel-head">
                 <div>
@@ -1070,6 +1107,6 @@
       </main>
     </div>
 
-    <script src="mockup-wow.js?v=radar360-10"></script>
+    <script src="mockup-wow.js?v=radar360-11"></script>
   </body>
 </html>

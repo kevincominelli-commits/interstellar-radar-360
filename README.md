@@ -49,6 +49,17 @@ npm run check
 - `api/radar-search.js`: ricerca live su fonti open web supportate: Reddit, Q&A, DEV, WordPress, GitHub tecnico e URL diretti.
 - `vercel.json`: configurazione deploy.
 
+## Motore SaaS attuale
+
+Il frontend include gia un motore locale per piani e limiti:
+
+- Free / Pro / Agency / Internal
+- crediti mensili
+- limiti per ricerche live, analisi Radar, export, campagne, offerte, appuntamenti e automazioni
+- usage log mensile in Settings
+
+Stripe/Supabase sono il prossimo collegamento cloud, non ancora credenziali reali.
+
 ## Regola prodotto fondamentale
 
 La piattaforma deve essere professionale e realistica:

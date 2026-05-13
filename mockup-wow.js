@@ -730,6 +730,79 @@ const integrationItems = [
   ["Stripe", "Abbonamenti mensili e annuali", "Roadmap"]
 ];
 
+const planCatalog = {
+  free: {
+    name: "Free",
+    monthlyPrice: 0,
+    annualPrice: 0,
+    credits: 150,
+    limits: {
+      live_search: 5,
+      radar_search: 30,
+      export: 3,
+      campaign: 2,
+      offer: 5,
+      appointment: 5,
+      automation: 3
+    }
+  },
+  pro: {
+    name: "Pro",
+    monthlyPrice: 97,
+    annualPrice: 970,
+    credits: 5000,
+    limits: {
+      live_search: 250,
+      radar_search: 600,
+      export: 100,
+      campaign: 40,
+      offer: 120,
+      appointment: 120,
+      automation: 60
+    }
+  },
+  agency: {
+    name: "Agency",
+    monthlyPrice: 297,
+    annualPrice: 2970,
+    credits: 25000,
+    limits: {
+      live_search: 1500,
+      radar_search: 4000,
+      export: 600,
+      campaign: 250,
+      offer: 900,
+      appointment: 900,
+      automation: 300
+    }
+  },
+  internal: {
+    name: "Internal",
+    monthlyPrice: 0,
+    annualPrice: 0,
+    credits: 999999,
+    limits: {
+      live_search: Infinity,
+      radar_search: Infinity,
+      export: Infinity,
+      campaign: Infinity,
+      offer: Infinity,
+      appointment: Infinity,
+      automation: Infinity
+    }
+  }
+};
+
+const usageLabels = {
+  live_search: "Ricerche live",
+  radar_search: "Analisi Radar",
+  export: "Export",
+  campaign: "Campagne",
+  offer: "Offerte",
+  appointment: "Appuntamenti",
+  automation: "Automazioni"
+};
+
 function uid(prefix) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -750,9 +823,12 @@ function defaultWorkspace() {
       signature: "Kevin - Interstellar"
     },
     plan: {
-      name: "Internal Alpha",
+      name: "Pro",
       tier: "pro",
-      status: "active"
+      status: "active",
+      interval: "monthly",
+      periodKey: "",
+      seats: 1
     },
     credits: {
       balance: 5000,
@@ -803,7 +879,8 @@ function defaultWorkspace() {
     opportunities: [],
     conversations: [],
     complianceLogs: [],
-    optOuts: []
+    optOuts: [],
+    billingEvents: []
   };
 }
 
@@ -946,6 +1023,131 @@ function createLead(nameOrInput, company, source, city, target, offer, score = n
   return normalizeLead({ name: nameOrInput, company, source, city, target, offer, score });
 }
 
+function currentPeriodKey(date = new Date()) {
+  return date.toISOString().slice(0, 7);
+}
+
+function getPlanDefinition(tier = workspace?.plan?.tier || "pro") {
+  return planCatalog[tier] || planCatalog.pro;
+}
+
+function normalizeWorkspacePlan(plan = {}) {
+  const tier = planCatalog[plan.tier] ? plan.tier : "pro";
+  const definition = getPlanDefinition(tier);
+  return {
+    name: definition.name,
+    tier,
+    status: plan.status || "active",
+    interval: plan.interval === "annual" ? "annual" : "monthly",
+    periodKey: plan.periodKey || currentPeriodKey(),
+    seats: Math.max(1, Number(plan.seats || 1)),
+    updatedAt: plan.updatedAt || new Date().toISOString()
+  };
+}
+
+function formatPlanLimit(value) {
+  return value === Infinity ? "Illimitato" : formatMetric(value);
+}
+
+function usageInCurrentPeriod(type) {
+  const period = currentPeriodKey();
+  return (workspace.usageLogs || []).filter((log) => log.type === type && (log.period || String(log.created_at || "").slice(0, 7)) === period).length;
+}
+
+function usageLimitStatus(type) {
+  const limit = getPlanDefinition().limits[type] ?? Infinity;
+  const used = usageInCurrentPeriod(type);
+  return {
+    type,
+    label: usageLabels[type] || type,
+    used,
+    limit,
+    remaining: limit === Infinity ? Infinity : Math.max(0, limit - used),
+    blocked: limit !== Infinity && used >= limit
+  };
+}
+
+function setPlanBlockedFeedback(selector, status) {
+  setFeedback(
+    selector,
+    `${status.label} bloccato: piano ${getPlanDefinition().name} ha limite ${formatPlanLimit(status.limit)} al mese. Passa a un piano superiore o attendi il rinnovo.`
+  );
+}
+
+function canUsePlanFeature(type, feedbackSelector = "#settingsFeedback") {
+  refreshPlanPeriod();
+  const status = usageLimitStatus(type);
+  if (status.blocked) {
+    setPlanBlockedFeedback(feedbackSelector, status);
+    return false;
+  }
+  return true;
+}
+
+function recordUsage(type, module, units = 1, credits = 0, meta = {}) {
+  workspace.usageLogs.unshift({
+    id: uid("usage"),
+    type,
+    module,
+    period: currentPeriodKey(),
+    credits,
+    units,
+    workspace: workspace.settings.workspace,
+    created_at: new Date().toISOString(),
+    meta
+  });
+  workspace.usageLogs = workspace.usageLogs.slice(0, 160);
+}
+
+function refreshPlanPeriod() {
+  workspace.plan = normalizeWorkspacePlan(workspace.plan);
+  const period = currentPeriodKey();
+  if (workspace.plan.periodKey === period) return;
+  const definition = getPlanDefinition();
+  workspace.plan.periodKey = period;
+  workspace.plan.updatedAt = new Date().toISOString();
+  workspace.credits.balance = definition.credits;
+  workspace.credits.monthlyIncluded = definition.credits;
+  workspace.credits.spent = 0;
+  workspace.creditsLedger.unshift({
+    id: uid("credit"),
+    type: "credit",
+    amount: definition.credits,
+    balance_after: workspace.credits.balance,
+    reason: "monthly_plan_renewal",
+    created_at: new Date().toISOString()
+  });
+  workspace.billingEvents.unshift({
+    id: uid("billing"),
+    type: "period_renewal",
+    plan: definition.name,
+    period,
+    created_at: new Date().toISOString()
+  });
+}
+
+function applyPlanTier(tier, interval = "monthly") {
+  const definition = getPlanDefinition(tier);
+  workspace.plan = normalizeWorkspacePlan({
+    ...workspace.plan,
+    tier: planCatalog[tier] ? tier : "pro",
+    interval,
+    periodKey: currentPeriodKey(),
+    updatedAt: new Date().toISOString()
+  });
+  workspace.credits.balance = definition.credits;
+  workspace.credits.monthlyIncluded = definition.credits;
+  workspace.credits.spent = 0;
+  workspace.billingEvents.unshift({
+    id: uid("billing"),
+    type: "plan_changed",
+    plan: definition.name,
+    interval,
+    price: interval === "annual" ? definition.annualPrice : definition.monthlyPrice,
+    created_at: new Date().toISOString()
+  });
+}
+
 function loadWorkspace() {
   const fallback = defaultWorkspace();
   try {
@@ -1001,9 +1203,10 @@ workspace.featureFlags = { ...defaultWorkspace().featureFlags, ...(workspace.fea
 workspace.radar.searches = Array.isArray(workspace.radar.searches) ? workspace.radar.searches : [];
 workspace.radar.contactLogs = Array.isArray(workspace.radar.contactLogs) ? workspace.radar.contactLogs : [];
 workspace.radar.assignments = workspace.radar.assignments || {};
-["tasks", "appointments", "customers", "deals", "offers", "opportunities", "conversations", "complianceLogs", "optOuts"].forEach((key) => {
+["tasks", "appointments", "customers", "deals", "offers", "opportunities", "conversations", "complianceLogs", "optOuts", "billingEvents"].forEach((key) => {
   workspace[key] = Array.isArray(workspace[key]) ? workspace[key] : [];
 });
+refreshPlanPeriod();
 workspace.leads = workspace.leads.map((lead) => normalizeLead(lead)).filter((lead) => lead.username || lead.company);
 workspace.radarProspects = (workspace.radarProspects || [])
   .map((prospect) => normalizeRadarProspect(prospect))
@@ -1315,6 +1518,7 @@ function renderAnalytics() {
   const funnel = workspace.radar.lastFunnel || {};
   const opportunities = currentOpportunityClusters();
   analytics.innerHTML = [
+    ["Piano", getPlanDefinition().name],
     ["Lead totali", leads],
     ["Lead caldi", hot],
     ["Contattati", contacted],
@@ -1322,6 +1526,7 @@ function renderAnalytics() {
     ["Campagne", workspace.campaigns.length],
     ["Automazioni", workspace.automations.filter((item) => item.enabled).length],
     ["Crediti rimasti", workspace.credits.balance ?? 0],
+    ["Live search mese", usageInCurrentPeriod("live_search")],
     ["Radar finali", funnel.finalLeads ?? 0],
     ["Raw analizzati", funnel.rawCollected ?? 0],
     ["Task", workspace.tasks.length],
@@ -1339,10 +1544,62 @@ function renderAnalytics() {
     "Prima di collegare email/DM, mantieni approvazione manuale.",
     workspace.radar.lastCreditEstimate
       ? `Ultima ricerca: ${workspace.radar.lastCreditEstimate.total} crediti, costo/lead ${workspace.radar.lastCreditEstimate.costPerFinalLead}.`
-      : "Lancia Radar 360 per generare metriche imbuto e consumo crediti."
+      : "Lancia Radar 360 per generare metriche imbuto e consumo crediti.",
+    `Piano attivo: ${getPlanDefinition().name}, crediti residui ${formatMetric(workspace.credits.balance || 0)}.`
   ]
     .map((action) => `<div class="system-list-item"><div><strong>${action}</strong><p>Priorità operativa interna.</p></div></div>`)
     .join("");
+}
+
+function renderPlanUsagePanel() {
+  const panel = document.querySelector("#planUsagePanel");
+  const usagePanel = document.querySelector("#usageLogPanel");
+  if (!panel && !usagePanel) return;
+  const definition = getPlanDefinition();
+  const price = workspace.plan.interval === "annual" ? definition.annualPrice : definition.monthlyPrice;
+  const usageRows = ["live_search", "radar_search", "export", "campaign", "offer", "appointment", "automation"].map(usageLimitStatus);
+  if (panel) {
+    panel.innerHTML = `
+      <div class="system-list-item">
+        <div>
+          <strong>${escapeHtml(definition.name)} · ${workspace.plan.interval === "annual" ? "Annuale" : "Mensile"}</strong>
+          <p>${price ? `${price}€/ ${workspace.plan.interval === "annual" ? "anno" : "mese"}` : "Piano interno/test"} · ${formatMetric(workspace.credits.balance || 0)} crediti rimasti su ${formatMetric(workspace.credits.monthlyIncluded || definition.credits)}</p>
+        </div>
+        <span class="status-pill">${escapeHtml(workspace.plan.status || "active")}</span>
+      </div>
+      ${usageRows
+        .map(
+          (row) => `
+            <div class="system-list-item">
+              <div>
+                <strong>${escapeHtml(row.label)}</strong>
+                <p>${formatMetric(row.used)} usati questo mese · limite ${formatPlanLimit(row.limit)}</p>
+              </div>
+              <span class="status-pill">${row.blocked ? "Limite" : row.remaining === Infinity ? "OK" : `${formatMetric(row.remaining)} rim.`}</span>
+            </div>
+          `
+        )
+        .join("")}
+    `;
+  }
+  if (usagePanel) {
+    usagePanel.innerHTML = (workspace.usageLogs || []).length
+      ? workspace.usageLogs
+          .slice(0, 10)
+          .map(
+            (log) => `
+              <div class="system-list-item">
+                <div>
+                  <strong>${escapeHtml(usageLabels[log.type] || log.type)}</strong>
+                  <p>${escapeHtml(log.module || "workspace")} · ${formatMetric(log.units || 0)} unità · ${formatMetric(log.credits || 0)} crediti · ${formatDate(log.created_at)}</p>
+                </div>
+                <span class="status-pill">${escapeHtml(log.period || String(log.created_at || "").slice(0, 7))}</span>
+              </div>
+            `
+          )
+          .join("")
+      : `<div class="system-list-item"><div><strong>Nessun utilizzo tracciato</strong><p>Ricerche, export e automazioni appariranno qui.</p></div></div>`;
+  }
 }
 
 function renderIntegrations() {
@@ -1363,11 +1620,20 @@ function renderIntegrations() {
 
 function renderSettings() {
   const form = document.querySelector("#workspaceSettings");
-  if (!form) return;
-  const workspaceInput = form.elements.namedItem("workspace");
-  const signatureInput = form.elements.namedItem("signature");
-  if (workspaceInput) workspaceInput.value = workspace.settings?.workspace || "Interstellar Internal";
-  if (signatureInput) signatureInput.value = workspace.settings?.signature || "Kevin - Interstellar";
+  if (form) {
+    const workspaceInput = form.elements.namedItem("workspace");
+    const signatureInput = form.elements.namedItem("signature");
+    if (workspaceInput) workspaceInput.value = workspace.settings?.workspace || "Interstellar Internal";
+    if (signatureInput) signatureInput.value = workspace.settings?.signature || "Kevin - Interstellar";
+  }
+  const planForm = document.querySelector("#planSettings");
+  if (planForm) {
+    const tierInput = planForm.elements.namedItem("tier");
+    const intervalInput = planForm.elements.namedItem("interval");
+    if (tierInput) tierInput.value = workspace.plan.tier || "pro";
+    if (intervalInput) intervalInput.value = workspace.plan.interval || "monthly";
+  }
+  renderPlanUsagePanel();
 }
 
 const dashboardDemoUsernames = new Set(
@@ -3393,19 +3659,10 @@ function recordRadarSearchUsage(config, results, funnel, estimate) {
     cost_per_final_lead: estimate.costPerFinalLead,
     result_ids: results.map((prospect) => prospect.lead_id)
   });
-  workspace.usageLogs.unshift({
-    id: uid("usage"),
-    type: "radar_search",
-    module: "radar",
-    credits: amount,
-    units: funnel.rawCollected,
-    workspace: workspace.settings.workspace,
-    created_at: now,
-    meta: {
-      final_leads: funnel.finalLeads,
-      mode: estimate.mode,
-      phaseCredits: estimate.phaseCredits
-    }
+  recordUsage("radar_search", "radar", funnel.rawCollected, amount, {
+    final_leads: funnel.finalLeads,
+    mode: estimate.mode,
+    phaseCredits: estimate.phaseCredits
   });
   workspace.radar.searches = workspace.radar.searches.slice(0, 50);
   workspace.usageLogs = workspace.usageLogs.slice(0, 120);
@@ -3566,6 +3823,7 @@ function radarDistributionRank(prospect, config = {}) {
 }
 
 function executeRadarSearch(config = getRadarConfig()) {
+  if (!canUsePlanFeature("radar_search", "#radarFeedback")) return;
   const now = Date.now();
   const { results, funnel, estimate } = buildRadarPipeline(config);
   if (estimate.total > Number(workspace.credits.balance || 0)) {
@@ -4118,6 +4376,7 @@ ${workspace.settings.signature}`;
 
 function createOfferForLead(lead, packageName, priceRange, goal) {
   if (!lead) return null;
+  if (!canUsePlanFeature("offer", "#settingsFeedback")) return null;
   const packageLabel = String(packageName || "Sito + automazioni AI");
   const priceLabel = String(priceRange || "Da definire dopo mini analisi");
   const goalLabel = String(goal || lead.target || "Generare piu clienti e gestire follow-up");
@@ -4137,7 +4396,8 @@ function createOfferForLead(lead, packageName, priceRange, goal) {
   };
   workspace.offers.unshift(offer);
   workspace.offers = workspace.offers.slice(0, 120);
-  lead.offer = packageName;
+  recordUsage("offer", "campaigns", 1, 0, { lead_id: lead.id, package: packageLabel });
+  lead.offer = packageLabel;
   lead.status = lead.status === "new" ? "qualified" : lead.status;
   lead.nextAction = "Inviare offerta o proporre call";
   lead.updatedAt = new Date().toISOString();
@@ -4169,6 +4429,7 @@ ${campaign.offer_title ? `Collegata all'offerta: ${campaign.offer_title}` : "Cam
 }
 
 function createCampaignFromOffer(offerId) {
+  if (!canUsePlanFeature("campaign", "#settingsFeedback")) return null;
   const offer = workspace.offers.find((item) => item.id === offerId);
   if (!offer) return null;
   const lead = workspace.leads.find((item) => item.id === offer.lead_id);
@@ -4193,6 +4454,7 @@ function createCampaignFromOffer(offerId) {
     updatedAt: new Date().toISOString()
   };
   workspace.campaigns.unshift(campaign);
+  recordUsage("campaign", "campaigns", 1, 0, { offer_id: offer.id, lead_id: offer.lead_id });
   offer.status = "linked_campaign";
   offer.updated_at = new Date().toISOString();
   if (lead) {
@@ -4236,6 +4498,7 @@ function buildGoogleCalendarUrl(appointment) {
 function createAppointmentFromLead(leadId) {
   const lead = workspace.leads.find((item) => item.id === leadId);
   if (!lead) return null;
+  if (!canUsePlanFeature("appointment", "#settingsFeedback")) return null;
   const scheduledAt = nextAppointmentSlot(1);
   const appointment = {
     id: uid("appointment"),
@@ -4252,6 +4515,7 @@ function createAppointmentFromLead(leadId) {
   };
   appointment.confirmation_message = appointmentConfirmationMessage(appointment);
   workspace.appointments.unshift(appointment);
+  recordUsage("appointment", "automations", 1, 0, { lead_id: lead.id });
   lead.status = "interested";
   lead.nextAction = "Confermare appuntamento";
   lead.nextDue = appointment.scheduled_at;
@@ -4282,6 +4546,7 @@ function archiveRadarProspect(prospectId) {
 async function proposeRadarAppointment(prospectId) {
   const prospect = getRadarProspectById(prospectId);
   if (!prospect) return;
+  if (!canUsePlanFeature("appointment", "#radarFeedback")) return;
   const suggestedAt = nextAppointmentSlot(prospect.temperature === "hot" ? 1 : 2);
   const appointment = {
     id: uid("appointment"),
@@ -4297,6 +4562,7 @@ async function proposeRadarAppointment(prospectId) {
   };
   appointment.confirmation_message = appointmentConfirmationMessage(appointment);
   workspace.appointments.unshift(appointment);
+  recordUsage("appointment", "radar", 1, 0, { lead_id: prospect.lead_id });
   updateStoredRadarProspect(prospect.lead_id, { contact_state: "appointment_proposed" });
   const message = `Ciao${cleanFirstName(prospect.public_name) ? ` ${cleanFirstName(prospect.public_name)}` : ""}, ti propongo una call veloce di 30 minuti per capire meglio la situazione. Potrebbe andar bene domani alle 10:00 oppure preferisci un altro orario?`;
   await copyText(message);
@@ -4456,6 +4722,7 @@ function addRadarProspects(prospects = []) {
 }
 
 function exportRadarCsv() {
+  if (!canUsePlanFeature("export", "#radarFeedback")) return;
   const headers = [
     "lead_id",
     "platform",
@@ -4489,6 +4756,8 @@ function exportRadarCsv() {
       .join(",")
   );
   downloadTextFile("interstellar-radar-360-results.csv", [headers.join(","), ...rows].join("\n"), "text/csv");
+  recordUsage("export", "radar", rows.length, 0, { format: "csv" });
+  saveWorkspace();
 }
 
 function radarSearchQuery(kind) {
@@ -4542,6 +4811,7 @@ function radarApiBaseUrl() {
 async function runLiveOpenWebSearch() {
   const button = document.querySelector("#runLiveOpenWebSearch");
   const config = syncQuickRadarFlow();
+  if (!canUsePlanFeature("live_search", "#radarFeedback")) return;
   const params = new URLSearchParams({
     niche: config.niche,
     country: config.country,
@@ -4565,6 +4835,10 @@ async function runLiveOpenWebSearch() {
     if (!response.ok) {
       throw new Error(payload.error || "Ricerca live non disponibile.");
     }
+    recordUsage("live_search", "radar-live", payload.prospects?.length || 0, 0, {
+      providers: payload.providers || [],
+      fallback_relaxed: Boolean(payload.fallback_relaxed)
+    });
     const fresh = addRadarProspects(payload.prospects || []);
     executeRadarSearch(getRadarConfig());
     const providerSummary = (payload.provider_status || [])
@@ -5216,6 +5490,7 @@ document.querySelector("#copyLeadDraft")?.addEventListener("click", async () => 
 
 document.querySelector("#campaignForm")?.addEventListener("submit", (event) => {
   event.preventDefault();
+  if (!canUsePlanFeature("campaign", "#settingsFeedback")) return;
   const data = new FormData(event.currentTarget);
   const lead = workspace.leads.find((item) => item.id === data.get("lead"));
   workspace.campaigns.unshift({
@@ -5236,6 +5511,7 @@ document.querySelector("#campaignForm")?.addEventListener("submit", (event) => {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   });
+  recordUsage("campaign", "campaigns", 1, 0, { lead_id: lead?.id || "" });
   saveWorkspace();
   renderAll();
 });
@@ -5328,6 +5604,7 @@ document.querySelector("#copyReplySuggestion")?.addEventListener("click", async 
 
 document.querySelector("#automationForm")?.addEventListener("submit", (event) => {
   event.preventDefault();
+  if (!canUsePlanFeature("automation", "#settingsFeedback")) return;
   const data = new FormData(event.currentTarget);
   workspace.automations.unshift({
     id: uid("auto"),
@@ -5335,6 +5612,7 @@ document.querySelector("#automationForm")?.addEventListener("submit", (event) =>
     action: data.get("action"),
     enabled: true
   });
+  recordUsage("automation", "automations", 1, 0, { trigger: data.get("trigger") });
   saveWorkspace();
   renderAll();
 });
@@ -5348,10 +5626,22 @@ document.querySelector("#workspaceSettings")?.addEventListener("submit", (event)
   document.querySelector("#settingsFeedback").textContent = "Impostazioni salvate.";
 });
 
+document.querySelector("#planSettings")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  applyPlanTier(data.get("tier"), data.get("interval"));
+  saveWorkspace();
+  renderAll();
+  document.querySelector("#settingsFeedback").textContent = `Piano ${getPlanDefinition().name} applicato. Crediti e limiti mensili aggiornati.`;
+});
+
 document.querySelector("#exportLeads")?.addEventListener("click", async () => {
+  if (!canUsePlanFeature("export", "#leadsFeedback")) return;
   const payload = JSON.stringify(filteredLeads(), null, 2);
   const copied = await copyText(payload);
   if (!copied) downloadTextFile("interstellar-lead-finder-results.json", payload);
+  recordUsage("export", "lead-finder", filteredLeads().length, 0, { format: "json" });
+  saveWorkspace();
   setFeedback("#leadsFeedback", copied ? "Risultati copiati negli appunti." : "Risultati scaricati come JSON.");
 });
 

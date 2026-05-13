@@ -129,6 +129,9 @@ Sempre con:
 - Esteso il backend Radar live oltre GitHub/Reddit: aggiunti Stack Exchange, DEV, WordPress public search e analisi URL diretti, con filtro sugli ultimi mesi e provider status.
 - Sistemata ricerca live in locale: se la pagina e aperta con `file://`, `localhost` o `127.0.0.1`, usa comunque l'API online Vercel invece di chiamare il server statico locale.
 - Aggiornata cache asset a `radar360-10`.
+- Aggiunto SaaS Plan & Usage Engine: piani Free/Pro/Agency/Internal, crediti mensili, limiti per ricerche live, analisi Radar, export, campagne, offerte, appuntamenti e automazioni.
+- Settings ora mostra piano attivo, utilizzo mensile e usage log operativo. Il motore blocca le azioni quando il piano supera i limiti.
+- Aggiornata cache asset a `radar360-11`.
 
 ## Regola operativa per il PDF completo
 
@@ -156,7 +159,7 @@ Prima fase immediata prima del lavoro dal PDF:
 2. Migliorare i risultati per la nicchia "clienti interessati a programmazione".
 3. Aggiungere fonti reali autorizzate/provider seri per web e directory.
 4. Salvare utenti e workspace in database vero, non solo localStorage.
-5. Aggiungere login, piani, abbonamenti e limiti per pacchetto.
+5. Collegare Stripe reale ai piani gia presenti nel motore.
 6. Collegare Google Calendar/Meet con OAuth vero quando si passa da MVP locale a SaaS.
 7. Separare meglio:
    - dashboard
