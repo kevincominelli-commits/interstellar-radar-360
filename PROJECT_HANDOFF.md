@@ -144,6 +144,7 @@ Sempre con:
 - Aggiornata cache asset a `radar360-14`.
 - Corretta copy feedback ricerca live: mostra risultati live analizzati e nuovi inseriti nel database separatamente.
 - Aggiornata cache asset a `radar360-15`.
+- Stretta ulteriore su Serper per programmazione: query orientate a richieste esplicite e filtro che scarta articoli/guide/contenuti SEO se non contengono frasi tipo "cerco sviluppatore/programmatore", "budget", "pubblicato da", "solo a chi parla italiano".
 
 ## Regola operativa per il PDF completo
 

@@ -1,7 +1,7 @@
 const DEFAULT_LIMIT = 30;
 const MAX_PROVIDER_RESULTS = 10;
 const DEFAULT_RECENCY_MONTHS = 12;
-const SERPER_MAX_QUERIES = 6;
+const SERPER_MAX_QUERIES = 8;
 
 const providerSourceMap = {
   reddit: ["Reddit", "Forum"],
@@ -268,12 +268,6 @@ function hasExplicitHireRequest(text = "") {
   );
 }
 
-function hasDirectProgrammingRequest(text = "") {
-  return /cerco (uno |una |un |qualcuno |)(sviluppatore|programmatore|freelance|web agency|software house)|cerco (sviluppatore|programmatore|freelance)|sto cercando (uno |una |un |qualcuno |)(sviluppatore|programmatore|freelance)|mi serve (un |una |)(sito|app|applicazione|gestionale|software|bot|chatbot|automazione)|devo (fare|creare|sviluppare|sistemare|rifare) (un |una |)(sito|app|applicazione|gestionale|software|bot|chatbot|ecommerce)|voglio creare (un |una |)(sito|app|software|bot|chatbot|gestionale)|sistemare (gestionale|sito|app|software)|richiedo preventivo.{0,60}(sito|app|software|gestionale|chatbot)|budget.{0,80}(sito|app|software|gestionale|sviluppatore|programmatore)/i.test(
-    text
-  );
-}
-
 function isMarketplaceOrCommunityLead(link = "", text = "") {
   const host = hostnameOf(link);
   return /facebook\.com|freelancer\.|addlance\.com|techlance\.it|inforge\.net|forum\.|reddit\.com|italia\.it|iprogrammatori\.it|arduino\.cc/i.test(
@@ -442,16 +436,16 @@ function serperQueries(config) {
   const city = config.city ? ` ${config.city}` : "";
   if (isItalianMode(config) && isProgrammingSearch(config)) {
     return [
-      `("cerco sviluppatore" OR "cerco programmatore") (forum OR community OR discussione) ${country}${city} -site:reddit.com`,
-      `("mi serve un sito" OR "devo fare un sito") ("preventivo" OR "consigli") ${country}${city} -site:reddit.com`,
-      `("preventivo sito" OR "quanto costa un sito") (forum OR community OR discussione) ${country}${city} -site:reddit.com`,
-      `("voglio creare un'app" OR "preventivo app") (forum OR community OR discussione) ${country}${city} -site:reddit.com`,
-      `("software gestionale" OR "crm") ("preventivo" OR "cerco") "azienda" ${country}${city}`,
-      `("voglio automatizzare" OR "automazione processi") "azienda" ${country}${city}`,
+      `("cerco sviluppatore" OR "cerco programmatore" OR "cerco freelance") ("budget" OR "progetto" OR "app" OR "sito" OR "gestionale") ${country}${city} -guida -tutorial -come`,
+      `("buongiorno cerco" OR "ciao cerco" OR "sto cercando") ("sviluppatore" OR "programmatore" OR "freelance") ${country}${city}`,
+      `("solo a chi parla italiano" OR "parla italiano") ("cerco sviluppatore" OR "cerco programmatore")`,
+      `site:facebook.com/groups ("cerco sviluppatore" OR "cerco programmatore" OR "buongiorno cerco") ("app" OR "sito" OR "gestionale" OR "bot")`,
+      `site:techlance.it ("cerco sviluppatore" OR "cerco programmatore" OR "budget")`,
+      `site:freelancer.co.it/job-search ("cerco programmatore" OR "cerco sviluppatore" OR "buongiorno cerco")`,
+      `site:addlance.com ("cerco programmatore" OR "cerco sviluppatore" OR "richiedi un preventivo simile")`,
+      `site:inforge.net/forum ("cerco sviluppatore" OR "cerco programmatore")`,
       `site:reddit.com/r/ItalyInformatica ("cerco" OR "serve" OR "preventivo") (sito OR app OR software OR gestionale) -inurl:?tl=`,
-      `site:forum.html.it ("cerco" OR "serve" OR "preventivo") (sito OR app OR software)`,
-      `site:forumfree.it ("cerco" OR "serve" OR "preventivo") (sito OR app OR software)`,
-      `site:forumcommunity.net ("cerco" OR "serve" OR "preventivo") (sito OR app OR software)`
+      `site:forum.html.it ("cerco sviluppatore" OR "cerco programmatore" OR "cerco freelance")`
     ];
   }
   return liveQueries(config).slice(0, SERPER_MAX_QUERIES);
@@ -470,7 +464,8 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
   if (isItalianMode(config) && !isItalianWebResult(link, text)) return null;
   if (!passesExplicitRecency(text, config)) return null;
   if (isProgrammingSearch(config) && isMarketingContentNoise(link, text)) return null;
-  if (isProgrammingSearch(config) && !hasDirectProgrammingRequest(text) && !isMarketplaceOrCommunityLead(link, text)) return null;
+  if (isProgrammingSearch(config) && !hasExplicitHireRequest(text)) return null;
+  if (isProgrammingSearch(config) && !isMarketplaceOrCommunityLead(link, text) && !/budget|pubblicato da|solo a chi parla italiano/i.test(text)) return null;
   if (isProgrammingSearch(config) && !hasContactIntent && !hasOwnedProjectProblem(text) && !/forum|reddit|community|discussione/i.test(haystack)) {
     return null;
   }
