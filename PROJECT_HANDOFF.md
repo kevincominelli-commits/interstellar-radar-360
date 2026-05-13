@@ -109,6 +109,26 @@ Sempre con:
 - Sistemato bug online causato da dati Radar salvati nel browser.
 - Aggiornata cache asset a `radar360-5`.
 
+## Regola operativa per il PDF completo
+
+Il file `/Users/kevincominelli/Downloads/Interstellar_Radar_360_Master_Blueprint_V6_Tutto.pdf` contiene la visione completa del prodotto.
+
+Quando Kevin dira di iniziare a costruire dal PDF completo:
+
+- leggere il PDF e trasformarlo in implementazione progressiva;
+- lavorare soprattutto sul motore, architettura, backend, database, Radar, CRM, automazioni e logica prodotto;
+- non stravolgere grafica, dashboard o identita visiva gia approvata;
+- non cambiare layout generale senza richiesta esplicita;
+- mantenere lo stile Interstellar/Stripe pulito e professionale;
+- prima di grosse modifiche estetiche, fermarsi e chiedere conferma;
+- per bug, motore, logica, dati, API e struttura tecnica, procedere in autonomia quanto possibile.
+
+Prima fase immediata prima del lavoro dal PDF:
+
+- rendere Radar 360 piu pulito, semplice e leggibile;
+- togliere complessita inutile dalla UI Radar;
+- mantenere dashboard e grafica generale stabili.
+
 ## Prossimi step consigliati
 
 1. Rendere Radar 360 ancora piu semplice per un cliente non tecnico.
