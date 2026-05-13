@@ -254,10 +254,18 @@ function isItalianWebResult(link = "", text = "") {
   const subreddit = redditCommunityFromUrl(link);
   if (isTranslatedRedditUrl(link)) return false;
   if (subreddit && !italianAllowedRedditCommunities.has(subreddit)) return false;
+  if (/freelancer\./i.test(host) && !/(freelancer\.co\.it|freelancer\.com)$/i.test(host)) return false;
+  if (/instagram\.com/i.test(host) && !hasExplicitHireRequest(text)) return false;
   if (host.endsWith(".it")) return true;
   if (/reddit\.com$/i.test(host) && italianAllowedRedditCommunities.has(subreddit)) return true;
   if (/forum\.html\.it|html\.it|giorgiotave\.it|forumfree\.it|forumcommunity\.net|alfemminile\.com|finanzaonline\.com|hwupgrade\.it/i.test(host)) return true;
   return looksItalian(text) && !/\b(looking for|need a|hire|developer wanted|busco|caut|desarrollador|programare)\b/i.test(text);
+}
+
+function hasExplicitHireRequest(text = "") {
+  return /cerco (uno |una |un |qualcuno |)(sviluppatore|programmatore|freelance|web agency|software house)|cerco (sviluppatore|programmatore|freelance)|sto cercando (uno |una |un |qualcuno |)(sviluppatore|programmatore|freelance)|buongiorno cerco|solo a chi parla italiano.{0,80}cerco|cerco.{0,80}(sito ecommerce|app|bot|gestionale|software)|sistemare (gestionale|sito|app|software)|budget.{0,80}(sito|app|software|gestionale|sviluppatore|programmatore)|pubblicato da/i.test(
+    text
+  );
 }
 
 function hasDirectProgrammingRequest(text = "") {
@@ -275,8 +283,8 @@ function isMarketplaceOrCommunityLead(link = "", text = "") {
 
 function isMarketingContentNoise(link = "", text = "") {
   const haystack = `${hostnameOf(link)} ${link} ${text}`;
-  if (hasDirectProgrammingRequest(text)) return false;
-  return /quanto costa (un |una |)(sito|app)|preventivo (gratis|per un sito|sito web)|realizzazione siti|creazione siti|web agency|agenzia web|sito web per aziende|migliori costruttori|consulenza gratuita|prenota consulenza|richiedi preventivo|servizio di web design|social media manager|seo|branding|marketing/i.test(
+  if (hasExplicitHireRequest(text)) return false;
+  return /quanto costa (un |una |)(sito|app)|preventivo (gratis|per un sito|sito web|troppo alto)|realizzazione siti|creazione siti|web agency|agenzia web|sito web per aziende|migliori costruttori|consulenza gratuita|prenota consulenza|richiedi preventivo|servizio di web design|social media manager|seo|branding|marketing|modulo contatti|avere un sito|mi serve un sito se ho/i.test(
     haystack
   );
 }
@@ -455,7 +463,7 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
   const snippet = stripHtml(result.snippet || result.answer || "");
   const text = compact(`${title}. ${snippet}`);
   const haystack = `${link} ${title} ${snippet}`;
-  const isForum = /forum|community|reddit|discussioni|thread|domanda|risposte|stackoverflow|quora/i.test(haystack);
+  const isForum = /forum|community|reddit|discussioni|thread|risposte|stackoverflow|quora/i.test(haystack);
   const isBusinessContact = /contatti|preventivo|richiedi|azienda|agenzia|servizi|software house|web agency|professionista|freelance/i.test(haystack);
   const hasContactIntent = hasServiceBuyingIntent(text) || (hasClientIntent(text) && hasDevelopmentTerm(text));
   if (!link || !title) return null;
