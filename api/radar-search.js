@@ -260,6 +260,26 @@ function isItalianWebResult(link = "", text = "") {
   return looksItalian(text) && !/\b(looking for|need a|hire|developer wanted|busco|caut|desarrollador|programare)\b/i.test(text);
 }
 
+function explicitDateFromText(text = "") {
+  const value = String(text || "");
+  const numeric = value.match(/\b(\d{1,2})[/-](\d{1,2})[/-](20\d{2})\b/);
+  if (numeric) {
+    const [, day, month, year] = numeric;
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  const year = value.match(/\b(20\d{2})\b/);
+  if (year) return new Date(Number(year[1]), 0, 1);
+  return null;
+}
+
+function passesExplicitRecency(text = "", config = {}) {
+  const date = explicitDateFromText(text);
+  if (!date) return true;
+  const months = Math.max(1, Math.min(60, Number(config.recencyMonths || DEFAULT_RECENCY_MONTHS)));
+  return monthsSince(date.toISOString()) <= months;
+}
+
 function extractEmails(text = "") {
   const emails = String(text || "").match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) || [];
   return [...new Set(emails)].slice(0, 5);
@@ -411,6 +431,7 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
   const hasContactIntent = hasServiceBuyingIntent(text) || (hasClientIntent(text) && hasDevelopmentTerm(text));
   if (!link || !title) return null;
   if (isItalianMode(config) && !isItalianWebResult(link, text)) return null;
+  if (!passesExplicitRecency(text, config)) return null;
   if (isProgrammingSearch(config) && !hasContactIntent && !hasOwnedProjectProblem(text) && !/forum|reddit|community|discussione/i.test(haystack)) {
     return null;
   }
