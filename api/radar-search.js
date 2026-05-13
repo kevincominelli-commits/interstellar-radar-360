@@ -1,7 +1,7 @@
 const DEFAULT_LIMIT = 30;
 const MAX_PROVIDER_RESULTS = 10;
 const DEFAULT_RECENCY_MONTHS = 12;
-const SERPER_MAX_QUERIES = 8;
+const SERPER_MAX_QUERIES = 10;
 
 const providerSourceMap = {
   reddit: ["Reddit", "Forum"],
@@ -270,7 +270,7 @@ function hasExplicitHireRequest(text = "") {
 
 function isMarketplaceOrCommunityLead(link = "", text = "") {
   const host = hostnameOf(link);
-  return /facebook\.com|freelancer\.|addlance\.com|techlance\.it|inforge\.net|forum\.|reddit\.com|italia\.it|iprogrammatori\.it|arduino\.cc/i.test(
+  return /facebook\.com|linkedin\.com|freelancer\.|addlance\.com|techlance\.it|malt\.it|inforge\.net|forum\.|reddit\.com|italia\.it|iprogrammatori\.it|arduino\.cc/i.test(
     `${host} ${link} ${text}`
   );
 }
@@ -440,12 +440,14 @@ function serperQueries(config) {
       `("buongiorno cerco" OR "ciao cerco" OR "sto cercando") ("sviluppatore" OR "programmatore" OR "freelance") ${country}${city}`,
       `("solo a chi parla italiano" OR "parla italiano") ("cerco sviluppatore" OR "cerco programmatore")`,
       `site:facebook.com/groups ("cerco sviluppatore" OR "cerco programmatore" OR "buongiorno cerco") ("app" OR "sito" OR "gestionale" OR "bot")`,
+      `site:facebook.com/groups ("cerco sviluppatore" OR "cerco programmatore") ("budget" OR "startup" OR "ecommerce" OR "piattaforma")`,
+      `site:linkedin.com/posts ("cerco sviluppatore" OR "cerco programmatore" OR "sto cercando sviluppatore") ${country}${city}`,
       `site:techlance.it ("cerco sviluppatore" OR "cerco programmatore" OR "budget")`,
       `site:freelancer.co.it/job-search ("cerco programmatore" OR "cerco sviluppatore" OR "buongiorno cerco")`,
       `site:addlance.com ("cerco programmatore" OR "cerco sviluppatore" OR "richiedi un preventivo simile")`,
+      `site:malt.it ("cerco sviluppatore" OR "cerco programmatore" OR "progetto")`,
       `site:inforge.net/forum ("cerco sviluppatore" OR "cerco programmatore")`,
-      `site:reddit.com/r/ItalyInformatica ("cerco" OR "serve" OR "preventivo") (sito OR app OR software OR gestionale) -inurl:?tl=`,
-      `site:forum.html.it ("cerco sviluppatore" OR "cerco programmatore" OR "cerco freelance")`
+      `site:reddit.com/r/ItalyInformatica ("cerco" OR "serve" OR "preventivo") (sito OR app OR software OR gestionale) -inurl:?tl=`
     ];
   }
   return liveQueries(config).slice(0, SERPER_MAX_QUERIES);
@@ -457,8 +459,11 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
   const snippet = stripHtml(result.snippet || result.answer || "");
   const text = compact(`${title}. ${snippet}`);
   const haystack = `${link} ${title} ${snippet}`;
-  const isForum = /forum|community|reddit|discussioni|thread|risposte|stackoverflow|quora/i.test(haystack);
-  const isBusinessContact = /contatti|preventivo|richiedi|azienda|agenzia|servizi|software house|web agency|professionista|freelance/i.test(haystack);
+  const host = hostnameOf(link);
+  const isSocialPage = /facebook\.com|linkedin\.com|instagram\.com|tiktok\.com|youtube\.com/i.test(host);
+  const isMarketplace = /freelancer\.|addlance\.com|techlance\.it|malt\.it/i.test(host);
+  const isForum = !isSocialPage && !isMarketplace && /forum|community|reddit|discussioni|thread|risposte|stackoverflow|quora/i.test(haystack);
+  const isBusinessContact = /contatti|preventivo|richiedi|azienda|agenzia|servizi|software house|web agency|professionista|freelance|budget|pubblicato da/i.test(haystack);
   const hasContactIntent = hasServiceBuyingIntent(text) || (hasClientIntent(text) && hasDevelopmentTerm(text));
   if (!link || !title) return null;
   if (isItalianMode(config) && !isItalianWebResult(link, text)) return null;
@@ -469,9 +474,31 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
   if (isProgrammingSearch(config) && !hasContactIntent && !hasOwnedProjectProblem(text) && !/forum|reddit|community|discussione/i.test(haystack)) {
     return null;
   }
+  const platform = isSocialPage
+    ? host.includes("facebook")
+      ? "Facebook"
+      : host.includes("linkedin")
+        ? "LinkedIn"
+        : host.includes("instagram")
+          ? "Instagram"
+          : host.includes("tiktok")
+            ? "TikTok"
+            : host.includes("youtube")
+              ? "YouTube"
+              : "Website"
+    : isForum
+      ? "Forum"
+      : "Website";
+  const sourceType = isMarketplace
+    ? "marketplace_buyer_request"
+    : isSocialPage
+      ? "social_page_buyer_request"
+      : isBusinessContact
+        ? "serper_business_or_intent_signal"
+        : "serper_public_signal";
   return {
-    platform: isForum ? "Forum" : "Website",
-    source_type: isBusinessContact ? "serper_business_or_intent_signal" : "serper_public_signal",
+    platform,
+    source_type: sourceType,
     username_public: "",
     public_name: "",
     business_name: isBusinessContact && !isForum ? title : "",
@@ -488,7 +515,7 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
     interactions_detected: 1,
     last_interaction: new Date().toISOString(),
     provider_source: provider,
-    source_reliability: isForum ? 78 : 70
+    source_reliability: isMarketplace || isSocialPage ? 86 : isForum ? 74 : 68
   };
 }
 

@@ -4832,7 +4832,9 @@ function radarSearchQuery(kind) {
   const city = config.city ? ` ${config.city}` : "";
   const queries = {
     programmingRequests: `"cerco sviluppatore" OR "mi serve un sito" OR "voglio creare un'app" OR "preventivo sito" ${country}${city}`,
-    forumRequests: `("cerco sviluppatore" OR "quanto costa un sito" OR "mi serve un gestionale") (forum OR reddit OR community) ${country}${city}`,
+    hotPagesRequests: `site:facebook.com/groups ("cerco sviluppatore" OR "cerco programmatore" OR "buongiorno cerco") ("app" OR "sito" OR "gestionale" OR "bot") ${country}${city}`,
+    marketplaceRequests: `(site:techlance.it OR site:addlance.com OR site:freelancer.co.it) ("cerco sviluppatore" OR "cerco programmatore" OR "budget") ${country}${city}`,
+    forumRequests: `("cerco sviluppatore" OR "cerco programmatore") (forum OR reddit OR community) ${country}${city}`,
     businessWeb: `("sito in costruzione" OR "pagina contatti" OR "richiedi preventivo") "azienda" ${country}${city}`,
     italianForumRequests: `("cerco programmatore" OR "cerco freelance" OR "preventivo app" OR "software gestionale") ("forum italiano" OR forum OR community OR reddit) ${country}${city}`,
     blogRequests: `("cerco sviluppatore" OR "voglio automatizzare" OR "software su misura" OR "chatbot azienda" OR "rifare sito") ${country}${city}`
