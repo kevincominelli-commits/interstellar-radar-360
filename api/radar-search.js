@@ -360,6 +360,13 @@ async function fetchJson(url, options = {}) {
   return response.json();
 }
 
+function serperTimeFilter(config = {}) {
+  const months = Math.max(1, Math.min(60, Number(config.recencyMonths || DEFAULT_RECENCY_MONTHS)));
+  if (months <= 1) return "qdr:m";
+  if (months <= 12) return "qdr:y";
+  return undefined;
+}
+
 async function fetchSerper(query, config = {}) {
   if (!process.env.SERPER_API_KEY) {
     throw new Error("SERPER_API_KEY non configurata su Vercel");
@@ -375,6 +382,7 @@ async function fetchSerper(query, config = {}) {
       q: query,
       gl: isItalianMode(config) ? "it" : undefined,
       hl: config.language === "en" ? "en" : "it",
+      tbs: serperTimeFilter(config),
       num: Math.min(MAX_PROVIDER_RESULTS, 10)
     })
   });
