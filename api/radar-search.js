@@ -512,11 +512,26 @@ module.exports = async function handler(req, res) {
   const prospects = settled
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
     .filter((prospect) => prospect.source_url && prospect.relevant_text)
-    .filter((prospect) => monthsSince(prospect.last_interaction) <= config.recencyMonths)
-    .filter((prospect) => isUsefulProspectForSearch(prospect, config));
+    .filter((prospect) => monthsSince(prospect.last_interaction) <= config.recencyMonths);
+
+  const strictProspects = prospects.filter((prospect) => isUsefulProspectForSearch(prospect, config));
+  const relaxedProspects =
+    strictProspects.length || !isProgrammingSearch(config)
+      ? strictProspects
+      : prospects
+          .filter((prospect) => {
+            const text = `${prospect.source_item || ""} ${prospect.relevant_text || ""} ${prospect.source_type || ""}`;
+            if (/revshare|revenue share|dating|conoscere qualcuno|amici/i.test(text)) return false;
+            return hasDevelopmentTerm(text) || hasClientIntent(text);
+          })
+          .map((prospect) => ({
+            ...prospect,
+            source_reliability: Math.max(35, Number(prospect.source_reliability || 55) - 12),
+            internal_notes: "Fallback qualità: segnale più largo perché i filtri stretti non hanno prodotto risultati."
+          }));
 
   const seen = new Set();
-  const unique = prospects
+  const unique = relaxedProspects
     .filter((prospect) => {
       const key = `${prospect.source_url}|${prospect.relevant_text.slice(0, 80)}`.toLowerCase();
       if (seen.has(key)) return false;
@@ -530,6 +545,7 @@ module.exports = async function handler(req, res) {
     query: config.q,
     providers,
     provider_status,
+    fallback_relaxed: !strictProspects.length && relaxedProspects.length > 0,
     prospects: unique
   });
 };

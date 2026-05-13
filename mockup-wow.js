@@ -4574,7 +4574,7 @@ async function runLiveOpenWebSearch() {
     setFeedback(
       "#radarFeedback",
       fresh.length
-        ? `${fresh.length} prospect live importati. Fonti: ${providerSummary || payload.providers?.join(", ") || "fonti pubbliche"}.`
+        ? `${fresh.length} prospect live importati${payload.fallback_relaxed ? " con filtro allargato" : ""}. Fonti: ${providerSummary || payload.providers?.join(", ") || "fonti pubbliche"}.`
         : `Ricerca live completata, ma nessun nuovo prospect diverso da quelli già salvati. Fonti controllate: ${providerSummary || "nessuna fonte utile"}.`
     );
   } catch (error) {
