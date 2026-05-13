@@ -3053,10 +3053,51 @@ body[data-theme="stripe"] .real-source-box > button {
   font-weight: 750;
 }
 
+.radar-funnel-summary {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.032);
+  padding: 10px;
+}
+
+.radar-funnel-summary strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.radar-funnel-summary span {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.radar-funnel-summary b,
+.radar-funnel-summary em {
+  font-style: normal;
+}
+
+.radar-funnel-summary em {
+  color: var(--text);
+  font-weight: 850;
+}
+
+.radar-funnel-summary p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 body[data-theme="stripe"] .radar-import-box,
 body[data-theme="stripe"] .radar-row,
 body[data-theme="stripe"] .radar-matrix-row,
 body[data-theme="stripe"] .safety-check-grid span,
+body[data-theme="stripe"] .radar-funnel-summary,
 body[data-theme="stripe"] .radar-source-group,
 body[data-theme="stripe"] .radar-guided-panel,
 body[data-theme="stripe"] .radar-preset-summary,

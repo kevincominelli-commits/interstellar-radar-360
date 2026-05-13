@@ -749,6 +749,28 @@ function defaultWorkspace() {
       workspace: "Interstellar Internal",
       signature: "Kevin - Interstellar"
     },
+    plan: {
+      name: "Internal Alpha",
+      tier: "pro",
+      status: "active"
+    },
+    credits: {
+      balance: 5000,
+      monthlyIncluded: 5000,
+      spent: 0,
+      softLimit: 4800,
+      mode: "balanced"
+    },
+    creditsLedger: [],
+    usageLogs: [],
+    featureFlags: {
+      radarFunnel: true,
+      credits: true,
+      opportunityRadar: false,
+      conversationStarter: false,
+      appointments: false,
+      billing: false
+    },
     leads: [],
     finder: {
       activeTab: "top",
@@ -765,10 +787,21 @@ function defaultWorkspace() {
       contactLogs: [],
       dailyCount: 0,
       dailyDate: "",
-      assignments: {}
+      assignments: {},
+      searches: [],
+      lastFunnel: null,
+      lastCreditEstimate: null,
+      operationMode: "balanced"
     },
     campaigns: [],
-    automations: []
+    automations: [],
+    tasks: [],
+    appointments: [],
+    customers: [],
+    deals: [],
+    offers: [],
+    complianceLogs: [],
+    optOuts: []
   };
 }
 
@@ -792,6 +825,37 @@ const radarIntentPatterns = [
   { label: "località", weight: 10, patterns: ["zona", "roma", "milano", "torino", "napoli", "bologna", "vicino"] },
   { label: "valutazione acquisto", weight: 14, patterns: ["vale la pena", "alternative", "migliore", "recensioni", "opinioni", "conviene"] }
 ];
+
+const radarModeProfiles = {
+  economy: {
+    label: "Economy",
+    description: "Cerca largo con AI minima e costo basso.",
+    advancedMultiplier: 1,
+    creditMultiplier: 0.65
+  },
+  balanced: {
+    label: "Balanced",
+    description: "Default: buon equilibrio tra copertura, qualità e costo.",
+    advancedMultiplier: 2,
+    creditMultiplier: 1
+  },
+  aggressive: {
+    label: "Aggressive",
+    description: "Più profondità e più candidati analizzati, da usare su ricerche ad alto valore.",
+    advancedMultiplier: 4,
+    creditMultiplier: 1.85
+  }
+};
+
+const radarPhaseLabels = {
+  rawCollected: "Raw collected",
+  afterCleaning: "After cleaning",
+  afterPreFilter: "After pre-filter",
+  afterSemantic: "After semantic",
+  afterAiBase: "After AI base",
+  afterAiAdvanced: "After AI advanced",
+  finalLeads: "Final leads"
+};
 
 function clampScore(value) {
   const score = Number(value);
@@ -926,6 +990,17 @@ let activeRadarTab = workspace.radar?.activeTab || "hot";
 
 workspace.finder = { ...defaultWorkspace().finder, ...(workspace.finder || {}) };
 workspace.radar = { ...defaultWorkspace().radar, ...(workspace.radar || {}) };
+workspace.plan = { ...defaultWorkspace().plan, ...(workspace.plan || {}) };
+workspace.credits = { ...defaultWorkspace().credits, ...(workspace.credits || {}) };
+workspace.creditsLedger = Array.isArray(workspace.creditsLedger) ? workspace.creditsLedger : [];
+workspace.usageLogs = Array.isArray(workspace.usageLogs) ? workspace.usageLogs : [];
+workspace.featureFlags = { ...defaultWorkspace().featureFlags, ...(workspace.featureFlags || {}) };
+workspace.radar.searches = Array.isArray(workspace.radar.searches) ? workspace.radar.searches : [];
+workspace.radar.contactLogs = Array.isArray(workspace.radar.contactLogs) ? workspace.radar.contactLogs : [];
+workspace.radar.assignments = workspace.radar.assignments || {};
+["tasks", "appointments", "customers", "deals", "offers", "complianceLogs", "optOuts"].forEach((key) => {
+  workspace[key] = Array.isArray(workspace[key]) ? workspace[key] : [];
+});
 workspace.leads = workspace.leads.map((lead) => normalizeLead(lead)).filter((lead) => lead.username || lead.company);
 workspace.radarProspects = (workspace.radarProspects || [])
   .map((prospect) => normalizeRadarProspect(prospect))
@@ -1159,13 +1234,19 @@ function renderAnalytics() {
   const hot = workspace.leads.filter((lead) => lead.score >= 80).length;
   const contacted = workspace.leads.filter((lead) => lead.status !== "new").length;
   const clients = workspace.leads.filter((lead) => lead.status === "client").length;
+  const funnel = workspace.radar.lastFunnel || {};
   analytics.innerHTML = [
     ["Lead totali", leads],
     ["Lead caldi", hot],
     ["Contattati", contacted],
     ["Clienti", clients],
     ["Campagne", workspace.campaigns.length],
-    ["Automazioni", workspace.automations.filter((item) => item.enabled).length]
+    ["Automazioni", workspace.automations.filter((item) => item.enabled).length],
+    ["Crediti rimasti", workspace.credits.balance ?? 0],
+    ["Radar finali", funnel.finalLeads ?? 0],
+    ["Raw analizzati", funnel.rawCollected ?? 0],
+    ["Task", workspace.tasks.length],
+    ["Appuntamenti", workspace.appointments.length]
   ]
     .map(([label, value]) => `<div class="analytics-tile"><p>${label}</p><strong>${value}</strong></div>`)
     .join("");
@@ -1173,7 +1254,10 @@ function renderAnalytics() {
   actions.innerHTML = [
     "Genera bozze per i lead con score sopra 80.",
     "Sposta in CRM i contatti che hanno una risposta positiva.",
-    "Prima di collegare email/DM, mantieni approvazione manuale."
+    "Prima di collegare email/DM, mantieni approvazione manuale.",
+    workspace.radar.lastCreditEstimate
+      ? `Ultima ricerca: ${workspace.radar.lastCreditEstimate.total} crediti, costo/lead ${workspace.radar.lastCreditEstimate.costPerFinalLead}.`
+      : "Lancia Radar 360 per generare metriche imbuto e consumo crediti."
   ]
     .map((action) => `<div class="system-list-item"><div><strong>${action}</strong><p>Priorità operativa interna.</p></div></div>`)
     .join("");
@@ -1363,6 +1447,20 @@ function renderDashboardActivity(prospects) {
       title: campaign.name || "Campagna",
       text: `${campaign.channel || "Canale n/d"} · ${campaign.status || "stato n/d"}`,
       date: campaign.createdAt || campaign.updatedAt
+    })),
+    ...(workspace.tasks || []).map((task) => ({
+      icon: "calendar",
+      color: "cyan",
+      title: task.title || "Task operativo",
+      text: `${task.type || "task"} · ${task.status || "open"}`,
+      date: task.created_at || task.due_at
+    })),
+    ...(workspace.appointments || []).map((appointment) => ({
+      icon: "users",
+      color: "gold",
+      title: appointment.title || "Appuntamento",
+      text: `${appointment.status || "proposto"} · ${appointment.duration_minutes || 30} min`,
+      date: appointment.created_at || appointment.scheduled_at
     }))
   ]
     .filter((event) => event.title)
@@ -2579,6 +2677,7 @@ function getRadarConfig(form = document.querySelector("#radarForm")) {
     workspaceSeed: String(data.get("workspaceSeed") || "internal-alpha").trim(),
     cooldownHours: Math.max(1, Math.min(168, Number(data.get("cooldownHours") || 24))),
     distributionMode: String(data.get("distributionMode") || "balanced"),
+    operationMode: String(data.get("operationMode") || workspace.radar.operationMode || workspace.credits.mode || "balanced"),
     businessOnly: data.get("businessOnly") === "on",
     excludeBots: data.get("excludeBots") === "on",
     automationGuard: data.get("automationGuard") === "on"
@@ -2878,6 +2977,168 @@ function updateStoredRadarProspect(id, patch) {
   }
 }
 
+function radarModeProfile(config = {}) {
+  const key = String(config.operationMode || workspace.radar.operationMode || workspace.credits.mode || "balanced").toLowerCase();
+  return radarModeProfiles[key] || radarModeProfiles.balanced;
+}
+
+function radarNoiseDetected(prospect = {}) {
+  const text = radarText(prospect);
+  return /free money|guaranteed|100%|follow4follow|promo|spam|bot|casino|airdrop|pump/i.test(text);
+}
+
+function radarHasUsefulText(prospect = {}) {
+  const text = radarText(prospect).replace(/\s+/g, " ").trim();
+  return text.length >= 24 || Boolean(prospect.business_name || prospect.email_business_public || prospect.contact_form_url);
+}
+
+function radarHasBuyingSignal(prospect = {}, config = {}) {
+  const text = radarText(prospect);
+  const keywords = expandRadarKeywords(config);
+  const intent = detectRadarIntent(text, config.intentPhrases);
+  const hasQuestion = /\?|\bcome\b|\bquanto\b|\bcerco\b|\bserve\b|\bconsigli/i.test(text);
+  const hasKeyword = keywords.some((keyword) => keyword && text.includes(keyword.toLowerCase()));
+  const hasUrlFocus =
+    config.monitorUrls?.length &&
+    config.monitorUrls.some((url) => prospect.source_url.includes(url) || prospect.website.includes(url));
+  return intent.strength >= 10 || hasQuestion || hasKeyword || hasUrlFocus || isBusinessEmail(prospect.email_business_public);
+}
+
+function radarSemanticFit(prospect = {}, config = {}) {
+  const text = radarText(prospect);
+  const keywords = expandRadarKeywords(config);
+  const keywordHits = keywords.filter((keyword) => keyword && text.includes(keyword.toLowerCase())).length;
+  const intent = detectRadarIntent(text, config.intentPhrases);
+  const locationHit = Boolean((config.city && text.includes(config.city.toLowerCase())) || (config.country && text.includes(config.country.toLowerCase())));
+  return keywordHits >= 1 || intent.strength >= 14 || locationHit || prospect.contact_mode === "automated_possible";
+}
+
+function createRadarScoredProspect(prospect, config = {}) {
+  const capability = getRadarCapability(prospect);
+  const scored = scoreRadarProspect({ ...prospect, ...capability }, config);
+  return {
+    ...prospect,
+    ...capability,
+    ...scored,
+    suggested_message: buildRadarMessage({ ...prospect, ...capability, ...scored })
+  };
+}
+
+function estimateRadarCreditsFromFunnel(funnel = {}, config = {}) {
+  const profile = radarModeProfile(config);
+  const phaseCredits = {
+    semantic: Math.ceil((funnel.afterSemantic || 0) * 0.03 * profile.creditMultiplier),
+    aiBase: Math.ceil((funnel.afterAiBase || 0) * 0.08 * profile.creditMultiplier),
+    aiAdvanced: Math.ceil((funnel.afterAiAdvanced || 0) * 0.36 * profile.creditMultiplier)
+  };
+  const total = Object.values(phaseCredits).reduce((sum, value) => sum + value, 0);
+  return {
+    mode: profile.label,
+    total,
+    phaseCredits,
+    costPerFinalLead: funnel.finalLeads ? Number((total / funnel.finalLeads).toFixed(2)) : 0
+  };
+}
+
+function buildRadarPipeline(config = getRadarConfig()) {
+  const profile = radarModeProfile(config);
+  const raw = allRadarProspects().map((prospect) => createRadarScoredProspect(prospect, config));
+  const cleaned = raw.filter((prospect) => radarHasUsefulText(prospect) && (!config.excludeBots || !radarNoiseDetected(prospect)));
+  const preFiltered = cleaned.filter((prospect) => radarHasBuyingSignal(prospect, config));
+  const semantic = preFiltered.filter((prospect) => radarSemanticFit(prospect, config));
+  const aiBase = semantic.filter(
+    (prospect) => prospect.score_ai >= Math.max(12, Number(config.minScore || 0) - 25) || Number(prospect.intent_strength || 0) >= 18
+  );
+  const advancedLimit = Math.max(Number(config.limit || 60), Math.ceil(Number(config.limit || 60) * profile.advancedMultiplier));
+  const aiAdvanced = [...aiBase]
+    .sort((a, b) => b.score_ai - a.score_ai || Number(b.intent_strength || 0) - Number(a.intent_strength || 0))
+    .slice(0, advancedLimit);
+
+  const finalCandidates = aiAdvanced
+    .filter((prospect) => passesRadarConfig(prospect, config, prospect))
+    .map((prospect) => ({
+      ...prospect,
+      distribution_rank: radarDistributionRank(prospect, config),
+      cooldown_until: workspace.radar.assignments?.[prospect.lead_id] || 0
+    }))
+    .sort((a, b) => {
+      const aRecency = monthsSince(a.last_interaction || a.collected_at);
+      const bRecency = monthsSince(b.last_interaction || b.collected_at);
+      return b.distribution_rank - a.distribution_rank || b.score_ai - a.score_ai || aRecency - bRecency;
+    })
+    .slice(0, config.limit);
+
+  const funnel = {
+    rawCollected: raw.length,
+    afterCleaning: cleaned.length,
+    afterPreFilter: preFiltered.length,
+    afterSemantic: semantic.length,
+    afterAiBase: aiBase.length,
+    afterAiAdvanced: aiAdvanced.length,
+    finalLeads: finalCandidates.length,
+    hot: finalCandidates.filter((prospect) => prospect.temperature === "hot").length,
+    warm: finalCandidates.filter((prospect) => prospect.temperature === "warm").length,
+    cold: finalCandidates.filter((prospect) => prospect.temperature === "cold").length,
+    automatedPossible: finalCandidates.filter((prospect) => prospect.contact_mode === "automated_possible").length,
+    manualAssist: finalCandidates.filter((prospect) => prospect.contact_mode === "manual_assist").length
+  };
+
+  const estimate = estimateRadarCreditsFromFunnel(funnel, config);
+  return { results: finalCandidates, funnel, estimate };
+}
+
+function recordRadarSearchUsage(config, results, funnel, estimate) {
+  const now = new Date().toISOString();
+  const searchId = uid("radarsearch");
+  const amount = Number(estimate.total || 0);
+  if (amount > 0) {
+    workspace.credits.balance = Math.max(0, Number(workspace.credits.balance || 0) - amount);
+    workspace.credits.spent = Number(workspace.credits.spent || 0) + amount;
+    workspace.creditsLedger.unshift({
+      id: uid("credit"),
+      type: "debit",
+      amount,
+      balance_after: workspace.credits.balance,
+      reason: "radar_funnel_search",
+      search_id: searchId,
+      created_at: now
+    });
+  }
+  workspace.radar.searches.unshift({
+    id: searchId,
+    created_at: now,
+    query: config.niche,
+    city: config.city,
+    country: config.country,
+    mode: estimate.mode,
+    status: "completed",
+    funnel,
+    credits_spent: amount,
+    cost_per_final_lead: estimate.costPerFinalLead,
+    result_ids: results.map((prospect) => prospect.lead_id)
+  });
+  workspace.usageLogs.unshift({
+    id: uid("usage"),
+    type: "radar_search",
+    module: "radar",
+    credits: amount,
+    units: funnel.rawCollected,
+    workspace: workspace.settings.workspace,
+    created_at: now,
+    meta: {
+      final_leads: funnel.finalLeads,
+      mode: estimate.mode,
+      phaseCredits: estimate.phaseCredits
+    }
+  });
+  workspace.radar.searches = workspace.radar.searches.slice(0, 50);
+  workspace.usageLogs = workspace.usageLogs.slice(0, 120);
+  workspace.creditsLedger = workspace.creditsLedger.slice(0, 120);
+  workspace.radar.lastFunnel = funnel;
+  workspace.radar.lastCreditEstimate = estimate;
+  workspace.radar.lastSearchId = searchId;
+}
+
 function passesRadarConfig(prospect, config, scored) {
   const sourceOk = !config.sources.length || config.sources.includes(prospect.platform);
   const languageOk = config.language === "any" || prospect.estimated_language === config.language;
@@ -2939,45 +3200,37 @@ function radarDistributionRank(prospect, config = {}) {
 
 function executeRadarSearch(config = getRadarConfig()) {
   const now = Date.now();
-  const results = allRadarProspects()
-    .map((prospect) => {
-      const capability = getRadarCapability(prospect);
-      const scored = scoreRadarProspect({ ...prospect, ...capability }, config);
-      return {
-        ...prospect,
-        ...capability,
-        ...scored,
-        suggested_message: buildRadarMessage({ ...prospect, ...capability, ...scored })
-      };
-    })
-    .filter((prospect) => passesRadarConfig(prospect, config, prospect))
-    .map((prospect) => ({
-      ...prospect,
-      distribution_rank: radarDistributionRank(prospect, config),
-      cooldown_until: workspace.radar.assignments?.[prospect.lead_id] || 0
-    }))
-    .sort((a, b) => {
-      const aRecency = monthsSince(a.last_interaction || a.collected_at);
-      const bRecency = monthsSince(b.last_interaction || b.collected_at);
-      return b.distribution_rank - a.distribution_rank || b.score_ai - a.score_ai || aRecency - bRecency;
-    })
-    .slice(0, config.limit);
+  const { results, funnel, estimate } = buildRadarPipeline(config);
+  if (estimate.total > Number(workspace.credits.balance || 0)) {
+    workspace.radar.lastFunnel = funnel;
+    workspace.radar.lastCreditEstimate = estimate;
+    saveWorkspace();
+    renderAll();
+    setFeedback(
+      "#radarFeedback",
+      `Ricerca bloccata: servono ${estimate.total} crediti ma il workspace ne ha ${workspace.credits.balance}.`
+    );
+    return;
+  }
 
   workspace.radar.resultIds = results.map((prospect) => prospect.lead_id);
   workspace.radar.lastSearch = config;
   workspace.radar.activeTab = activeRadarTab;
+  workspace.radar.operationMode = config.operationMode || "balanced";
+  workspace.credits.mode = config.operationMode || workspace.credits.mode || "balanced";
   workspace.radar.assignments = {
     ...(workspace.radar.assignments || {}),
     ...Object.fromEntries(results.map((prospect) => [prospect.lead_id, now + config.cooldownHours * 60 * 60 * 1000]))
   };
+  recordRadarSearchUsage(config, results, funnel, estimate);
   selectedRadarId = results[0]?.lead_id || selectedRadarId;
   saveWorkspace();
   renderAll();
   setFeedback(
     "#radarFeedback",
     results.length
-      ? `${results.length} prospect trovati. Rotazione attiva: seed ${config.workspaceSeed}, cooldown ${config.cooldownHours}h.`
-      : "Nessun prospect compatibile: importa segnali reali o allarga keyword/fonti."
+      ? `${results.length} prospect trovati. Imbuto: ${funnel.rawCollected} raw → ${funnel.afterPreFilter} candidati → ${funnel.finalLeads} finali. Crediti usati: ${estimate.total}.`
+      : `Nessun prospect compatibile. Imbuto: ${funnel.rawCollected} raw → ${funnel.afterPreFilter} candidati → 0 finali. Allarga keyword/fonti o importa segnali reali.`
   );
 }
 
@@ -3061,6 +3314,8 @@ function renderRadarStats() {
     ([id, until]) => knownIds.has(id) && Number(until) > Date.now()
   ).length;
   const avg = base.length ? Math.round(base.reduce((sum, prospect) => sum + Number(prospect.score_ai || 0), 0) / base.length) : 0;
+  const funnel = workspace.radar.lastFunnel || {};
+  const estimate = workspace.radar.lastCreditEstimate || {};
   stats.innerHTML = [
     ["Database", all.length],
     ["Risultati", results.length || all.length],
@@ -3068,7 +3323,12 @@ function renderRadarStats() {
     ["Manual", manual],
     ["Automated", automated],
     ["Cooldown", cooldown],
-    ["Score medio", avg]
+    ["Score medio", avg],
+    ["Raw", funnel.rawCollected ?? all.length],
+    ["Pre-filter", funnel.afterPreFilter ?? 0],
+    ["AI advanced", funnel.afterAiAdvanced ?? 0],
+    ["Crediti rimasti", workspace.credits.balance ?? 0],
+    ["Costo ricerca", estimate.total ?? 0]
   ]
     .map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`)
     .join("");
@@ -3104,6 +3364,8 @@ function renderRadarMatrix() {
 function renderRadarSafetyPanel() {
   const panel = document.querySelector("#radarSafetyPanel");
   if (!panel) return;
+  const funnel = workspace.radar.lastFunnel;
+  const estimate = workspace.radar.lastCreditEstimate;
   panel.innerHTML = `
     <div class="panel-head compact-head">
       <div>
@@ -3125,6 +3387,15 @@ function renderRadarSafetyPanel() {
         .map((item) => `<span>${escapeHtml(item)}</span>`)
         .join("")}
     </div>
+    ${funnel ? `
+      <div class="radar-funnel-summary">
+        <strong>Imbuto ultima ricerca</strong>
+        ${Object.entries(radarPhaseLabels)
+          .map(([key, label]) => `<span><b>${escapeHtml(label)}</b><em>${funnel[key] ?? 0}</em></span>`)
+          .join("")}
+        <p>Crediti: ${estimate?.total ?? 0} · costo/lead: ${estimate?.costPerFinalLead ?? 0} · modo: ${escapeHtml(estimate?.mode || "Balanced")}</p>
+      </div>
+    ` : ""}
   `;
 }
 
@@ -3164,6 +3435,9 @@ function renderRadarDetail() {
       <textarea readonly>${escapeHtml(prospect.suggested_message || buildRadarMessage(prospect))}</textarea>
       <div class="detail-actions">
         <button type="button" data-radar-contact="${prospect.lead_id}">Contatta</button>
+        <button type="button" data-radar-postpone="${prospect.lead_id}">Posticipa</button>
+        <button type="button" data-radar-appointment="${prospect.lead_id}">Proponi appuntamento</button>
+        <button type="button" class="ghost-button" data-radar-archive="${prospect.lead_id}">Archivia</button>
         <button type="button" data-copy-radar-message="${prospect.lead_id}">Copia messaggio</button>
       </div>
     </div>
@@ -3301,6 +3575,98 @@ async function runRadarContact(prospectId) {
   }
   renderAll();
   setFeedback("#radarFeedback", "Anteprima approvata, messaggio copiato e canale aperto. Invio reale solo tramite conferma/strumento esterno.");
+}
+
+function radarProspectLabel(prospect = {}) {
+  return prospect.business_name || prospect.public_name || prospect.username_public || "Prospect";
+}
+
+function createTaskForProspect(prospect, type, title, dueAt) {
+  const task = {
+    id: uid("task"),
+    lead_id: prospect.lead_id,
+    type,
+    title,
+    status: "open",
+    due_at: dueAt,
+    created_at: new Date().toISOString()
+  };
+  workspace.tasks.unshift(task);
+  workspace.tasks = workspace.tasks.slice(0, 200);
+  return task;
+}
+
+function postponeRadarProspect(prospectId) {
+  const prospect = getRadarProspectById(prospectId);
+  if (!prospect) return;
+  const delayDays = prospect.temperature === "hot" ? 2 : prospect.temperature === "warm" ? 4 : 7;
+  const due = new Date(Date.now() + delayDays * 86400000).toISOString();
+  createTaskForProspect(prospect, "follow_up", `Follow-up ${radarProspectLabel(prospect)}`, due);
+  updateStoredRadarProspect(prospect.lead_id, { contact_state: "followup_scheduled" });
+  workspace.radar.contactLogs.push({
+    id: uid("radarlog"),
+    lead_id: prospect.lead_id,
+    action: "followup_scheduled",
+    channel: prospect.platform,
+    source_url: prospect.source_url,
+    message: `Follow-up programmato tra ${delayDays} giorni.`,
+    created_at: new Date().toISOString()
+  });
+  saveWorkspace();
+  renderAll();
+  setFeedback("#radarFeedback", `Follow-up creato tra ${delayDays} giorni.`);
+}
+
+function archiveRadarProspect(prospectId) {
+  const prospect = getRadarProspectById(prospectId);
+  if (!prospect) return;
+  updateStoredRadarProspect(prospect.lead_id, { contact_state: "archived" });
+  workspace.radar.contactLogs.push({
+    id: uid("radarlog"),
+    lead_id: prospect.lead_id,
+    action: "archived",
+    channel: prospect.platform,
+    source_url: prospect.source_url,
+    message: "Prospect archiviato manualmente.",
+    created_at: new Date().toISOString()
+  });
+  saveWorkspace();
+  renderAll();
+  setFeedback("#radarFeedback", "Prospect archiviato. Resta tracciato nei log, ma non viene lavorato ora.");
+}
+
+async function proposeRadarAppointment(prospectId) {
+  const prospect = getRadarProspectById(prospectId);
+  if (!prospect) return;
+  const suggestedAt = new Date(Date.now() + (prospect.temperature === "hot" ? 1 : 2) * 86400000);
+  suggestedAt.setHours(10, 0, 0, 0);
+  const appointment = {
+    id: uid("appointment"),
+    lead_id: prospect.lead_id,
+    title: `Call con ${radarProspectLabel(prospect)}`,
+    status: "proposed",
+    scheduled_at: suggestedAt.toISOString(),
+    duration_minutes: 30,
+    meeting_url: "",
+    value_estimate: prospect.temperature === "hot" ? 1500 : 600,
+    created_at: new Date().toISOString()
+  };
+  workspace.appointments.unshift(appointment);
+  updateStoredRadarProspect(prospect.lead_id, { contact_state: "appointment_proposed" });
+  const message = `Ciao${cleanFirstName(prospect.public_name) ? ` ${cleanFirstName(prospect.public_name)}` : ""}, ti propongo una call veloce di 30 minuti per capire meglio la situazione. Potrebbe andar bene domani alle 10:00 oppure preferisci un altro orario?`;
+  await copyText(message);
+  workspace.radar.contactLogs.push({
+    id: uid("radarlog"),
+    lead_id: prospect.lead_id,
+    action: "appointment_proposed",
+    channel: prospect.platform,
+    source_url: prospect.source_url,
+    message,
+    created_at: new Date().toISOString()
+  });
+  saveWorkspace();
+  renderAll();
+  setFeedback("#radarFeedback", "Appuntamento proposto: messaggio copiato e task salvato nel motore.");
 }
 
 function importRadarSignalsFromText(text) {
@@ -3853,6 +4219,24 @@ document.addEventListener("click", (event) => {
   const radarContactId = event.target?.dataset?.radarContact;
   if (radarContactId) {
     runRadarContact(radarContactId);
+    return;
+  }
+
+  const radarPostponeId = event.target?.dataset?.radarPostpone;
+  if (radarPostponeId) {
+    postponeRadarProspect(radarPostponeId);
+    return;
+  }
+
+  const radarArchiveId = event.target?.dataset?.radarArchive;
+  if (radarArchiveId) {
+    archiveRadarProspect(radarArchiveId);
+    return;
+  }
+
+  const radarAppointmentId = event.target?.dataset?.radarAppointment;
+  if (radarAppointmentId) {
+    proposeRadarAppointment(radarAppointmentId);
     return;
   }
 

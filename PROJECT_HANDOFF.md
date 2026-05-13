@@ -108,6 +108,10 @@ Sempre con:
 - Rimossi dati/mockup falsi dalla dashboard.
 - Sistemato bug online causato da dati Radar salvati nel browser.
 - Aggiornata cache asset a `radar360-5`.
+- Avviata costruzione dal PDF V6 senza cambiare grafica: aggiunti piano workspace, crediti, usage logs, feature flags, tasks, appointments e struttura dati SaaS nel motore locale.
+- Radar 360 ora usa una pipeline a imbuto: raw collected, cleaning, pre-filter, semantic matching, AI base, AI advanced e final leads.
+- Ogni ricerca Radar registra funnel metrics, crediti stimati/usati, costo per lead finale e usage log.
+- Lead card operative estese: Contatta, Posticipa, Archivia, Proponi appuntamento, Copia messaggio.
 
 ## Regola operativa per il PDF completo
 
@@ -131,12 +135,13 @@ Prima fase immediata prima del lavoro dal PDF:
 
 ## Prossimi step consigliati
 
-1. Rendere Radar 360 ancora piu semplice per un cliente non tecnico.
-2. Migliorare i risultati per la nicchia "clienti interessati a programmazione".
-3. Aggiungere fonti reali autorizzate/provider seri per web e directory.
-4. Salvare utenti e workspace in database vero, non solo localStorage.
-5. Aggiungere login, piani, abbonamenti e limiti per pacchetto.
-6. Separare meglio:
+1. Continuare il motore dal PDF: Opportunity Radar, cluster domanda, Conversation Starter e Manual Reply Assistant.
+2. Rendere Radar 360 ancora piu semplice per un cliente non tecnico, senza stravolgere la grafica.
+3. Migliorare i risultati per la nicchia "clienti interessati a programmazione".
+4. Aggiungere fonti reali autorizzate/provider seri per web e directory.
+5. Salvare utenti e workspace in database vero, non solo localStorage.
+6. Aggiungere login, piani, abbonamenti e limiti per pacchetto.
+7. Separare meglio:
    - dashboard
    - radar
    - CRM
