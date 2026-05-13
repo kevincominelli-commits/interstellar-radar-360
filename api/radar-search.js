@@ -1,6 +1,7 @@
 const DEFAULT_LIMIT = 30;
 const MAX_PROVIDER_RESULTS = 10;
 const DEFAULT_RECENCY_MONTHS = 12;
+const SERPER_MAX_QUERIES = 6;
 
 const providerSourceMap = {
   reddit: ["Reddit", "Forum"],
@@ -8,6 +9,7 @@ const providerSourceMap = {
   stackExchange: ["Forum", "Website", "Blog"],
   devTo: ["Blog", "Website", "Forum"],
   wordpress: ["Blog", "Website"],
+  serper: ["Forum", "Website", "Blog", "Directory", "Reviews"],
   searchEngine: ["Forum", "Website", "Blog", "Directory", "Reviews"],
   github: ["Forum", "Website"],
   directUrls: ["Website", "Blog", "Directory", "Reviews", "CRM/Import"]
@@ -296,6 +298,28 @@ async function fetchJson(url, options = {}) {
   return response.json();
 }
 
+async function fetchSerper(query, config = {}) {
+  if (!process.env.SERPER_API_KEY) {
+    throw new Error("SERPER_API_KEY non configurata su Vercel");
+  }
+  const response = await fetch("https://google.serper.dev/search", {
+    method: "POST",
+    headers: {
+      "X-API-KEY": process.env.SERPER_API_KEY,
+      "Content-Type": "application/json",
+      "User-Agent": "InterstellarRadar360/1.0"
+    },
+    body: JSON.stringify({
+      q: query,
+      gl: isItalianMode(config) ? "it" : undefined,
+      hl: config.language === "en" ? "en" : "it",
+      num: Math.min(MAX_PROVIDER_RESULTS, 10)
+    })
+  });
+  if (!response.ok) throw new Error(`Serper ${response.status} ${response.statusText}`);
+  return response.json();
+}
+
 function liveQueries(config) {
   const city = config.city ? ` ${config.city}` : "";
   const country = config.country ? ` ${config.country}` : "";
@@ -312,6 +336,77 @@ function liveQueries(config) {
     .filter(Boolean)
     .slice(0, 8);
   return [...new Set([config.q, ...custom, ...signals.map((signal) => `${signal}${country}${city}`)])].filter(Boolean).slice(0, isItalianMode(config) ? 18 : 16);
+}
+
+function serperQueries(config) {
+  const country = config.country || "Italia";
+  const city = config.city ? ` ${config.city}` : "";
+  if (isItalianMode(config) && isProgrammingSearch(config)) {
+    return [
+      `("cerco sviluppatore" OR "cerco programmatore") (forum OR community OR reddit) ${country}${city}`,
+      `("mi serve un sito" OR "devo fare un sito") (forum OR reddit OR discussione) ${country}${city}`,
+      `("preventivo sito" OR "quanto costa un sito") (forum OR reddit OR community) ${country}${city}`,
+      `("voglio creare un'app" OR "preventivo app") (forum OR community OR reddit) ${country}${city}`,
+      `("software gestionale" OR "crm") ("preventivo" OR "cerco") "azienda" ${country}${city}`,
+      `("voglio automatizzare" OR "automazione processi") "azienda" ${country}${city}`,
+      `site:reddit.com/r/ItalyInformatica ("cerco" OR "serve" OR "preventivo") (sito OR app OR software OR gestionale)`,
+      `site:forum.html.it ("cerco" OR "serve" OR "preventivo") (sito OR app OR software)`
+    ];
+  }
+  return liveQueries(config).slice(0, SERPER_MAX_QUERIES);
+}
+
+function prospectFromSearchResult(result = {}, config = {}, provider = "Serper Google Search") {
+  const title = stripHtml(result.title || result.question || "");
+  const link = result.link || result.url || "";
+  const snippet = stripHtml(result.snippet || result.answer || "");
+  const text = compact(`${title}. ${snippet}`);
+  const haystack = `${link} ${title} ${snippet}`;
+  const isForum = /forum|community|reddit|discussioni|thread|domanda|risposte|stackoverflow|quora/i.test(haystack);
+  const isBusinessContact = /contatti|preventivo|richiedi|azienda|agenzia|servizi|software house|web agency|professionista|freelance/i.test(haystack);
+  const hasContactIntent = hasServiceBuyingIntent(text) || (hasClientIntent(text) && hasDevelopmentTerm(text));
+  if (!link || !title) return null;
+  if (isProgrammingSearch(config) && !hasContactIntent && !hasOwnedProjectProblem(text) && !/forum|reddit|community|discussione/i.test(haystack)) {
+    return null;
+  }
+  return {
+    platform: isForum ? "Forum" : "Website",
+    source_type: isBusinessContact ? "serper_business_or_intent_signal" : "serper_public_signal",
+    username_public: "",
+    public_name: "",
+    business_name: isBusinessContact && !isForum ? title : "",
+    website: link,
+    email_business_public: firstBusinessEmail(`${title} ${snippet}`),
+    source_url: link,
+    source_page: provider,
+    source_item: title,
+    relevant_text: text,
+    city: config.city,
+    country: config.country,
+    estimated_language: inferLanguage(text, config.language),
+    detected_intent: inferIntent(text),
+    interactions_detected: 1,
+    last_interaction: new Date().toISOString(),
+    provider_source: provider,
+    source_reliability: isForum ? 78 : 70
+  };
+}
+
+async function searchSerper(config) {
+  if (!process.env.SERPER_API_KEY) {
+    throw new Error("SERPER_API_KEY non configurata su Vercel");
+  }
+  const queries = serperQueries(config)
+    .map((query) => query.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, SERPER_MAX_QUERIES);
+  const settled = await Promise.allSettled(queries.map((query) => fetchSerper(query, config)));
+  return settled.flatMap((result) => {
+    if (result.status !== "fulfilled") return [];
+    const organic = (result.value.organic || []).map((item) => prospectFromSearchResult(item, config));
+    const peopleAlsoAsk = (result.value.peopleAlsoAsk || []).map((item) => prospectFromSearchResult(item, config, "Serper People Also Ask"));
+    return [...organic, ...peopleAlsoAsk].filter(Boolean);
+  });
 }
 
 async function searchReddit(config) {
@@ -676,6 +771,7 @@ module.exports = async function handler(req, res) {
     ["Stack Exchange", "stackExchange", searchStackExchange],
     ["DEV", "devTo", searchDevTo],
     ["WordPress", "wordpress", searchWordPress],
+    ["Serper", "serper", searchSerper],
     ["Open Web IT", "searchEngine", searchDuckDuckGo],
     ["GitHub", "github", searchGitHubIssues],
     ["Direct URL", "directUrls", searchDirectUrls]

@@ -4900,11 +4900,16 @@ async function runLiveOpenWebSearch() {
       .filter((provider) => provider.status === "fulfilled")
       .map((provider) => `${provider.name} ${provider.count}`)
       .join(" · ");
+    const providerErrors = (payload.provider_status || [])
+      .filter((provider) => provider.status === "rejected")
+      .map((provider) => `${provider.name}: ${provider.error}`)
+      .join(" · ");
+    const providerNote = providerErrors ? ` Provider da configurare/controllare: ${providerErrors}.` : "";
     setFeedback(
       "#radarFeedback",
       fresh.length
-        ? `${fresh.length} prospect live importati${payload.fallback_relaxed ? " con filtro allargato" : ""}. Modalità Italia attiva. Fonti: ${providerSummary || payload.providers?.join(", ") || "fonti pubbliche"}.`
-        : `Ricerca live completata in modalità Italia, ma nessun nuovo prospect buono diverso da quelli già salvati. Fonti controllate: ${providerSummary || "nessuna fonte utile"}.`
+        ? `${fresh.length} prospect live importati${payload.fallback_relaxed ? " con filtro allargato" : ""}. Modalità Italia attiva. Fonti: ${providerSummary || payload.providers?.join(", ") || "fonti pubbliche"}.${providerNote}`
+        : `Ricerca live completata in modalità Italia, ma nessun nuovo prospect buono diverso da quelli già salvati. Fonti controllate: ${providerSummary || "nessuna fonte utile"}.${providerNote}`
     );
   } catch (error) {
     setFeedback(

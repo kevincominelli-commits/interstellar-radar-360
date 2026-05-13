@@ -46,7 +46,7 @@ npm run check
 - `mockup-wow.html`: struttura app.
 - `mockup-wow.css`: grafica, layout, temi.
 - `mockup-wow.js`: logica dashboard, Radar 360, CRM, localStorage.
-- `api/radar-search.js`: ricerca live su fonti open web supportate. In modalita Italia esclude provider inglesi rumorosi e usa Reddit Italia, WordPress, Open Web IT e URL diretti.
+- `api/radar-search.js`: ricerca live su fonti open web supportate. In modalita Italia esclude provider inglesi rumorosi e usa Reddit Italia, WordPress, Serper, Open Web IT e URL diretti.
 - `vercel.json`: configurazione deploy.
 
 ## Motore SaaS attuale
@@ -63,6 +63,12 @@ Stripe/Supabase sono il prossimo collegamento cloud, non ancora credenziali real
 ## Stato motore Radar
 
 Il motore live attuale e reale ma ancora MVP: usa fonti pubbliche senza login e senza provider premium. Per aumentare davvero volume e qualita dei lead servono integrazioni autorizzate come Google/Serper, Apify, Reddit API, YouTube API e directory business.
+
+Variabile richiesta per Serper:
+
+```text
+SERPER_API_KEY=...
+```
 
 ## Regola prodotto fondamentale
 
