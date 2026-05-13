@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Interstellar Dashboard Mockup</title>
-    <link rel="stylesheet" href="mockup-wow.css?v=radar360-8" />
+    <link rel="stylesheet" href="mockup-wow.css?v=radar360-9" />
   </head>
   <body data-theme="stripe">
     <canvas id="starCanvas" aria-hidden="true"></canvas>
@@ -786,6 +786,10 @@
               </div>
               <form class="system-form" id="campaignForm">
                 <label>
+                  <span>Lead opzionale</span>
+                  <select name="lead" id="campaignLeadSelect"></select>
+                </label>
+                <label>
                   <span>Nome campagna</span>
                   <input name="name" required value="AI per attività locali" />
                 </label>
@@ -808,11 +812,54 @@
             <article class="panel system-card">
               <div class="panel-head">
                 <div>
+                  <span>Offerta AI</span>
+                  <h2>Trasforma un lead in proposta concreta</h2>
+                </div>
+              </div>
+              <form class="system-form" id="offerForm">
+                <label>
+                  <span>Lead</span>
+                  <select name="lead" id="offerLeadSelect"></select>
+                </label>
+                <label>
+                  <span>Pacchetto</span>
+                  <select name="package">
+                    <option>Sito + automazioni AI</option>
+                    <option>Radar clienti + CRM</option>
+                    <option>Bot / automazione su misura</option>
+                    <option>App o gestionale custom</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Fascia prezzo</span>
+                  <input name="price" value="Da definire dopo mini analisi" />
+                </label>
+                <label>
+                  <span>Obiettivo cliente</span>
+                  <input name="goal" value="Trovare più clienti e gestire follow-up" />
+                </label>
+                <button type="submit">Genera offerta</button>
+              </form>
+            </article>
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
                   <span>Lista campagne</span>
                   <h2>Stato e performance iniziali</h2>
                 </div>
               </div>
               <div class="system-list" id="campaignBoard"></div>
+            </article>
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Offerte salvate</span>
+                  <h2>Proposte pronte da copiare o collegare</h2>
+                </div>
+                <button type="button" id="copyOfferOutput">Copia offerta</button>
+              </div>
+              <textarea class="message-output" id="offerOutput" placeholder="L'offerta generata apparirà qui."></textarea>
+              <div class="system-list" id="offerBoard"></div>
             </article>
           </div>
         </section>
@@ -923,6 +970,15 @@
                 <button type="submit">Aggiungi automazione</button>
               </form>
             </article>
+            <article class="panel system-card">
+              <div class="panel-head">
+                <div>
+                  <span>Appuntamenti</span>
+                  <h2>Call proposte, conferme e inviti</h2>
+                </div>
+              </div>
+              <div class="system-list" id="appointmentList"></div>
+            </article>
           </div>
         </section>
 
@@ -1011,6 +1067,6 @@
       </main>
     </div>
 
-    <script src="mockup-wow.js?v=radar360-8"></script>
+    <script src="mockup-wow.js?v=radar360-9"></script>
   </body>
 </html>

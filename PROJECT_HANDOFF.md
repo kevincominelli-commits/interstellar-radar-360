@@ -118,6 +118,10 @@ Sempre con:
 - Aggiunto Manual Reply Assistant in AI Content: l'utente incolla una risposta ricevuta, il motore rileva intento/obiezione/urgenza/appuntamento e genera la risposta suggerita.
 - Aggiunto Follow-up Reminder avanzato: Hot = 24/48h, Warm = 3/7 giorni, Cold = 1 follow-up; i task appaiono nella sezione Automations e possono essere completati.
 - CRM reso piu operativo: ogni card ha azioni rapide Risposta, Follow-up, Appuntamento e Perso.
+- Aggiunto Offer Engine nella sezione Campaigns: da un lead CRM si genera una proposta concreta con pacchetto, deliverable, fascia prezzo e messaggio copiabile.
+- Aggiunto Campaign Launcher collegato alle offerte: una proposta puo creare una campagna con piano operativo e canale coerente, senza invii automatici social.
+- Aggiunto Appointment Manager nella sezione Automations: le call proposte vengono salvate, si copia la conferma e si puo aprire un invito Google Calendar.
+- Aggiornata cache asset a `radar360-9`.
 
 ## Regola operativa per il PDF completo
 
@@ -141,12 +145,12 @@ Prima fase immediata prima del lavoro dal PDF:
 
 ## Prossimi step consigliati
 
-1. Continuare il motore dal PDF: Appointment Manager, Google Calendar/Meet stub, Offer & Ad Launcher.
-2. Rendere Radar 360 ancora piu semplice per un cliente non tecnico, senza stravolgere la grafica.
-3. Migliorare i risultati per la nicchia "clienti interessati a programmazione".
-4. Aggiungere fonti reali autorizzate/provider seri per web e directory.
-5. Salvare utenti e workspace in database vero, non solo localStorage.
-6. Aggiungere login, piani, abbonamenti e limiti per pacchetto.
+1. Rendere Radar 360 ancora piu semplice per un cliente non tecnico, senza stravolgere la grafica.
+2. Migliorare i risultati per la nicchia "clienti interessati a programmazione".
+3. Aggiungere fonti reali autorizzate/provider seri per web e directory.
+4. Salvare utenti e workspace in database vero, non solo localStorage.
+5. Aggiungere login, piani, abbonamenti e limiti per pacchetto.
+6. Collegare Google Calendar/Meet con OAuth vero quando si passa da MVP locale a SaaS.
 7. Separare meglio:
    - dashboard
    - radar

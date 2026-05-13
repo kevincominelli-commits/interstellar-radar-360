@@ -1115,13 +1115,15 @@ function renderLeads() {
 }
 
 function renderLeadSelect() {
-  const select = document.querySelector("#messageLeadSelect");
-  if (!select) return;
-  select.innerHTML = workspace.leads.length
+  const options = workspace.leads.length
     ? workspace.leads
         .map((lead) => `<option value="${lead.id}">${escapeHtml(lead.company)} - ${escapeHtml(lead.name || "Contatto")}</option>`)
         .join("")
     : `<option value="">Nessun lead disponibile</option>`;
+  ["#messageLeadSelect", "#replyLeadSelect", "#campaignLeadSelect", "#offerLeadSelect"].forEach((selector) => {
+    const select = document.querySelector(selector);
+    if (select) select.innerHTML = options;
+  });
 }
 
 function renderLeadDetail() {
@@ -1172,14 +1174,43 @@ function renderCampaigns() {
         <div class="system-list-item">
           <div>
             <strong>${escapeHtml(campaign.name)}</strong>
-            <p>${escapeHtml(campaign.goal)} · ${escapeHtml(campaign.channel)} · ${campaign.sent} contatti preparati</p>
+            <p>${escapeHtml(campaign.goal)} · ${escapeHtml(campaign.channel)} · ${campaign.sent || 0} contatti preparati</p>
+            ${campaign.offer_title ? `<p>Offerta: ${escapeHtml(campaign.offer_title)}</p>` : ""}
           </div>
-          <span class="status-pill">${escapeHtml(campaign.status)}</span>
+          <div class="detail-actions">
+            <button type="button" data-copy-campaign="${campaign.id}">Copia piano</button>
+            <span class="status-pill">${escapeHtml(campaign.status)}</span>
+          </div>
         </div>
       `
     )
     .join("")
     : `<div class="system-list-item"><div><strong>Nessuna campagna</strong><p>Crea una campagna quando hai una lista lead pronta.</p></div></div>`;
+}
+
+function renderOffers() {
+  const board = document.querySelector("#offerBoard");
+  if (!board) return;
+  board.innerHTML = workspace.offers.length
+    ? workspace.offers
+        .slice(0, 8)
+        .map(
+          (offer) => `
+            <div class="system-list-item">
+              <div>
+                <strong>${escapeHtml(offer.title)}</strong>
+                <p>${escapeHtml(offer.package_name)} · ${escapeHtml(offer.price_range)} · ${escapeHtml(offer.status)}</p>
+              </div>
+              <div class="detail-actions">
+                <button type="button" data-copy-offer="${offer.id}">Copia</button>
+                <button type="button" data-campaign-from-offer="${offer.id}">Campagna</button>
+                <button type="button" data-appointment-from-offer="${offer.id}">Call</button>
+              </div>
+            </div>
+          `
+        )
+        .join("")
+    : `<div class="system-list-item"><div><strong>Nessuna offerta</strong><p>Genera una proposta da un lead in CRM o da Radar.</p></div></div>`;
 }
 
 function renderAutomations() {
@@ -1215,6 +1246,32 @@ function renderAutomations() {
     : `<div class="system-list-item"><div><strong>Nessuna automazione</strong><p>Aggiungi regole quando hai iniziato l'outreach.</p></div></div>`;
 }
 
+function renderAppointments() {
+  const list = document.querySelector("#appointmentList");
+  if (!list) return;
+  list.innerHTML = workspace.appointments.length
+    ? workspace.appointments
+        .slice(0, 10)
+        .map(
+          (appointment) => `
+            <div class="system-list-item">
+              <div>
+                <strong>${escapeHtml(appointment.title)}</strong>
+                <p>${formatDate(appointment.scheduled_at)} · ${appointment.duration_minutes || 30} min · ${escapeHtml(appointment.status)}</p>
+                ${appointment.meeting_url ? `<p>Invito calendar pronto</p>` : ""}
+              </div>
+              <div class="detail-actions">
+                <button type="button" data-copy-appointment="${appointment.id}">Copia conferma</button>
+                <button type="button" data-calendar-appointment="${appointment.id}">Google Calendar</button>
+                <button type="button" data-complete-appointment="${appointment.id}">Fatto</button>
+              </div>
+            </div>
+          `
+        )
+        .join("")
+    : `<div class="system-list-item"><div><strong>Nessun appuntamento</strong><p>Quando un lead è interessato, crea una call dal CRM o da Radar.</p></div></div>`;
+}
+
 function renderCrm() {
   const board = document.querySelector("#crmBoard");
   if (!board) return;
@@ -1235,6 +1292,7 @@ function renderCrm() {
                   <button type="button" data-crm-reply="${lead.id}">Risposta</button>
                   <button type="button" data-crm-followup="${lead.id}">Follow-up</button>
                   <button type="button" data-crm-appointment="${lead.id}">Appuntamento</button>
+                  <button type="button" data-crm-offer="${lead.id}">Offerta</button>
                   <button type="button" data-crm-lost="${lead.id}">Perso</button>
                 </div>
               `
@@ -1268,6 +1326,7 @@ function renderAnalytics() {
     ["Raw analizzati", funnel.rawCollected ?? 0],
     ["Task", workspace.tasks.length],
     ["Appuntamenti", workspace.appointments.length],
+    ["Offerte", workspace.offers.length],
     ["Opportunity", opportunities.length]
   ]
     .map(([label, value]) => `<div class="analytics-tile"><p>${label}</p><strong>${value}</strong></div>`)
@@ -1471,6 +1530,13 @@ function renderDashboardActivity(prospects) {
       text: `${campaign.channel || "Canale n/d"} · ${campaign.status || "stato n/d"}`,
       date: campaign.createdAt || campaign.updatedAt
     })),
+    ...(workspace.offers || []).map((offer) => ({
+      icon: "card",
+      color: "blue",
+      title: offer.title || "Offerta",
+      text: `${offer.package_name || "Pacchetto"} · ${offer.status || "bozza"}`,
+      date: offer.created_at || offer.updated_at
+    })),
     ...(workspace.tasks || []).map((task) => ({
       icon: "calendar",
       color: "cyan",
@@ -1583,7 +1649,9 @@ function renderAll() {
   renderLeadSelect();
   renderLeadDetail();
   renderCampaigns();
+  renderOffers();
   renderAutomations();
+  renderAppointments();
   renderCrm();
   renderAnalytics();
   renderIntegrations();
@@ -3983,22 +4051,206 @@ function scheduleLeadFollowups(leadId) {
   return count;
 }
 
+function offerDeliverables(packageName = "") {
+  const key = String(packageName || "").toLowerCase();
+  if (key.includes("radar")) {
+    return [
+      "configurazione Radar 360 sulla nicchia del cliente",
+      "pipeline CRM con stati e follow-up",
+      "messaggi manual assist pronti per ogni fonte",
+      "report iniziale con opportunità e priorità"
+    ];
+  }
+  if (key.includes("bot") || key.includes("automazione")) {
+    return [
+      "mappatura del processo da automatizzare",
+      "sviluppo bot o workflow su misura",
+      "dashboard di controllo e log operativi",
+      "test, consegna e mini formazione"
+    ];
+  }
+  if (key.includes("app") || key.includes("gestionale")) {
+    return [
+      "analisi funzionale della piattaforma",
+      "interfaccia web responsive",
+      "database e gestione utenti",
+      "rilascio MVP testabile e iterazioni"
+    ];
+  }
+  return [
+    "landing o sito premium orientato alla conversione",
+    "modulo contatti e tracciamento richieste",
+    "automazioni AI per risposte e follow-up",
+    "mini CRM per non perdere opportunità"
+  ];
+}
+
+function buildOfferMessage(lead, packageName, priceRange, goal) {
+  const firstName = cleanFirstName(lead.name);
+  const greeting = firstName ? `Ciao ${firstName},` : "Ciao,";
+  const deliverables = offerDeliverables(packageName);
+  return `${greeting}
+
+ti preparo una proposta concreta per ${lead.company}.
+
+OBIETTIVO
+${goal || lead.target || "Capire dove possiamo creare più clienti, ordine e automazioni utili."}
+
+PACCHETTO CONSIGLIATO
+${packageName}
+
+COSA INCLUDE
+${deliverables.map((item) => `- ${item}`).join("\n")}
+
+FASCIA PREZZO
+${priceRange}
+
+COME PROCEDEREI
+1. mini analisi della situazione attuale
+2. definizione priorità e risultato desiderato
+3. prototipo o setup iniziale
+4. test, correzioni e consegna operativa
+
+Se ha senso, facciamo prima una call veloce di 15/20 minuti così non ti mando una proposta generica.
+
+${workspace.settings.signature}`;
+}
+
+function createOfferForLead(lead, packageName, priceRange, goal) {
+  if (!lead) return null;
+  const packageLabel = String(packageName || "Sito + automazioni AI");
+  const priceLabel = String(priceRange || "Da definire dopo mini analisi");
+  const goalLabel = String(goal || lead.target || "Generare piu clienti e gestire follow-up");
+  const offer = {
+    id: uid("offer"),
+    lead_id: lead.id,
+    source_radar_id: lead.sourceRadarId || "",
+    title: `${packageLabel} per ${lead.company}`,
+    package_name: packageLabel,
+    price_range: priceLabel,
+    goal: goalLabel,
+    deliverables: offerDeliverables(packageLabel),
+    status: "draft",
+    message: buildOfferMessage(lead, packageLabel, priceLabel, goalLabel),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  workspace.offers.unshift(offer);
+  workspace.offers = workspace.offers.slice(0, 120);
+  lead.offer = packageName;
+  lead.status = lead.status === "new" ? "qualified" : lead.status;
+  lead.nextAction = "Inviare offerta o proporre call";
+  lead.updatedAt = new Date().toISOString();
+  saveWorkspace();
+  renderAll();
+  return offer;
+}
+
+function formatCampaignPlan(campaign) {
+  const steps = campaign.plan?.length
+    ? campaign.plan
+    : [
+        "prepara lista lead filtrata dal Radar",
+        "genera messaggio personalizzato",
+        "avvia contatto manuale o email con conferma",
+        "programma follow-up e appuntamento"
+      ];
+  return `PIANO CAMPAGNA
+Nome: ${campaign.name}
+Obiettivo: ${campaign.goal}
+Canale: ${campaign.channel}
+Stato: ${campaign.status}
+
+STEP OPERATIVI
+${steps.map((step, index) => `${index + 1}. ${step}`).join("\n")}
+
+NOTE
+${campaign.offer_title ? `Collegata all'offerta: ${campaign.offer_title}` : "Campagna manuale: nessun invio automatico sui social."}`;
+}
+
+function createCampaignFromOffer(offerId) {
+  const offer = workspace.offers.find((item) => item.id === offerId);
+  if (!offer) return null;
+  const lead = workspace.leads.find((item) => item.id === offer.lead_id);
+  const channel = lead?.email ? "Email con conferma" : /instagram|tiktok|linkedin|reddit|youtube/i.test(lead?.source || "") ? "Manual social assist" : "Contatto manuale";
+  const campaign = {
+    id: uid("campaign"),
+    name: `${offer.package_name} · ${lead?.company || "Lead"}`,
+    goal: offer.goal || "Portare il lead a una call",
+    channel,
+    status: "Bozza pronta",
+    sent: 0,
+    lead_id: offer.lead_id,
+    offer_id: offer.id,
+    offer_title: offer.title,
+    plan: [
+      "copia offerta e messaggio personalizzato",
+      channel === "Email con conferma" ? "apri mailto e invia solo dopo revisione" : "apri piattaforma e invia manualmente",
+      "segna risposta nel Reply Assistant",
+      "se interessato, crea appuntamento e follow-up"
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  workspace.campaigns.unshift(campaign);
+  offer.status = "linked_campaign";
+  offer.updated_at = new Date().toISOString();
+  if (lead) {
+    lead.nextAction = "Eseguire campagna collegata all'offerta";
+    lead.updatedAt = new Date().toISOString();
+  }
+  saveWorkspace();
+  renderAll();
+  return campaign;
+}
+
+function nextAppointmentSlot(days = 1) {
+  const scheduledAt = new Date(Date.now() + days * 86400000);
+  scheduledAt.setHours(10, 0, 0, 0);
+  return scheduledAt;
+}
+
+function appointmentConfirmationMessage(appointment) {
+  return `Perfetto, ti propongo questa call:
+
+${appointment.title}
+Quando: ${formatDate(appointment.scheduled_at)}
+Durata: ${appointment.duration_minutes || 30} minuti
+
+Ti confermo io il link appena fissiamo l'orario definitivo.`;
+}
+
+function buildGoogleCalendarUrl(appointment) {
+  const start = new Date(appointment.scheduled_at);
+  const end = new Date(start.getTime() + (appointment.duration_minutes || 30) * 60000);
+  const format = (date) => date.toISOString().replaceAll("-", "").replaceAll(":", "").replace(/\.\d{3}Z$/, "Z");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: appointment.title,
+    dates: `${format(start)}/${format(end)}`,
+    details: appointment.confirmation_message || appointmentConfirmationMessage(appointment)
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
 function createAppointmentFromLead(leadId) {
   const lead = workspace.leads.find((item) => item.id === leadId);
   if (!lead) return null;
-  const scheduledAt = new Date(Date.now() + 86400000);
-  scheduledAt.setHours(10, 0, 0, 0);
+  const scheduledAt = nextAppointmentSlot(1);
   const appointment = {
     id: uid("appointment"),
     lead_id: lead.sourceRadarId || `lead_${lead.id}`,
+    crm_lead_id: lead.id,
     title: `Call con ${lead.company}`,
     status: "proposed",
     scheduled_at: scheduledAt.toISOString(),
     duration_minutes: 30,
     meeting_url: "",
+    calendar_url: "",
     value_estimate: lead.score >= 80 ? 1500 : 600,
     created_at: new Date().toISOString()
   };
+  appointment.confirmation_message = appointmentConfirmationMessage(appointment);
   workspace.appointments.unshift(appointment);
   lead.status = "interested";
   lead.nextAction = "Confermare appuntamento";
@@ -4030,8 +4282,7 @@ function archiveRadarProspect(prospectId) {
 async function proposeRadarAppointment(prospectId) {
   const prospect = getRadarProspectById(prospectId);
   if (!prospect) return;
-  const suggestedAt = new Date(Date.now() + (prospect.temperature === "hot" ? 1 : 2) * 86400000);
-  suggestedAt.setHours(10, 0, 0, 0);
+  const suggestedAt = nextAppointmentSlot(prospect.temperature === "hot" ? 1 : 2);
   const appointment = {
     id: uid("appointment"),
     lead_id: prospect.lead_id,
@@ -4040,9 +4291,11 @@ async function proposeRadarAppointment(prospectId) {
     scheduled_at: suggestedAt.toISOString(),
     duration_minutes: 30,
     meeting_url: "",
+    calendar_url: "",
     value_estimate: prospect.temperature === "hot" ? 1500 : 600,
     created_at: new Date().toISOString()
   };
+  appointment.confirmation_message = appointmentConfirmationMessage(appointment);
   workspace.appointments.unshift(appointment);
   updateStoredRadarProspect(prospect.lead_id, { contact_state: "appointment_proposed" });
   const message = `Ciao${cleanFirstName(prospect.public_name) ? ` ${cleanFirstName(prospect.public_name)}` : ""}, ti propongo una call veloce di 30 minuti per capire meglio la situazione. Potrebbe andar bene domani alle 10:00 oppure preferisci un altro orario?`;
@@ -4812,6 +5065,21 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const crmOfferId = event.target?.dataset?.crmOffer;
+  if (crmOfferId) {
+    const lead = workspace.leads.find((item) => item.id === crmOfferId);
+    if (lead) {
+      selectedLeadId = lead.id;
+      const offer = createOfferForLead(lead, lead.offer || "Sito + automazioni AI", "Da definire dopo mini analisi", lead.target || "Generare più clienti");
+      const output = document.querySelector("#offerOutput");
+      const select = document.querySelector("#offerLeadSelect");
+      if (select) select.value = lead.id;
+      if (output && offer) output.value = offer.message;
+      navigateTo("campaigns");
+    }
+    return;
+  }
+
   const crmLostId = event.target?.dataset?.crmLost;
   if (crmLostId) {
     const lead = workspace.leads.find((item) => item.id === crmLostId);
@@ -4819,6 +5087,80 @@ document.addEventListener("click", (event) => {
       lead.status = "discarded";
       lead.nextAction = "Archiviato come perso";
       lead.updatedAt = new Date().toISOString();
+      saveWorkspace();
+      renderAll();
+    }
+    return;
+  }
+
+  const copyCampaignId = event.target?.dataset?.copyCampaign;
+  if (copyCampaignId) {
+    const campaign = workspace.campaigns.find((item) => item.id === copyCampaignId);
+    if (campaign) copyText(formatCampaignPlan(campaign));
+    return;
+  }
+
+  const copyOfferId = event.target?.dataset?.copyOffer;
+  if (copyOfferId) {
+    const offer = workspace.offers.find((item) => item.id === copyOfferId);
+    if (offer) {
+      const output = document.querySelector("#offerOutput");
+      if (output) output.value = offer.message;
+      copyText(offer.message);
+    }
+    return;
+  }
+
+  const campaignFromOfferId = event.target?.dataset?.campaignFromOffer;
+  if (campaignFromOfferId) {
+    createCampaignFromOffer(campaignFromOfferId);
+    return;
+  }
+
+  const appointmentFromOfferId = event.target?.dataset?.appointmentFromOffer;
+  if (appointmentFromOfferId) {
+    const offer = workspace.offers.find((item) => item.id === appointmentFromOfferId);
+    if (offer) {
+      createAppointmentFromLead(offer.lead_id);
+      navigateTo("automations");
+    }
+    return;
+  }
+
+  const copyAppointmentId = event.target?.dataset?.copyAppointment;
+  if (copyAppointmentId) {
+    const appointment = workspace.appointments.find((item) => item.id === copyAppointmentId);
+    if (appointment) copyText(appointment.confirmation_message || appointmentConfirmationMessage(appointment));
+    return;
+  }
+
+  const calendarAppointmentId = event.target?.dataset?.calendarAppointment;
+  if (calendarAppointmentId) {
+    const appointment = workspace.appointments.find((item) => item.id === calendarAppointmentId);
+    if (appointment) {
+      appointment.calendar_url = buildGoogleCalendarUrl(appointment);
+      appointment.meeting_url = appointment.calendar_url;
+      appointment.status = "calendar_ready";
+      appointment.updated_at = new Date().toISOString();
+      saveWorkspace();
+      renderAll();
+      window.open(appointment.calendar_url, "_blank", "noopener");
+    }
+    return;
+  }
+
+  const completeAppointmentId = event.target?.dataset?.completeAppointment;
+  if (completeAppointmentId) {
+    const appointment = workspace.appointments.find((item) => item.id === completeAppointmentId);
+    if (appointment) {
+      appointment.status = "completed";
+      appointment.completed_at = new Date().toISOString();
+      const lead = workspace.leads.find((item) => item.id === appointment.crm_lead_id || `lead_${item.id}` === appointment.lead_id);
+      if (lead) {
+        lead.status = lead.status === "client" ? "client" : "interested";
+        lead.nextAction = "Preparare proposta finale dopo la call";
+        lead.updatedAt = new Date().toISOString();
+      }
       saveWorkspace();
       renderAll();
     }
@@ -4858,16 +5200,47 @@ document.querySelector("#copyLeadDraft")?.addEventListener("click", async () => 
 document.querySelector("#campaignForm")?.addEventListener("submit", (event) => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
+  const lead = workspace.leads.find((item) => item.id === data.get("lead"));
   workspace.campaigns.unshift({
     id: uid("campaign"),
     name: data.get("name"),
     goal: data.get("goal"),
     channel: data.get("channel"),
+    lead_id: lead?.id || "",
+    offer_title: lead?.offer || "",
+    plan: [
+      lead ? `parti da ${lead.company}` : "scegli una lista lead dal Radar/CRM",
+      data.get("channel") === "Email" ? "prepara anteprima email e conferma manualmente" : "usa contatto manual assist, nessun invio automatico social",
+      "salva ogni risposta nel Reply Assistant",
+      "crea follow-up o appuntamento dal CRM"
+    ],
     status: "Attiva",
-    sent: 0
+    sent: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
   });
   saveWorkspace();
   renderAll();
+});
+
+document.querySelector("#offerForm")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const data = new FormData(event.currentTarget);
+  const lead = workspace.leads.find((item) => item.id === data.get("lead"));
+  const output = document.querySelector("#offerOutput");
+  if (!lead) {
+    if (output) output.value = "Prima porta un prospect nel CRM, poi genera l'offerta.";
+    return;
+  }
+  const offer = createOfferForLead(lead, data.get("package"), data.get("price"), data.get("goal"));
+  if (output && offer) output.value = offer.message;
+});
+
+document.querySelector("#copyOfferOutput")?.addEventListener("click", async () => {
+  const output = document.querySelector("#offerOutput")?.value?.trim();
+  if (!output) return;
+  const copied = await copyText(output);
+  if (!copied) downloadTextFile("interstellar-offer.txt", output, "text/plain");
 });
 
 document.querySelector("#messageForm")?.addEventListener("submit", (event) => {
