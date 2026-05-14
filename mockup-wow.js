@@ -4040,14 +4040,19 @@ function syncRadarSourceFilter() {
 function radarEmptyGuideMarkup() {
   const selectedSource = document.querySelector("#radarSourceFilter")?.value ?? "all";
   const selectedMode = document.querySelector("#radarContactModeFilter")?.value ?? "all";
-  const hasRun = Boolean(workspace.radar.lastSearch?.createdAt || workspace.radar.lastRunAt);
+  const hasRun = Boolean(
+    workspace.radar.lastSearch?.createdAt ||
+      workspace.radar.lastRunAt ||
+      workspace.radar.resultIds?.length ||
+      workspace.radar.lastProviderStatus?.length
+  );
   const sourceNote =
     selectedSource !== "all"
-      ? `<p><b>${escapeHtml(selectedSource)}</b> e attiva, ma ora ha 0 prospect finali con questi filtri. Se nel riepilogo fonti vedi segnali trovati, significa che sono stati scartati per qualita, lingua, data, intento debole o perche erano contenuti di chi vende invece di persone interessate.</p>`
+      ? `<p><b>${escapeHtml(selectedSource)}</b> è attiva, ma ora ha 0 prospect finali con questi filtri. Se nel riepilogo fonti vedi segnali trovati, significa che sono stati scartati per qualità, lingua, data, intento debole o perché erano contenuti di chi vende invece di persone interessate.</p>`
       : "";
   const modeNote =
     selectedMode !== "all"
-      ? `<p>Il filtro contatto e su <b>${selectedMode === "manual_assist" ? "Manual assist" : "Automated possible"}</b>. Passa a <b>Tutti contatti</b> se vuoi vedere anche gli altri canali.</p>`
+      ? `<p>Il filtro contatto è su <b>${selectedMode === "manual_assist" ? "Manual assist" : "Automated possible"}</b>. Passa a <b>Tutti contatti</b> se vuoi vedere anche gli altri canali.</p>`
       : "";
   return `<div class="radar-empty-guide">
     <strong>${hasRun ? "0 prospect finali in questa vista" : "Nessun prospect ancora"}</strong>
@@ -4057,7 +4062,7 @@ function radarEmptyGuideMarkup() {
     <ol>
       <li>Scegli cosa vuoi vendere nella ricerca guidata.</li>
       <li>Spunta dove cercare: social, YouTube, forum, web e directory.</li>
-      <li>Premi <b>Avvia Radar</b>. Se una fonte resta a 0 finali, servono dati/API migliori o URL piu specifici da analizzare.</li>
+      <li>Premi <b>Avvia Radar</b>. Se una fonte resta a 0 finali, servono dati/API migliori o URL più specifici da analizzare.</li>
     </ol>
   </div>`;
 }
