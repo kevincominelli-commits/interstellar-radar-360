@@ -1,7 +1,7 @@
 const DEFAULT_LIMIT = 30;
 const MAX_PROVIDER_RESULTS = 10;
 const DEFAULT_RECENCY_MONTHS = 12;
-const SERPER_MAX_QUERIES = 10;
+const SERPER_MAX_QUERIES = 12;
 const APIFY_MAX_RESULTS = envNumber("APIFY_MAX_RESULTS", 5, 1, 25);
 const APIFY_MAX_RUNS = envNumber("APIFY_MAX_RUNS", 3, 1, 8);
 const APIFY_TIMEOUT_SECONDS = envNumber("APIFY_TIMEOUT_SECONDS", 42, 10, 55);
@@ -66,6 +66,7 @@ const italianAllowedRedditCommunities = new Set([
   "italy",
   "italyinformatica",
   "italiacareeradvice",
+  "italiapersonalfinance",
   "imprenditoria",
   "commercialisti"
 ]);
@@ -326,7 +327,7 @@ function isItalianWebResult(link = "", text = "") {
   if (/instagram\.com/i.test(host) && !hasExplicitHireRequest(text)) return false;
   if (host.endsWith(".it")) return true;
   if (/reddit\.com$/i.test(host) && italianAllowedRedditCommunities.has(subreddit)) return true;
-  if (/forum\.html\.it|html\.it|giorgiotave\.it|forumfree\.it|forumcommunity\.net|alfemminile\.com|finanzaonline\.com|hwupgrade\.it/i.test(host)) return true;
+  if (/forum\.html\.it|html\.it|giorgiotave\.it|forumfree\.it|forumcommunity\.net|alfemminile\.com|finanzaonline\.com|investireoggi\.it|mql5\.com|hwupgrade\.it|inforge\.net/i.test(host)) return true;
   return looksItalian(text) && !/\b(looking for|need a|hire|developer wanted|busco|caut|desarrollador|programare)\b/i.test(text);
 }
 
@@ -504,6 +505,18 @@ function liveQueries(config) {
 function serperQueries(config) {
   const country = config.country || "Italia";
   const city = config.city ? ` ${config.city}` : "";
+  if (isItalianMode(config) && isTradingSearch(config)) {
+    return [
+      `site:youtube.com/watch ("come iniziare trading" OR "prop firm" OR "forex" OR "bot trading") ${country}${city}`,
+      `site:finanzaonline.com/forum ("come iniziare" OR "consigli" OR "cerco" OR "broker") ("trading" OR "forex" OR "crypto" OR "prop firm")`,
+      `site:investireoggi.it/forums ("trading" OR "forex" OR "broker" OR "crypto") ("consigli" OR "iniziare" OR "opinioni")`,
+      `site:mql5.com/it/forum ("MT5" OR "expert advisor" OR "bot trading" OR "forex") ("cerco" OR "aiuto" OR "come")`,
+      `site:reddit.com/r/ItaliaPersonalFinance ("trading" OR "broker" OR "crypto" OR "forex") ("consigli" OR "iniziare" OR "opinioni") -inurl:?tl=`,
+      `site:facebook.com/groups ("trading" OR "forex" OR "prop firm" OR "crypto") ("come iniziare" OR "consigli" OR "cerco" OR "info")`,
+      `site:linkedin.com/posts ("trading" OR "prop firm" OR "forex" OR "crypto") ("cerco" OR "consigli" OR "iniziare")`,
+      `("come iniziare trading" OR "quale broker" OR "prop firm consigli" OR "bot trading MT5") ${country}${city} -guida -news`
+    ];
+  }
   if (isItalianMode(config) && isProgrammingSearch(config)) {
     return [
       `("cerco sviluppatore" OR "cerco programmatore" OR "cerco freelance") ("budget" OR "progetto" OR "app" OR "sito" OR "gestionale") ${country}${city} -guida -tutorial -come`,
@@ -512,12 +525,13 @@ function serperQueries(config) {
       `site:facebook.com/groups ("cerco sviluppatore" OR "cerco programmatore" OR "buongiorno cerco") ("app" OR "sito" OR "gestionale" OR "bot")`,
       `site:facebook.com/groups ("cerco sviluppatore" OR "cerco programmatore") ("budget" OR "startup" OR "ecommerce" OR "piattaforma")`,
       `site:linkedin.com/posts ("cerco sviluppatore" OR "cerco programmatore" OR "sto cercando sviluppatore") ${country}${city}`,
+      `site:inforge.net/forum ("cerco sviluppatore" OR "cerco programmatore" OR "cerco coder" OR "cerco developer")`,
+      `site:forum.html.it ("cerco sviluppatore" OR "cerco programmatore" OR "mi serve un sito" OR "preventivo")`,
+      `site:reddit.com/r/ItalyInformatica ("cerco" OR "serve" OR "preventivo") (sito OR app OR software OR gestionale) -inurl:?tl=`,
       `site:techlance.it ("cerco sviluppatore" OR "cerco programmatore" OR "budget")`,
       `site:freelancer.co.it/job-search ("cerco programmatore" OR "cerco sviluppatore" OR "buongiorno cerco")`,
       `site:addlance.com ("cerco programmatore" OR "cerco sviluppatore" OR "richiedi un preventivo simile")`,
-      `site:malt.it ("cerco sviluppatore" OR "cerco programmatore" OR "progetto")`,
-      `site:inforge.net/forum ("cerco sviluppatore" OR "cerco programmatore")`,
-      `site:reddit.com/r/ItalyInformatica ("cerco" OR "serve" OR "preventivo") (sito OR app OR software OR gestionale) -inurl:?tl=`
+      `site:malt.it ("cerco sviluppatore" OR "cerco programmatore" OR "progetto")`
     ];
   }
   return liveQueries(config).slice(0, SERPER_MAX_QUERIES);
