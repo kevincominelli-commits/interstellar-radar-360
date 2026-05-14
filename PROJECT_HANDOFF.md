@@ -147,6 +147,9 @@ Sempre con:
 - Stretta ulteriore su Serper per programmazione: query orientate a richieste esplicite e filtro che scarta articoli/guide/contenuti SEO se non contengono frasi tipo "cerco sviluppatore/programmatore", "budget", "pubblicato da", "solo a chi parla italiano".
 - Spostata la strategia Serper da forum generici a pagine/fonti calde: gruppi Facebook, marketplace freelance, LinkedIn posts, TechLance, AddLance, Freelancer, Malt e solo forum/community come fallback. I risultati social vengono marcati come Facebook/LinkedIn/Instagram ecc. per contact mode manual assist.
 - Aggiornata cache asset a `radar360-16`.
+- Integrato provider Apify nel backend Radar: usa `APIFY_TOKEN` da Vercel, lancia Actor social con limiti stretti di risultati/costo, normalizza output Instagram/TikTok/YouTube/Facebook in prospect Radar e mantiene social in manual assist.
+- Aggiunto passaggio hashtag dal frontend al backend per usare gli Actor social Apify.
+- Aggiornata cache asset a `radar360-17`.
 
 ## Regola operativa per il PDF completo
 
@@ -173,7 +176,7 @@ Prima fase immediata prima del lavoro dal PDF:
 1. Rendere Radar 360 ancora piu semplice per un cliente non tecnico, senza stravolgere la grafica.
 2. Migliorare i risultati per la nicchia "clienti interessati a programmazione".
 3. Configurare `SERPER_API_KEY` su Vercel e fare redeploy, poi misurare qualita/volume dei risultati.
-4. Aggiungere altri provider autorizzati per aumentare davvero quantita e qualita: Apify, Reddit API, YouTube API, directory/local business provider.
+4. Configurare `APIFY_TOKEN` su Vercel e testare gli Actor con limiti bassi: Instagram Search, Instagram Hashtag, TikTok Search, YouTube Search e Facebook Groups su URL pubblici.
 4. Salvare utenti e workspace in database vero, non solo localStorage.
 5. Collegare Stripe reale ai piani gia presenti nel motore.
 6. Collegare Google Calendar/Meet con OAuth vero quando si passa da MVP locale a SaaS.

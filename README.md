@@ -62,13 +62,30 @@ Stripe/Supabase sono il prossimo collegamento cloud, non ancora credenziali real
 
 ## Stato motore Radar
 
-Il motore live attuale e reale ma ancora MVP: usa fonti pubbliche senza login e senza provider premium. Per aumentare davvero volume e qualita dei lead servono integrazioni autorizzate come Google/Serper, Apify, Reddit API, YouTube API e directory business.
+Il motore live attuale e reale ma ancora MVP: usa fonti pubbliche senza login e provider esterni autorizzati dove configurati. Per aumentare davvero volume e qualita dei lead servono Serper, Apify, Reddit API, YouTube API e directory business.
 
 Variabile richiesta per Serper:
 
 ```text
 SERPER_API_KEY=...
 ```
+
+Variabili Apify:
+
+```text
+APIFY_TOKEN=...
+APIFY_MAX_RESULTS=5
+APIFY_MAX_RUNS=3
+APIFY_MAX_CHARGE_USD=0.35
+APIFY_INSTAGRAM_SEARCH_ACTOR_ID=apify/instagram-search-scraper
+APIFY_INSTAGRAM_HASHTAG_ACTOR_ID=apify/instagram-hashtag-scraper
+APIFY_TIKTOK_ACTOR_ID=clockworks/tiktok-scraper
+APIFY_YOUTUBE_ACTOR_ID=streamers/youtube-scraper
+APIFY_FACEBOOK_GROUPS_ACTOR_ID=apify/facebook-groups-scraper
+APIFY_YOUTUBE_COMMENTS_ACTOR_ID=...
+```
+
+`APIFY_YOUTUBE_COMMENTS_ACTOR_ID` e opzionale: usalo solo quando si decide quale Actor commenti adottare e si passano URL YouTube reali nei monitor URL.
 
 ## Regola prodotto fondamentale
 

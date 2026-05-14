@@ -2,6 +2,10 @@ const DEFAULT_LIMIT = 30;
 const MAX_PROVIDER_RESULTS = 10;
 const DEFAULT_RECENCY_MONTHS = 12;
 const SERPER_MAX_QUERIES = 10;
+const APIFY_MAX_RESULTS = envNumber("APIFY_MAX_RESULTS", 5, 1, 25);
+const APIFY_MAX_RUNS = envNumber("APIFY_MAX_RUNS", 3, 1, 8);
+const APIFY_TIMEOUT_SECONDS = envNumber("APIFY_TIMEOUT_SECONDS", 55, 15, 240);
+const APIFY_MAX_CHARGE_USD = envNumber("APIFY_MAX_CHARGE_USD", 0.35, 0.05, 10);
 
 const providerSourceMap = {
   reddit: ["Reddit", "Forum"],
@@ -11,6 +15,7 @@ const providerSourceMap = {
   wordpress: ["Blog", "Website"],
   serper: ["Forum", "Website", "Blog", "Directory", "Reviews"],
   searchEngine: ["Forum", "Website", "Blog", "Directory", "Reviews"],
+  apify: ["Instagram", "Facebook", "TikTok", "LinkedIn", "Twitter/X", "YouTube", "Telegram", "Forum", "Website", "Directory", "Reviews"],
   github: ["Forum", "Website"],
   directUrls: ["Website", "Blog", "Directory", "Reviews", "CRM/Import"]
 };
@@ -77,6 +82,12 @@ const italianProgrammingSignals = [
   "crm per azienda",
   "software per azienda"
 ];
+
+function envNumber(name, fallback, min = 0, max = Number.MAX_SAFE_INTEGER) {
+  const value = Number(process.env[name]);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.max(min, Math.min(max, value));
+}
 
 function asText(value = "") {
   return String(value || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -235,6 +246,29 @@ function hostnameOf(value = "") {
   }
 }
 
+function firstValue(...values) {
+  return values.find((value) => value !== undefined && value !== null && String(value).trim() !== "") || "";
+}
+
+function getPath(object = {}, path = "") {
+  return String(path)
+    .split(".")
+    .reduce((value, key) => (value && typeof value === "object" ? value[key] : undefined), object);
+}
+
+function pickPath(object = {}, paths = []) {
+  for (const path of paths) {
+    const value = getPath(object, path);
+    if (Array.isArray(value)) {
+      const compacted = value.map((item) => (typeof item === "object" ? JSON.stringify(item) : String(item))).filter(Boolean).join(", ");
+      if (compacted) return compacted;
+    } else if (value !== undefined && value !== null && String(value).trim()) {
+      return value;
+    }
+  }
+  return "";
+}
+
 function redditCommunityFromUrl(value = "") {
   const match = String(value || "").match(/reddit\.com\/r\/([^/?#]+)/i);
   return match ? decodeURIComponent(match[1]).toLowerCase() : "";
@@ -334,6 +368,7 @@ function getQuery(req) {
   const params = url.searchParams;
   const niche = params.get("niche") || "sviluppo software automazioni AI siti web app bot";
   const keywords = params.get("keywords") || "";
+  const hashtags = params.get("hashtags") || "";
   const country = params.get("country") || "Italia";
   const city = params.get("city") || "";
   const language = params.get("language") || "it";
@@ -353,6 +388,7 @@ function getQuery(req) {
     q: compact(base, 180),
     niche,
     keywords,
+    hashtags,
     country,
     city,
     language,
@@ -534,6 +570,341 @@ async function searchSerper(config) {
     const peopleAlsoAsk = (result.value.peopleAlsoAsk || []).map((item) => prospectFromSearchResult(item, config, "Serper People Also Ask"));
     return [...organic, ...peopleAlsoAsk].filter(Boolean);
   });
+}
+
+function sourceSelected(config = {}, source = "") {
+  return !config.sources.length || config.sources.includes(source);
+}
+
+function apifyActorPath(actorId = "") {
+  return encodeURIComponent(String(actorId || "").trim().replace(/\//g, "~"));
+}
+
+function apifySplitList(value = "") {
+  return String(value || "")
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function apifySearchTerms(config = {}) {
+  const direct = apifySplitList(`${config.keywords || ""}, ${config.niche || ""}`)
+    .map((item) => item.replace(/^#/, "").trim())
+    .filter((item) => item.length >= 3)
+    .slice(0, 8);
+  const programming = isProgrammingSearch(config)
+    ? [
+        "cerco sviluppatore",
+        "cerco programmatore",
+        "mi serve un sito",
+        "devo creare un app",
+        "cerco automazioni AI",
+        "cerco bot telegram",
+        "preventivo gestionale"
+      ]
+    : [];
+  const city = config.city ? ` ${config.city}` : "";
+  const country = config.country ? ` ${config.country}` : "";
+  return [...new Set([...direct, ...programming].map((term) => compact(`${term}${country}${city}`, 90)))]
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
+function apifyHashtags(config = {}) {
+  const fromInput = apifySplitList(config.hashtags).map((item) => item.replace(/^#/, ""));
+  const fromKeywords = apifySplitList(config.keywords)
+    .filter((item) => item.startsWith("#"))
+    .map((item) => item.replace(/^#/, ""));
+  const fallback = isProgrammingSearch(config) ? ["startupitalia", "businessitalia", "ecommerceitalia", "automazioni", "intelligenzaartificiale"] : [];
+  return [...new Set([...fromInput, ...fromKeywords, ...fallback].map((item) => item.replace(/[^\p{L}\p{N}_-]/gu, "").trim()).filter(Boolean))]
+    .slice(0, 6);
+}
+
+function apifyMonitorUrls(config = {}, pattern) {
+  return (config.monitorUrls || []).filter((url) => pattern.test(url)).slice(0, 6);
+}
+
+function apifyRunSpecs(config = {}) {
+  const terms = apifySearchTerms(config);
+  const hashtags = apifyHashtags(config);
+  const specs = [];
+
+  if (sourceSelected(config, "Instagram") && terms.length) {
+    specs.push({
+      name: "Apify Instagram Search",
+      actorId: process.env.APIFY_INSTAGRAM_SEARCH_ACTOR_ID || "apify/instagram-search-scraper",
+      platform: "Instagram",
+      kind: "social_search",
+      limit: APIFY_MAX_RESULTS,
+      input: {
+        search: terms.slice(0, 3).join(", "),
+        searchType: "user",
+        searchLimit: APIFY_MAX_RESULTS,
+        enhanceUserSearchWithFacebookPage: false
+      }
+    });
+  }
+
+  if (sourceSelected(config, "Instagram") && hashtags.length && process.env.APIFY_INSTAGRAM_HASHTAG_ACTOR_ID !== "off") {
+    specs.push({
+      name: "Apify Instagram Hashtag",
+      actorId: process.env.APIFY_INSTAGRAM_HASHTAG_ACTOR_ID || "apify/instagram-hashtag-scraper",
+      platform: "Instagram",
+      kind: "social_hashtag",
+      limit: APIFY_MAX_RESULTS,
+      input: {
+        hashtags: hashtags.slice(0, 4),
+        resultsType: "posts",
+        resultsLimit: Math.min(APIFY_MAX_RESULTS, 8),
+        keywordSearch: false
+      }
+    });
+  }
+
+  if (sourceSelected(config, "TikTok") && terms.length) {
+    specs.push({
+      name: "Apify TikTok Search",
+      actorId: process.env.APIFY_TIKTOK_ACTOR_ID || "clockworks/tiktok-scraper",
+      platform: "TikTok",
+      kind: "social_video_search",
+      limit: APIFY_MAX_RESULTS,
+      input: {
+        searchQueries: terms.slice(0, 3),
+        searchSection: "/video",
+        resultsPerPage: Math.min(APIFY_MAX_RESULTS, 8)
+      }
+    });
+  }
+
+  if (sourceSelected(config, "YouTube") && terms.length) {
+    specs.push({
+      name: "Apify YouTube Search",
+      actorId: process.env.APIFY_YOUTUBE_ACTOR_ID || "streamers/youtube-scraper",
+      platform: "YouTube",
+      kind: "social_video_search",
+      limit: APIFY_MAX_RESULTS,
+      input: {
+        searchQueries: terms.slice(0, 3),
+        maxResults: Math.min(APIFY_MAX_RESULTS, 8),
+        maxResultsShorts: 0,
+        maxResultStreams: 0,
+        sortingOrder: "date",
+        dateFilter: config.recencyMonths <= 1 ? "month" : "year",
+        videoType: "video"
+      }
+    });
+  }
+
+  const facebookGroupUrls = apifyMonitorUrls(config, /facebook\.com\/groups/i);
+  if (sourceSelected(config, "Facebook") && facebookGroupUrls.length) {
+    specs.push({
+      name: "Apify Facebook Groups",
+      actorId: process.env.APIFY_FACEBOOK_GROUPS_ACTOR_ID || "apify/facebook-groups-scraper",
+      platform: "Facebook",
+      kind: "social_group_posts",
+      limit: APIFY_MAX_RESULTS,
+      input: {
+        startUrls: facebookGroupUrls.map((url) => ({ url })),
+        resultsLimit: Math.min(APIFY_MAX_RESULTS, 10),
+        onlyPostsNewerThan: `${Math.max(1, Math.min(12, Number(config.recencyMonths || 12)))} months`
+      }
+    });
+  }
+
+  const youtubeUrls = apifyMonitorUrls(config, /(youtube\.com\/watch|youtu\.be\/|youtube\.com\/shorts)/i);
+  if (sourceSelected(config, "YouTube") && youtubeUrls.length && process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID) {
+    specs.push({
+      name: "Apify YouTube Comments",
+      actorId: process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID,
+      platform: "YouTube",
+      kind: "social_comment_signal",
+      limit: APIFY_MAX_RESULTS,
+      input: {
+        videoUrls: youtubeUrls,
+        maxCommentsPerVideo: Math.min(80, Math.max(10, APIFY_MAX_RESULTS * 10)),
+        sortBy: "newest"
+      }
+    });
+  }
+
+  return specs.filter((spec) => spec.actorId && spec.actorId !== "off").slice(0, APIFY_MAX_RUNS);
+}
+
+async function runApifyActor(spec) {
+  const params = new URLSearchParams({
+    timeout: String(APIFY_TIMEOUT_SECONDS),
+    clean: "true",
+    format: "json",
+    limit: String(spec.limit || APIFY_MAX_RESULTS),
+    maxItems: String(spec.limit || APIFY_MAX_RESULTS),
+    maxTotalChargeUsd: String(APIFY_MAX_CHARGE_USD)
+  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), (APIFY_TIMEOUT_SECONDS + 5) * 1000);
+  try {
+    const response = await fetch(`https://api.apify.com/v2/acts/${apifyActorPath(spec.actorId)}/run-sync-get-dataset-items?${params.toString()}`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${process.env.APIFY_TOKEN}`,
+        "Content-Type": "application/json",
+        "User-Agent": "InterstellarRadar360/1.0"
+      },
+      body: JSON.stringify(spec.input || {})
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      const message = payload?.error?.message || payload?.message || `${response.status} ${response.statusText}`;
+      throw new Error(`${spec.name}: ${message}`);
+    }
+    return Array.isArray(payload) ? payload : [];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function normalizeApifyTimestamp(value = "") {
+  if (!value) return "";
+  if (typeof value === "number") {
+    const milliseconds = value > 10_000_000_000 ? value : value * 1000;
+    return new Date(milliseconds).toISOString();
+  }
+  const text = String(value);
+  if (/^\d+$/.test(text)) return normalizeApifyTimestamp(Number(text));
+  const date = new Date(text);
+  if (!Number.isNaN(date.getTime())) return date.toISOString();
+  const months = text.match(/(\d+)\s+months?\s+ago/i);
+  if (months) {
+    const dateFromRelative = new Date();
+    dateFromRelative.setMonth(dateFromRelative.getMonth() - Number(months[1]));
+    return dateFromRelative.toISOString();
+  }
+  const days = text.match(/(\d+)\s+days?\s+ago/i);
+  if (days) {
+    const dateFromRelative = new Date(Date.now() - Number(days[1]) * 86400000);
+    return dateFromRelative.toISOString();
+  }
+  return "";
+}
+
+function apifyItemUrl(item = {}) {
+  return String(
+    firstValue(
+      pickPath(item, ["url", "postUrl", "postURL", "videoUrl", "webVideoUrl", "inputUrl", "profileUrl", "profileURL", "link", "sourceUrl", "pageUrl", "facebookUrl"]),
+      item.shortCode ? `https://www.instagram.com/p/${item.shortCode}/` : "",
+      item.code ? `https://www.instagram.com/p/${item.code}/` : "",
+      item.videoId ? `https://www.youtube.com/watch?v=${item.videoId}` : ""
+    )
+  ).trim();
+}
+
+function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
+  const sourceUrl = apifyItemUrl(item);
+  const username = String(
+    firstValue(
+      pickPath(item, ["username", "ownerUsername", "author", "authorUsername", "user.username", "authorMeta.name", "channelName", "channelUsername", "pageName", "from.name"])
+    )
+  ).trim();
+  const publicName = String(
+    firstValue(pickPath(item, ["fullName", "ownerFullName", "authorFullName", "authorMeta.nickName", "name", "title", "channelName", "from.name"]))
+  ).trim();
+  const text = compact(
+    firstValue(
+      pickPath(item, [
+        "text",
+        "comment",
+        "commentText",
+        "caption",
+        "postText",
+        "description",
+        "title",
+        "videoDescription",
+        "biography",
+        "bio",
+        "about",
+        "snippet"
+      ]),
+      publicName
+    ),
+    620
+  );
+  const profileLink = String(
+    firstValue(
+      pickPath(item, ["profileUrl", "profileURL", "authorChannelUrl", "channelUrl", "authorMeta.profileUrl", "user.profileUrl"]),
+      spec.platform === "Instagram" && username ? `https://www.instagram.com/${username.replace(/^@/, "")}/` : "",
+      spec.platform === "TikTok" && username ? `https://www.tiktok.com/@${username.replace(/^@/, "")}` : ""
+    )
+  ).trim();
+  const businessEmail = firstBusinessEmail(`${JSON.stringify(item).slice(0, 3000)} ${text}`);
+  const engagement = Number(
+    firstValue(
+      pickPath(item, ["commentsCount", "commentCount", "likesCount", "likeCount", "likes", "diggCount", "playCount", "viewCount", "views", "shares", "replyCount"]),
+      1
+    )
+  );
+  const lastInteraction =
+    normalizeApifyTimestamp(
+      firstValue(pickPath(item, ["timestamp", "createdAt", "takenAt", "taken_at", "date", "publishedAt", "uploadDate", "scrapedAt", "createTimeISO"]))
+    ) || new Date().toISOString();
+
+  if (!sourceUrl && !profileLink) return null;
+  if (!text && !username && !publicName) return null;
+
+  const isComment = /comment/i.test(spec.kind) || Boolean(pickPath(item, ["comment", "commentText"]));
+  const isBusinessSearch = Boolean(businessEmail || pickPath(item, ["externalUrl", "website", "businessAddress", "category", "businessCategoryName"]));
+  const sourceType = isComment
+    ? "apify_social_comment_signal"
+    : isBusinessSearch
+      ? "apify_social_business_signal"
+      : spec.kind === "social_group_posts"
+        ? "apify_social_group_post_signal"
+        : "apify_social_search_signal";
+
+  return {
+    platform: spec.platform || "Website",
+    source_type: sourceType,
+    username_public: username ? (username.startsWith("@") ? username : `@${username}`) : "",
+    public_name: publicName,
+    business_name: isBusinessSearch ? publicName : "",
+    profile_link: profileLink,
+    website: String(firstValue(pickPath(item, ["externalUrl", "website", "site", "businessWebsite"]), sourceUrl)).trim(),
+    bio_public: compact(firstValue(pickPath(item, ["biography", "bio", "about", "description"]), ""), 260),
+    email_business_public: businessEmail,
+    phone_business_public: String(firstValue(pickPath(item, ["phone", "phoneNumber", "businessPhone"]), "")).trim(),
+    source_url: sourceUrl || profileLink,
+    source_page: spec.name,
+    source_item: compact(firstValue(pickPath(item, ["title", "caption", "postText", "text", "commentText"]), publicName || username), 180),
+    relevant_text: text,
+    city: config.city,
+    country: config.country,
+    estimated_language: inferLanguage(text, config.language),
+    detected_intent: inferIntent(text),
+    interactions_detected: Number.isFinite(engagement) ? engagement : 1,
+    last_interaction: lastInteraction,
+    provider_source: `${spec.name} · ${spec.actorId}`,
+    source_reliability: isComment ? 82 : isBusinessSearch ? 78 : 66,
+    internal_notes: `Dato pubblico importato da Apify. Actor: ${spec.actorId}. Contatto social sempre manual assist.`
+  };
+}
+
+async function searchApify(config) {
+  if (!process.env.APIFY_TOKEN) {
+    throw new Error("APIFY_TOKEN non configurata su Vercel");
+  }
+  const specs = apifyRunSpecs(config);
+  if (!specs.length) {
+    throw new Error("APIFY_TOKEN presente, ma nessun Actor Apify attivo per le fonti selezionate");
+  }
+  const settled = await Promise.allSettled(specs.map((spec) => runApifyActor(spec).then((items) => ({ spec, items }))));
+  const prospects = settled.flatMap((result) =>
+    result.status === "fulfilled"
+      ? result.value.items.map((item) => prospectFromApifyItem(item, config, result.value.spec)).filter(Boolean)
+      : []
+  );
+  if (!prospects.length && settled.every((result) => result.status === "rejected")) {
+    throw new Error(settled.map((result) => result.reason?.message || "Actor Apify non riuscito").join(" | "));
+  }
+  return prospects;
 }
 
 async function searchReddit(config) {
@@ -899,6 +1270,7 @@ module.exports = async function handler(req, res) {
     ["DEV", "devTo", searchDevTo],
     ["WordPress", "wordpress", searchWordPress],
     ["Serper", "serper", searchSerper],
+    ["Apify", "apify", searchApify],
     ["Open Web IT", "searchEngine", searchDuckDuckGo],
     ["GitHub", "github", searchGitHubIssues],
     ["Direct URL", "directUrls", searchDirectUrls]
