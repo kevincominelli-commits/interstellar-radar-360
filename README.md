@@ -83,11 +83,12 @@ APIFY_TIKTOK_ACTOR_ID=clockworks/tiktok-scraper
 APIFY_YOUTUBE_ACTOR_ID=streamers/youtube-scraper
 APIFY_FACEBOOK_GROUPS_ACTOR_ID=apify/facebook-groups-scraper
 APIFY_YOUTUBE_COMMENTS_ACTOR_ID=knotless_cadence/youtube-comments-scraper
+APIFY_ENABLE_YOUTUBE_SEARCH_ACTOR=false
 APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT=2
 APIFY_YOUTUBE_COMMENTS_PER_VIDEO=25
 ```
 
-`APIFY_YOUTUBE_COMMENTS_ACTOR_ID` e opzionale: se non lo imposti, il backend usa un Actor commenti YouTube predefinito con limiti bassi. Puoi mettere `off` per disattivare il comment mining.
+Di default YouTube usa Serper per scoprire video e Apify solo per leggere commenti recenti. `APIFY_ENABLE_YOUTUBE_SEARCH_ACTOR=true` riattiva anche l'Actor YouTube Search, ma puo essere lento su Vercel. `APIFY_YOUTUBE_COMMENTS_ACTOR_ID` puo essere `off` per disattivare il comment mining.
 
 ## Regola prodotto fondamentale
 

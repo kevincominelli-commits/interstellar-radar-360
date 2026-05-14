@@ -152,6 +152,7 @@ Sempre con:
 - Aggiornata cache asset a `radar360-17`.
 - Esteso Apify con logica audience-first: YouTube Search trova video/fonti calde, poi il backend usa i video come input per YouTube Comments e trasforma i commentatori in prospect. I video sorgente non vengono piu trattati come clienti finali.
 - Aggiunta logica intent trading riutilizzabile: cerca commenti con bisogno reale tipo "come iniziare", "quale broker", "prop firm", "bot trading", "MT5", "segnali", senza promettere risultati finanziari.
+- Ottimizzata strategia YouTube per Vercel: Serper scopre i video rilevanti rapidamente, Apify viene usato per i commenti. L'Actor YouTube Search resta opt-in con `APIFY_ENABLE_YOUTUBE_SEARCH_ACTOR=true` perché puo andare in timeout.
 
 ## Regola operativa per il PDF completo
 

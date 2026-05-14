@@ -4,7 +4,7 @@ const DEFAULT_RECENCY_MONTHS = 12;
 const SERPER_MAX_QUERIES = 10;
 const APIFY_MAX_RESULTS = envNumber("APIFY_MAX_RESULTS", 5, 1, 25);
 const APIFY_MAX_RUNS = envNumber("APIFY_MAX_RUNS", 3, 1, 8);
-const APIFY_TIMEOUT_SECONDS = envNumber("APIFY_TIMEOUT_SECONDS", 28, 10, 55);
+const APIFY_TIMEOUT_SECONDS = envNumber("APIFY_TIMEOUT_SECONDS", 42, 10, 55);
 const APIFY_MAX_CHARGE_USD = envNumber("APIFY_MAX_CHARGE_USD", 0.35, 0.05, 10);
 const APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT = envNumber("APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT", 2, 1, 5);
 const APIFY_YOUTUBE_COMMENTS_PER_VIDEO = envNumber("APIFY_YOUTUBE_COMMENTS_PER_VIDEO", 25, 5, 120);
@@ -17,7 +17,8 @@ const providerSourceMap = {
   wordpress: ["Blog", "Website"],
   serper: ["Forum", "Website", "Blog", "Directory", "Reviews"],
   searchEngine: ["Forum", "Website", "Blog", "Directory", "Reviews"],
-  apify: ["Instagram", "Facebook", "TikTok", "LinkedIn", "Twitter/X", "YouTube", "Telegram", "Forum", "Website", "Directory", "Reviews"],
+  youtubeAudience: ["YouTube"],
+  apify: ["Instagram", "Facebook", "TikTok", "LinkedIn", "Twitter/X", "Telegram", "Forum", "Website", "Directory", "Reviews"],
   github: ["Forum", "Website"],
   directUrls: ["Website", "Blog", "Directory", "Reviews", "CRM/Import"]
 };
@@ -679,7 +680,7 @@ function apifyRunSpecs(config = {}) {
   const hashtags = apifyHashtags(config);
   const specs = [];
 
-  if (sourceSelected(config, "YouTube") && terms.length) {
+  if (process.env.APIFY_ENABLE_YOUTUBE_SEARCH_ACTOR === "true" && sourceSelected(config, "YouTube") && terms.length) {
     specs.push({
       name: "Apify YouTube Search",
       actorId: process.env.APIFY_YOUTUBE_ACTOR_ID || "streamers/youtube-scraper",
@@ -981,6 +982,50 @@ async function searchYouTubeCommentsFromVideos(videoUrls = [], config = {}) {
   };
   const items = await runApifyActor(spec);
   return items.map((item) => prospectFromApifyItem(item, config, spec)).filter(Boolean);
+}
+
+function youtubeVideoQueries(config = {}) {
+  const baseTerms = apifySearchTerms(config).slice(0, 4);
+  const target = baseTerms.length ? baseTerms : [config.q || config.niche || "business"];
+  const intentTerms = isTradingSearch(config)
+    ? [
+        "commenti italiani trading principianti",
+        "prop firm Italia commenti",
+        "come iniziare trading Italia",
+        "bot trading MT5 Italia"
+      ]
+    : isProgrammingSearch(config)
+      ? [
+          "creare sito app automazioni AI Italia commenti",
+          "come creare un app business Italia",
+          "automazioni AI aziende Italia",
+          "sito ecommerce startup Italia"
+        ]
+      : [];
+  return [...new Set([...target, ...intentTerms])]
+    .map((term) => `site:youtube.com/watch ${term} ${config.country || ""} ${config.city || ""}`.replace(/\s+/g, " ").trim())
+    .slice(0, 3);
+}
+
+async function searchYouTubeAudience(config) {
+  if (!sourceSelected(config, "YouTube")) return [];
+  if (!process.env.APIFY_TOKEN) {
+    throw new Error("APIFY_TOKEN non configurata su Vercel");
+  }
+  if (!process.env.SERPER_API_KEY) {
+    throw new Error("SERPER_API_KEY richiesta per scoprire video YouTube da analizzare");
+  }
+  const settled = await Promise.allSettled(youtubeVideoQueries(config).map((query) => fetchSerper(query, config)));
+  const urls = uniqueUrls(
+    settled.flatMap((result) => {
+      if (result.status !== "fulfilled") return [];
+      return (result.value.organic || [])
+        .map((item) => item.link || item.url || "")
+        .filter((url) => /(youtube\.com\/watch|youtu\.be\/|youtube\.com\/shorts)/i.test(url));
+    })
+  ).slice(0, APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT);
+  if (!urls.length) return [];
+  return searchYouTubeCommentsFromVideos(urls, config);
 }
 
 async function searchApify(config) {
@@ -1372,6 +1417,7 @@ module.exports = async function handler(req, res) {
     ["DEV", "devTo", searchDevTo],
     ["WordPress", "wordpress", searchWordPress],
     ["Serper", "serper", searchSerper],
+    ["YouTube Audience", "youtubeAudience", searchYouTubeAudience],
     ["Apify", "apify", searchApify],
     ["Open Web IT", "searchEngine", searchDuckDuckGo],
     ["GitHub", "github", searchGitHubIssues],
