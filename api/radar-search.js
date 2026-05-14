@@ -948,6 +948,16 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
         ? "apify_social_group_post_signal"
         : "apify_social_search_signal";
 
+  if (isProgrammingSearch(config) && !isComment) {
+    const explicitBuyer = hasServiceBuyingIntent(text) || hasExplicitHireRequest(text) || (hasOwnedProjectProblem(text) && hasDevelopmentTerm(text));
+    if (!explicitBuyer) return null;
+    if (isSellerOrAdSignal(text) && !explicitBuyer) return null;
+  }
+
+  if (isTradingSearch(config) && !isComment && !hasTradingSignal(text)) {
+    return null;
+  }
+
   return {
     platform: spec.platform || "Website",
     source_type: sourceType,

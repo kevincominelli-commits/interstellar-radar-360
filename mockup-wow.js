@@ -865,6 +865,7 @@ function defaultWorkspace() {
       dailyDate: "",
       assignments: {},
       searches: [],
+      lastProviderStatus: [],
       lastFunnel: null,
       lastCreditEstimate: null,
       operationMode: "balanced"
@@ -1202,6 +1203,7 @@ workspace.usageLogs = Array.isArray(workspace.usageLogs) ? workspace.usageLogs :
 workspace.featureFlags = { ...defaultWorkspace().featureFlags, ...(workspace.featureFlags || {}) };
 workspace.radar.searches = Array.isArray(workspace.radar.searches) ? workspace.radar.searches : [];
 workspace.radar.contactLogs = Array.isArray(workspace.radar.contactLogs) ? workspace.radar.contactLogs : [];
+workspace.radar.lastProviderStatus = Array.isArray(workspace.radar.lastProviderStatus) ? workspace.radar.lastProviderStatus : [];
 workspace.radar.assignments = workspace.radar.assignments || {};
 ["tasks", "appointments", "customers", "deals", "offers", "opportunities", "conversations", "complianceLogs", "optOuts", "billingEvents"].forEach((key) => {
   workspace[key] = Array.isArray(workspace[key]) ? workspace[key] : [];
@@ -4019,13 +4021,38 @@ function syncRadarSourceFilter() {
   const select = document.querySelector("#radarSourceFilter");
   if (!select) return;
   const current = select.value || "all";
-  const sources = [...new Set(allRadarProspects().map((prospect) => prospect.platform).filter(Boolean))].sort((a, b) =>
+  const visiblePool = (workspace.radar.resultIds || []).map((id) => getRadarProspectById(id)).filter(Boolean);
+  const countPool = visiblePool.length ? visiblePool : allRadarProspects();
+  const counts = countPool.reduce((map, prospect) => {
+    if (!prospect.platform) return map;
+    map.set(prospect.platform, (map.get(prospect.platform) || 0) + 1);
+    return map;
+  }, new Map());
+  const configured = Array.isArray(workspace.radar.lastSearch?.sources) ? workspace.radar.lastSearch.sources : getQuickRadarSources();
+  const sources = [...new Set([...configured, ...allRadarProspects().map((prospect) => prospect.platform)].filter(Boolean))].sort((a, b) =>
     a.localeCompare(b, "it")
   );
   select.innerHTML = `<option value="all">Tutte fonti</option>${sources
-    .map((source) => `<option value="${escapeHtml(source)}">${escapeHtml(source)}</option>`)
+    .map((source) => `<option value="${escapeHtml(source)}">${escapeHtml(source)} (${counts.get(source) || 0})</option>`)
     .join("")}`;
   select.value = sources.includes(current) ? current : "all";
+}
+
+function providerVisibleCount(providerName = "", prospects = []) {
+  if (/youtube/i.test(providerName)) return prospects.filter((prospect) => prospect.platform === "YouTube").length;
+  if (/apify/i.test(providerName)) return prospects.filter((prospect) => /apify/i.test(prospect.provider_source || "")).length;
+  if (/serper/i.test(providerName)) return prospects.filter((prospect) => /serper/i.test(prospect.provider_source || "")).length;
+  if (/wordpress/i.test(providerName)) return prospects.filter((prospect) => /wordpress/i.test(prospect.provider_source || "")).length;
+  if (/reddit/i.test(providerName)) return prospects.filter((prospect) => prospect.platform === "Reddit").length;
+  return 0;
+}
+
+function providerDisplayName(name = "") {
+  if (/youtube/i.test(name)) return "YouTube";
+  if (/apify/i.test(name)) return "Apify social";
+  if (/serper/i.test(name)) return "Google/Serper";
+  if (/open web/i.test(name)) return "Web IT";
+  return name;
 }
 
 function renderRadarStats() {
@@ -4046,7 +4073,8 @@ function renderRadarStats() {
   const avg = base.length ? Math.round(base.reduce((sum, prospect) => sum + Number(prospect.score_ai || 0), 0) / base.length) : 0;
   const funnel = workspace.radar.lastFunnel || {};
   const estimate = workspace.radar.lastCreditEstimate || {};
-  stats.innerHTML = [
+  const providerStatus = workspace.radar.lastProviderStatus || [];
+  const statCards = [
     ["Database", all.length],
     ["Risultati", results.length || all.length],
     ["Hot", hot],
@@ -4062,6 +4090,22 @@ function renderRadarStats() {
   ]
     .map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`)
     .join("");
+  const providerStrip = providerStatus.length
+    ? `
+      <div class="radar-provider-strip">
+        ${providerStatus
+          .map((provider) => {
+            const raw = Number(provider.count || 0);
+            const finalCount = providerVisibleCount(provider.name, base);
+            const state = raw && !finalCount ? "filtered" : raw ? "ok" : "empty";
+            const label = raw && !finalCount ? `${raw} trovati · 0 finali` : `${raw} trovati · ${finalCount} finali`;
+            return `<span class="${state}"><b>${escapeHtml(providerDisplayName(provider.name))}</b>${escapeHtml(label)}</span>`;
+          })
+          .join("")}
+      </div>
+    `
+    : "";
+  stats.innerHTML = `${statCards}${providerStrip}`;
 }
 
 function renderRadarMatrix() {
@@ -4971,6 +5015,7 @@ async function runLiveOpenWebSearch() {
       providers: payload.providers || [],
       fallback_relaxed: Boolean(payload.fallback_relaxed)
     });
+    workspace.radar.lastProviderStatus = payload.provider_status || [];
     const fresh = addRadarProspects(payload.prospects || []);
     const liveResultIds = radarIdsForImportedProspects(payload.prospects || []);
     activeRadarTab = "all";

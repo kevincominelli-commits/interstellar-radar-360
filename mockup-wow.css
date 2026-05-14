@@ -1550,6 +1550,7 @@ button:disabled {
   background: rgba(255, 255, 255, 0.035);
   color: var(--muted);
   padding: 0 11px;
+  font-size: 12px;
   font-weight: 820;
 }
 
@@ -1649,6 +1650,80 @@ button:disabled {
   color: var(--accent);
   font-size: 12px;
   font-weight: 760;
+}
+
+.radar-tabs {
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.radar-tabs button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.radar-toolbar {
+  grid-template-columns: minmax(230px, 1fr) minmax(130px, 0.36fr) minmax(150px, 0.4fr) minmax(130px, 0.34fr);
+  gap: 8px;
+}
+
+.radar-toolbar input,
+.radar-toolbar select {
+  min-height: 36px;
+  font-size: 12px;
+}
+
+#radarFeedback {
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.radar-provider-strip {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: auto !important;
+  background: transparent !important;
+  padding: 8px !important;
+}
+
+.finder-stats .radar-provider-strip {
+  border-top: 1px solid var(--line);
+}
+
+.radar-provider-strip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  border: 1px solid rgba(180, 198, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  padding: 0 9px;
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.radar-provider-strip b {
+  color: var(--text);
+}
+
+.radar-provider-strip .filtered {
+  border-color: rgba(255, 207, 122, 0.28);
+  background: rgba(255, 207, 122, 0.08);
+}
+
+.radar-provider-strip .ok {
+  border-color: rgba(104, 230, 143, 0.26);
+  background: rgba(104, 230, 143, 0.08);
 }
 
 .lead-table,
@@ -2501,6 +2576,30 @@ body[data-theme="stripe"] .lead-tabs button.active {
   border-color: rgba(88, 101, 216, 0.18);
   background: #eef2ff;
   color: #4f58c9;
+}
+
+body[data-theme="stripe"] .finder-stats .radar-provider-strip {
+  background: transparent !important;
+}
+
+body[data-theme="stripe"] .radar-provider-strip span {
+  border-color: #d8deea;
+  background: #ffffff;
+  color: #64748b;
+}
+
+body[data-theme="stripe"] .radar-provider-strip b {
+  color: #253248;
+}
+
+body[data-theme="stripe"] .radar-provider-strip .filtered {
+  border-color: rgba(180, 130, 20, 0.24);
+  background: #fff8e8;
+}
+
+body[data-theme="stripe"] .radar-provider-strip .ok {
+  border-color: rgba(21, 149, 98, 0.18);
+  background: #effbf6;
 }
 
 body[data-theme="stripe"] .connector-card.is-ready {
