@@ -158,6 +158,9 @@ Sempre con:
 - Riscritti i messaggi suggeriti Radar: tolto testo innaturale tipo "non ti scrivo un copia-incolla", tono piu breve, concreto e legato al segnale reale.
 - Ridisegnata sezione Radar: mission control piu semplice, fonti calde, flow a 4 step, risultati piu leggibili e tab "Tutti" di default.
 - Aggiornata cache asset a `radar360-18`.
+- Esteso catalogo Apify Actor del Radar in modalita estrazione: Instagram search/hashtag/commenti/profili/follower, Facebook gruppi/commenti/pagine/search/ads opzionali, TikTok search/commenti/profili/follower, LinkedIn post/profile/company, X profile/search/follower con cookie, Reddit post+commenti, Telegram canali pubblici.
+- Impostato budget Apify iniziale prudente da circa 30 euro/mese: default `APIFY_MAX_RUNS=6`, `APIFY_MAX_CHARGE_USD=0.12`, pochi commenti/follower per fonte, actor costosi opzionali spenti finche non vengono abilitati.
+- Aggiornata cache asset a `radar360-23`.
 
 ## Regola operativa per il PDF completo
 

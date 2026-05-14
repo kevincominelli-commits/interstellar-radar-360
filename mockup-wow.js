@@ -5015,6 +5015,7 @@ async function runLiveOpenWebSearch() {
     language: config.language,
     keywords: [...config.keywords, ...config.intentPhrases].join(", "),
     hashtags: config.hashtags.join(", "),
+    competitors: config.competitors.join(", "),
     sources: config.sources.join(","),
     monitorUrls: config.monitorUrls.join(","),
     recencyMonths: String(config.recencyMonths || 12),

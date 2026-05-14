@@ -2,12 +2,15 @@ const DEFAULT_LIMIT = 30;
 const MAX_PROVIDER_RESULTS = 10;
 const DEFAULT_RECENCY_MONTHS = 12;
 const SERPER_MAX_QUERIES = 12;
-const APIFY_MAX_RESULTS = envNumber("APIFY_MAX_RESULTS", 5, 1, 25);
-const APIFY_MAX_RUNS = envNumber("APIFY_MAX_RUNS", 3, 1, 8);
+const APIFY_MAX_RESULTS = envNumber("APIFY_MAX_RESULTS", 5, 1, 50);
+const APIFY_MAX_RUNS = envNumber("APIFY_MAX_RUNS", 6, 1, 30);
 const APIFY_TIMEOUT_SECONDS = envNumber("APIFY_TIMEOUT_SECONDS", 42, 10, 55);
-const APIFY_MAX_CHARGE_USD = envNumber("APIFY_MAX_CHARGE_USD", 0.35, 0.05, 10);
+const APIFY_MAX_CHARGE_USD = envNumber("APIFY_MAX_CHARGE_USD", 0.12, 0.03, 10);
 const APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT = envNumber("APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT", 2, 1, 5);
-const APIFY_YOUTUBE_COMMENTS_PER_VIDEO = envNumber("APIFY_YOUTUBE_COMMENTS_PER_VIDEO", 25, 5, 120);
+const APIFY_YOUTUBE_COMMENTS_PER_VIDEO = envNumber("APIFY_YOUTUBE_COMMENTS_PER_VIDEO", 15, 5, 120);
+const APIFY_COMMENTS_PER_SOURCE = envNumber("APIFY_COMMENTS_PER_SOURCE", 15, 5, 250);
+const APIFY_FOLLOWERS_PER_SOURCE = envNumber("APIFY_FOLLOWERS_PER_SOURCE", 20, 5, 500);
+const APIFY_PROFILES_PER_SOURCE = envNumber("APIFY_PROFILES_PER_SOURCE", 6, 1, 80);
 
 const providerSourceMap = {
   reddit: ["Reddit", "Forum"],
@@ -18,7 +21,7 @@ const providerSourceMap = {
   serper: ["Forum", "Website", "Blog", "Directory", "Reviews"],
   searchEngine: ["Forum", "Website", "Blog", "Directory", "Reviews"],
   youtubeAudience: ["YouTube"],
-  apify: ["Instagram", "Facebook", "TikTok", "LinkedIn", "Twitter/X", "Telegram", "Forum", "Website", "Directory", "Reviews"],
+  apify: ["Instagram", "Facebook", "TikTok", "LinkedIn", "Twitter/X", "YouTube", "Reddit", "Telegram", "Forum", "Website", "Directory", "Reviews"],
   github: ["Forum", "Website"],
   directUrls: ["Website", "Blog", "Directory", "Reviews", "CRM/Import"]
 };
@@ -419,6 +422,11 @@ function getQuery(req) {
   const niche = params.get("niche") || "sviluppo software automazioni AI siti web app bot";
   const keywords = params.get("keywords") || "";
   const hashtags = params.get("hashtags") || "";
+  const competitors = (params.get("competitors") || "")
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 16);
   const country = params.get("country") || "Italia";
   const city = params.get("city") || "";
   const language = params.get("language") || "it";
@@ -439,6 +447,7 @@ function getQuery(req) {
     niche,
     keywords,
     hashtags,
+    competitors,
     country,
     city,
     language,
@@ -709,9 +718,128 @@ function apifyYouTubeCommentsActorId() {
   return process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID || "knotless_cadence/youtube-comments-scraper";
 }
 
+function apifyActorId(envName, fallback = "") {
+  const value = process.env[envName];
+  if (String(value || "").toLowerCase() === "off") return "";
+  return String(value || fallback || "").trim();
+}
+
+function pushApifySpec(specs, envName, fallback, spec) {
+  const actorId = apifyActorId(envName, fallback);
+  if (!actorId) return;
+  specs.push({ ...spec, actorId, envName });
+}
+
+function apifySinceDate(config = {}) {
+  const months = Math.max(1, Math.min(60, Number(config.recencyMonths || DEFAULT_RECENCY_MONTHS)));
+  return new Date(Date.now() - months * 30.44 * 86400000).toISOString().slice(0, 10);
+}
+
+function apifyRelativeRecency(config = {}) {
+  return `${Math.max(1, Math.min(12, Number(config.recencyMonths || 12)))} months`;
+}
+
+function apifyCompetitorValues(config = {}) {
+  return Array.isArray(config.competitors) ? config.competitors : apifySplitList(config.competitors);
+}
+
+function apifyTextTargets(config = {}) {
+  return [...new Set([...apifyCompetitorValues(config), ...(config.monitorUrls || [])].map((item) => String(item || "").trim()).filter(Boolean))].slice(0, 12);
+}
+
+function singleTokenHandle(value = "") {
+  const text = String(value || "").trim().replace(/^@/, "");
+  if (!/^[a-z0-9._-]{2,80}$/i.test(text)) return "";
+  if (/^(web|agency|software|house|creator|community|pagine|canali|gruppi|trading|business|marketing)$/i.test(text)) return "";
+  return text;
+}
+
+function pathPartFromUrl(value = "", hostPattern, allowed = () => true) {
+  try {
+    const url = new URL(value);
+    if (!hostPattern.test(url.hostname)) return "";
+    const part = decodeURIComponent(url.pathname.split("/").filter(Boolean)[0] || "");
+    return part && allowed(url, part) ? part : "";
+  } catch {
+    return "";
+  }
+}
+
+function socialProfileTargets(config = {}, platform = "") {
+  const raw = apifyTextTargets(config);
+  const targets = [];
+  raw.forEach((value) => {
+    const text = String(value || "").trim();
+    if (!text) return;
+    if (/^https?:\/\//i.test(text)) {
+      if (platform === "Instagram") {
+        const handle = pathPartFromUrl(text, /instagram\.com$/i, (url, part) => !/^(p|reel|tv|stories|explore|tags)$/i.test(part));
+        if (handle) targets.push(handle);
+      }
+      if (platform === "TikTok") {
+        const handle = pathPartFromUrl(text, /tiktok\.com$/i, (url, part) => part.startsWith("@")).replace(/^@/, "");
+        if (handle) targets.push(handle);
+      }
+      if (platform === "Twitter/X") {
+        const handle = pathPartFromUrl(text, /(twitter\.com|x\.com)$/i, (url, part) => !/^(i|search|hashtag|home)$/i.test(part));
+        if (handle) targets.push(handle);
+      }
+      if (platform === "Facebook" && /facebook\.com/i.test(text) && !/\/(groups|posts|videos|reel|watch|permalink|photo)(\/|$)/i.test(text)) targets.push(text);
+      if (platform === "LinkedIn" && /linkedin\.com\/in\//i.test(text)) targets.push(text);
+      if (platform === "LinkedInCompany" && /linkedin\.com\/company\//i.test(text)) targets.push(text);
+      return;
+    }
+    const handle = singleTokenHandle(text);
+    if (handle && ["Instagram", "TikTok", "Twitter/X"].includes(platform)) targets.push(handle);
+  });
+  return [...new Set(targets)].slice(0, APIFY_PROFILES_PER_SOURCE);
+}
+
+function socialUrls(config = {}, pattern, max = 8) {
+  return uniqueUrls((config.monitorUrls || []).filter((url) => pattern.test(url))).slice(0, max);
+}
+
+function telegramChannelTargets(config = {}) {
+  const targets = [];
+  apifyTextTargets(config).forEach((value) => {
+    const text = String(value || "").trim();
+    if (/^https?:\/\//i.test(text)) {
+      const channel = pathPartFromUrl(text.replace("t.me/s/", "t.me/"), /t\.me$/i, (url, part) => !/^(s|c)$/i.test(part));
+      if (channel) targets.push(channel);
+      return;
+    }
+    const handle = singleTokenHandle(text);
+    if (handle) targets.push(handle);
+  });
+  return [...new Set(targets)].slice(0, APIFY_PROFILES_PER_SOURCE);
+}
+
+function apifyCountryCode(config = {}) {
+  const country = String(config.country || "").toLowerCase();
+  if (/italia|italy|it\b/.test(country)) return "IT";
+  if (/united states|usa|us\b/.test(country)) return "US";
+  if (/spain|espa/.test(country)) return "ES";
+  if (/france|francia/.test(country)) return "FR";
+  if (/germany|germania|deutschland/.test(country)) return "DE";
+  return "";
+}
+
 function apifyRunSpecs(config = {}) {
   const terms = apifySearchTerms(config);
   const hashtags = apifyHashtags(config);
+  const instagramPostUrls = socialUrls(config, /instagram\.com\/(p|reel|tv)\//i);
+  const instagramProfiles = socialProfileTargets(config, "Instagram");
+  const facebookGroupUrls = socialUrls(config, /facebook\.com\/groups/i);
+  const facebookPostUrls = socialUrls(config, /facebook\.com\/.*\/(posts|permalink|photo|watch|reel|videos)|fb\.watch/i);
+  const facebookPageUrls = socialProfileTargets(config, "Facebook");
+  const tiktokVideoUrls = socialUrls(config, /tiktok\.com\/@[^/]+\/video\//i);
+  const tiktokProfiles = socialProfileTargets(config, "TikTok");
+  const linkedinProfileUrls = socialProfileTargets(config, "LinkedIn");
+  const linkedinCompanyUrls = socialProfileTargets(config, "LinkedInCompany");
+  const twitterProfiles = socialProfileTargets(config, "Twitter/X");
+  const twitterUrls = socialUrls(config, /(twitter\.com|x\.com)\/[^/]+\/status\//i);
+  const redditUrls = socialUrls(config, /reddit\.com\/r\/|reddit\.com\/user\/|reddit\.com\/.*\/comments\//i);
+  const telegramChannels = telegramChannelTargets(config);
   const specs = [];
 
   if (process.env.APIFY_ENABLE_YOUTUBE_SEARCH_ACTOR === "true" && sourceSelected(config, "YouTube") && terms.length) {
@@ -734,9 +862,8 @@ function apifyRunSpecs(config = {}) {
   }
 
   if (sourceSelected(config, "Instagram") && terms.length) {
-    specs.push({
+    pushApifySpec(specs, "APIFY_INSTAGRAM_SEARCH_ACTOR_ID", "apify/instagram-search-scraper", {
       name: "Apify Instagram Search",
-      actorId: process.env.APIFY_INSTAGRAM_SEARCH_ACTOR_ID || "apify/instagram-search-scraper",
       platform: "Instagram",
       kind: "social_search",
       limit: APIFY_MAX_RESULTS,
@@ -750,9 +877,8 @@ function apifyRunSpecs(config = {}) {
   }
 
   if (sourceSelected(config, "Instagram") && hashtags.length && process.env.APIFY_INSTAGRAM_HASHTAG_ACTOR_ID !== "off") {
-    specs.push({
+    pushApifySpec(specs, "APIFY_INSTAGRAM_HASHTAG_ACTOR_ID", "apify/instagram-hashtag-scraper", {
       name: "Apify Instagram Hashtag",
-      actorId: process.env.APIFY_INSTAGRAM_HASHTAG_ACTOR_ID || "apify/instagram-hashtag-scraper",
       platform: "Instagram",
       kind: "social_hashtag",
       limit: APIFY_MAX_RESULTS,
@@ -765,10 +891,47 @@ function apifyRunSpecs(config = {}) {
     });
   }
 
+  if (sourceSelected(config, "Instagram") && instagramPostUrls.length) {
+    pushApifySpec(specs, "APIFY_INSTAGRAM_COMMENTS_ACTOR_ID", "apify/instagram-comment-scraper", {
+      name: "Apify Instagram Comments",
+      platform: "Instagram",
+      kind: "social_comment_signal",
+      limit: Math.min(APIFY_COMMENTS_PER_SOURCE, APIFY_MAX_RESULTS * 6),
+      input: {
+        directUrls: instagramPostUrls,
+        resultsLimit: APIFY_COMMENTS_PER_SOURCE,
+        includeNestedComments: true
+      }
+    });
+  }
+
+  if (sourceSelected(config, "Instagram") && instagramProfiles.length) {
+    pushApifySpec(specs, "APIFY_INSTAGRAM_PROFILE_ACTOR_ID", "apify/instagram-profile-scraper", {
+      name: "Apify Instagram Profiles",
+      platform: "Instagram",
+      kind: "social_profile_extraction",
+      limit: APIFY_PROFILES_PER_SOURCE,
+      input: {
+        usernames: instagramProfiles,
+        resultsLimit: APIFY_PROFILES_PER_SOURCE
+      }
+    });
+    pushApifySpec(specs, "APIFY_INSTAGRAM_FOLLOWERS_ACTOR_ID", "scrapapi/instagram-followers-scraper", {
+      name: "Apify Instagram Followers",
+      platform: "Instagram",
+      kind: "social_follower_extraction",
+      limit: Math.min(APIFY_FOLLOWERS_PER_SOURCE, APIFY_MAX_RESULTS * 8),
+      input: {
+        startUrls: instagramProfiles.map((username) => `https://www.instagram.com/${username.replace(/^@/, "")}/`),
+        maxData: APIFY_FOLLOWERS_PER_SOURCE,
+        proxyConfiguration: { useApifyProxy: true }
+      }
+    });
+  }
+
   if (sourceSelected(config, "TikTok") && terms.length) {
-    specs.push({
+    pushApifySpec(specs, "APIFY_TIKTOK_ACTOR_ID", "clockworks/tiktok-scraper", {
       name: "Apify TikTok Search",
-      actorId: process.env.APIFY_TIKTOK_ACTOR_ID || "clockworks/tiktok-scraper",
       platform: "TikTok",
       kind: "social_video_search",
       limit: APIFY_MAX_RESULTS,
@@ -780,18 +943,111 @@ function apifyRunSpecs(config = {}) {
     });
   }
 
-  const facebookGroupUrls = apifyMonitorUrls(config, /facebook\.com\/groups/i);
+  if (sourceSelected(config, "TikTok") && tiktokVideoUrls.length) {
+    pushApifySpec(specs, "APIFY_TIKTOK_COMMENTS_ACTOR_ID", "dltik/tiktok-scraper", {
+      name: "Apify TikTok Comments",
+      platform: "TikTok",
+      kind: "social_comment_signal",
+      limit: Math.min(APIFY_COMMENTS_PER_SOURCE, APIFY_MAX_RESULTS * 6),
+      input: {
+        mode: "comments",
+        urls: tiktokVideoUrls,
+        maxResults: APIFY_COMMENTS_PER_SOURCE
+      }
+    });
+  }
+
+  if (sourceSelected(config, "TikTok") && tiktokProfiles.length) {
+    pushApifySpec(specs, "APIFY_TIKTOK_PROFILE_ACTOR_ID", "dltik/tiktok-scraper", {
+      name: "Apify TikTok Profiles",
+      platform: "TikTok",
+      kind: "social_profile_extraction",
+      limit: APIFY_PROFILES_PER_SOURCE,
+      input: {
+        mode: "profiles",
+        profiles: tiktokProfiles.map((username) => username.replace(/^@/, "")),
+        maxResults: APIFY_PROFILES_PER_SOURCE
+      }
+    });
+    pushApifySpec(specs, "APIFY_TIKTOK_FOLLOWERS_ACTOR_ID", "dltik/tiktok-scraper", {
+      name: "Apify TikTok Followers",
+      platform: "TikTok",
+      kind: "social_follower_extraction",
+      limit: Math.min(APIFY_FOLLOWERS_PER_SOURCE, APIFY_MAX_RESULTS * 8),
+      input: {
+        mode: "followers",
+        profiles: tiktokProfiles.map((username) => username.replace(/^@/, "")),
+        maxResults: APIFY_FOLLOWERS_PER_SOURCE
+      }
+    });
+  }
+
   if (sourceSelected(config, "Facebook") && facebookGroupUrls.length) {
-    specs.push({
+    pushApifySpec(specs, "APIFY_FACEBOOK_GROUPS_ACTOR_ID", "apify/facebook-groups-scraper", {
       name: "Apify Facebook Groups",
-      actorId: process.env.APIFY_FACEBOOK_GROUPS_ACTOR_ID || "apify/facebook-groups-scraper",
       platform: "Facebook",
       kind: "social_group_posts",
       limit: APIFY_MAX_RESULTS,
       input: {
         startUrls: facebookGroupUrls.map((url) => ({ url })),
         resultsLimit: Math.min(APIFY_MAX_RESULTS, 10),
-        onlyPostsNewerThan: `${Math.max(1, Math.min(12, Number(config.recencyMonths || 12)))} months`
+        onlyPostsNewerThan: apifyRelativeRecency(config)
+      }
+    });
+  }
+
+  if (sourceSelected(config, "Facebook") && facebookPostUrls.length) {
+    pushApifySpec(specs, "APIFY_FACEBOOK_COMMENTS_ACTOR_ID", "apify/facebook-comments-scraper", {
+      name: "Apify Facebook Comments",
+      platform: "Facebook",
+      kind: "social_comment_signal",
+      limit: Math.min(APIFY_COMMENTS_PER_SOURCE, APIFY_MAX_RESULTS * 6),
+      input: {
+        startUrls: facebookPostUrls.map((url) => ({ url })),
+        resultsLimit: APIFY_COMMENTS_PER_SOURCE,
+        includeReplies: true
+      }
+    });
+  }
+
+  if (sourceSelected(config, "Facebook") && facebookPageUrls.length) {
+    pushApifySpec(specs, "APIFY_FACEBOOK_PAGES_ACTOR_ID", "apify/facebook-pages-scraper", {
+      name: "Apify Facebook Pages",
+      platform: "Facebook",
+      kind: "social_profile_extraction",
+      limit: APIFY_PROFILES_PER_SOURCE,
+      input: {
+        startUrls: facebookPageUrls.map((url) => ({ url })),
+        resultsLimit: APIFY_PROFILES_PER_SOURCE
+      }
+    });
+  }
+
+  if (sourceSelected(config, "Facebook") && terms.length && process.env.APIFY_ENABLE_FACEBOOK_SEARCH === "true") {
+    pushApifySpec(specs, "APIFY_FACEBOOK_SEARCH_ACTOR_ID", "apify/facebook-search-scraper", {
+      name: "Apify Facebook Search",
+      platform: "Facebook",
+      kind: "social_search",
+      limit: APIFY_MAX_RESULTS,
+      input: {
+        search: terms.slice(0, 3).join(", "),
+        location: config.city || config.country || "",
+        resultsLimit: APIFY_MAX_RESULTS
+      }
+    });
+  }
+
+  if (sourceSelected(config, "Facebook") && terms.length && process.env.APIFY_ENABLE_FACEBOOK_ADS === "true") {
+    pushApifySpec(specs, "APIFY_FACEBOOK_ADS_ACTOR_ID", "apify/facebook-ads-scraper", {
+      name: "Apify Facebook Ads Library",
+      platform: "Facebook",
+      kind: "social_ad_source",
+      limit: APIFY_MAX_RESULTS,
+      input: {
+        searchTerms: terms.slice(0, 4),
+        country: apifyCountryCode(config) || "IT",
+        activeStatus: "ACTIVE",
+        maxItems: APIFY_MAX_RESULTS
       }
     });
   }
@@ -809,6 +1065,127 @@ function apifyRunSpecs(config = {}) {
         videoUrls: youtubeUrls.slice(0, APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT),
         maxCommentsPerVideo: APIFY_YOUTUBE_COMMENTS_PER_VIDEO,
         sortBy: "newest"
+      }
+    });
+  }
+
+  if (sourceSelected(config, "LinkedIn") && terms.length) {
+    pushApifySpec(specs, "APIFY_LINKEDIN_POSTS_ACTOR_ID", "apimaestro/linkedin-posts-search-scraper-no-cookies", {
+      name: "Apify LinkedIn Posts",
+      platform: "LinkedIn",
+      kind: "social_post_search",
+      limit: APIFY_MAX_RESULTS,
+      input: {
+        keyword: terms.slice(0, 3).join(" OR "),
+        keywords: terms.slice(0, 3),
+        totalPosts: APIFY_MAX_RESULTS,
+        sortBy: "date"
+      }
+    });
+  }
+
+  if (sourceSelected(config, "LinkedIn") && linkedinProfileUrls.length) {
+    pushApifySpec(specs, "APIFY_LINKEDIN_PROFILE_ACTOR_ID", "automation-lab/linkedin-profile-scraper", {
+      name: "Apify LinkedIn Profiles",
+      platform: "LinkedIn",
+      kind: "social_profile_extraction",
+      limit: APIFY_PROFILES_PER_SOURCE,
+      input: {
+        profileUrls: linkedinProfileUrls,
+        maxProfiles: APIFY_PROFILES_PER_SOURCE
+      }
+    });
+  }
+
+  if (sourceSelected(config, "LinkedIn") && linkedinCompanyUrls.length) {
+    pushApifySpec(specs, "APIFY_LINKEDIN_COMPANY_ACTOR_ID", "automation-lab/linkedin-company-scraper", {
+      name: "Apify LinkedIn Companies",
+      platform: "LinkedIn",
+      kind: "social_business_extraction",
+      limit: APIFY_PROFILES_PER_SOURCE,
+      input: {
+        companyUrls: linkedinCompanyUrls,
+        maxCompanies: APIFY_PROFILES_PER_SOURCE
+      }
+    });
+  }
+
+  if (sourceSelected(config, "Twitter/X") && terms.length && (process.env.APIFY_TWITTER_COOKIES || process.env.APIFY_ENABLE_TWITTER_SEARCH === "true")) {
+    pushApifySpec(specs, "APIFY_TWITTER_SEARCH_ACTOR_ID", "automation-lab/twitter-scraper", {
+      name: "Apify X Search",
+      platform: "Twitter/X",
+      kind: "social_post_search",
+      limit: APIFY_MAX_RESULTS,
+      input: {
+        mode: "search",
+        queries: terms.slice(0, 3),
+        maxResults: APIFY_MAX_RESULTS,
+        cookies: process.env.APIFY_TWITTER_COOKIES || undefined
+      }
+    });
+  }
+
+  if (sourceSelected(config, "Twitter/X") && (twitterProfiles.length || twitterUrls.length)) {
+    pushApifySpec(specs, "APIFY_TWITTER_PROFILE_ACTOR_ID", "automation-lab/twitter-scraper", {
+      name: "Apify X Profiles",
+      platform: "Twitter/X",
+      kind: "social_profile_extraction",
+      limit: APIFY_PROFILES_PER_SOURCE,
+      input: {
+        mode: "profiles",
+        usernames: twitterProfiles,
+        urls: twitterUrls,
+        maxResults: APIFY_PROFILES_PER_SOURCE,
+        cookies: process.env.APIFY_TWITTER_COOKIES || undefined
+      }
+    });
+  }
+
+  if (sourceSelected(config, "Twitter/X") && twitterProfiles.length && (process.env.APIFY_TWITTER_COOKIES || process.env.APIFY_ENABLE_COOKIE_ACTORS === "true")) {
+    pushApifySpec(specs, "APIFY_TWITTER_FOLLOWERS_ACTOR_ID", "automation-lab/twitter-scraper", {
+      name: "Apify X Followers",
+      platform: "Twitter/X",
+      kind: "social_follower_extraction",
+      limit: Math.min(APIFY_FOLLOWERS_PER_SOURCE, APIFY_MAX_RESULTS * 8),
+      input: {
+        mode: "followers",
+        usernames: twitterProfiles,
+        maxResults: APIFY_FOLLOWERS_PER_SOURCE,
+        cookies: process.env.APIFY_TWITTER_COOKIES || undefined
+      }
+    });
+  }
+
+  if (sourceSelected(config, "Reddit") && (terms.length || redditUrls.length)) {
+    pushApifySpec(specs, "APIFY_REDDIT_ACTOR_ID", "prodiger/reddit-scraper", {
+      name: "Apify Reddit Posts & Comments",
+      platform: "Reddit",
+      kind: "social_comment_signal",
+      limit: Math.min(APIFY_COMMENTS_PER_SOURCE, APIFY_MAX_RESULTS * 6),
+      input: {
+        urls: redditUrls,
+        searchQuery: terms[0] || config.q || "",
+        sort: "new",
+        timeFilter: config.recencyMonths <= 1 ? "month" : "year",
+        includeComments: true,
+        maxPostsPerSource: Math.min(APIFY_MAX_RESULTS, 12),
+        maxCommentsPerPost: APIFY_COMMENTS_PER_SOURCE
+      }
+    });
+  }
+
+  if (sourceSelected(config, "Telegram") && telegramChannels.length) {
+    pushApifySpec(specs, "APIFY_TELEGRAM_ACTOR_ID", "viralanalyzer/telegram-channel-scraper", {
+      name: "Apify Telegram Channels",
+      platform: "Telegram",
+      kind: "social_channel_extraction",
+      limit: Math.min(APIFY_COMMENTS_PER_SOURCE, APIFY_MAX_RESULTS * 6),
+      input: {
+        channels: telegramChannels,
+        searchQuery: terms[0] || "",
+        since: apifySinceDate(config),
+        maxPostsPerChannel: Math.min(APIFY_COMMENTS_PER_SOURCE, 100),
+        includeChannelMeta: true
       }
     });
   }
@@ -876,7 +1253,28 @@ function normalizeApifyTimestamp(value = "") {
 function apifyItemUrl(item = {}) {
   return String(
     firstValue(
-      pickPath(item, ["url", "postUrl", "postURL", "videoUrl", "webVideoUrl", "inputUrl", "profileUrl", "profileURL", "link", "sourceUrl", "pageUrl", "facebookUrl"]),
+      pickPath(item, [
+        "url",
+        "postUrl",
+        "postURL",
+        "post_url",
+        "videoUrl",
+        "webVideoUrl",
+        "inputUrl",
+        "profileUrl",
+        "profileURL",
+        "profile_url",
+        "linkedinUrl",
+        "twitterUrl",
+        "tweetUrl",
+        "commentUrl",
+        "permalink",
+        "link",
+        "sourceUrl",
+        "pageUrl",
+        "facebookUrl",
+        "channelUrl"
+      ]),
       item.shortCode ? `https://www.instagram.com/p/${item.shortCode}/` : "",
       item.code ? `https://www.instagram.com/p/${item.code}/` : "",
       item.videoId ? `https://www.youtube.com/watch?v=${item.videoId}` : ""
@@ -888,11 +1286,46 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
   const sourceUrl = apifyItemUrl(item);
   const username = String(
     firstValue(
-      pickPath(item, ["username", "ownerUsername", "author", "authorUsername", "user.username", "authorMeta.name", "channelName", "channelUsername", "pageName", "from.name"])
+      pickPath(item, [
+        "username",
+        "userName",
+        "screenName",
+        "handle",
+        "ownerUsername",
+        "author",
+        "authorName",
+        "authorUsername",
+        "author.name",
+        "author.username",
+        "user.username",
+        "authorMeta.name",
+        "channelName",
+        "channelUsername",
+        "channelUsername",
+        "channelUsername",
+        "pageName",
+        "from.name",
+        "commenterName",
+        "displayName"
+      ])
     )
   ).trim();
   const publicName = String(
-    firstValue(pickPath(item, ["fullName", "ownerFullName", "authorFullName", "authorMeta.nickName", "name", "title", "channelName", "from.name"]))
+    firstValue(
+      pickPath(item, [
+        "fullName",
+        "full_name",
+        "ownerFullName",
+        "authorFullName",
+        "authorMeta.nickName",
+        "name",
+        "title",
+        "channelName",
+        "from.name",
+        "commenterName",
+        "headline"
+      ])
+    )
   ).trim();
   const text = compact(
     firstValue(
@@ -904,6 +1337,13 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
         "postText",
         "description",
         "title",
+        "body",
+        "selfText",
+        "tweet",
+        "content",
+        "message",
+        "headline",
+        "about",
         "videoDescription",
         "biography",
         "bio",
@@ -916,9 +1356,22 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
   );
   const profileLink = String(
     firstValue(
-      pickPath(item, ["profileUrl", "profileURL", "authorChannelUrl", "channelUrl", "authorMeta.profileUrl", "user.profileUrl"]),
+      pickPath(item, [
+        "profileUrl",
+        "profileURL",
+        "profile_url",
+        "authorChannelUrl",
+        "channelUrl",
+        "authorUrl",
+        "authorMeta.profileUrl",
+        "user.profileUrl",
+        "linkedinUrl",
+        "twitterUrl"
+      ]),
       spec.platform === "Instagram" && username ? `https://www.instagram.com/${username.replace(/^@/, "")}/` : "",
-      spec.platform === "TikTok" && username ? `https://www.tiktok.com/@${username.replace(/^@/, "")}` : ""
+      spec.platform === "TikTok" && username ? `https://www.tiktok.com/@${username.replace(/^@/, "")}` : "",
+      spec.platform === "Twitter/X" && username ? `https://x.com/${username.replace(/^@/, "")}` : "",
+      spec.platform === "YouTube" && username ? `https://www.youtube.com/@${username.replace(/^@/, "")}` : ""
     )
   ).trim();
   const businessEmail = firstBusinessEmail(`${JSON.stringify(item).slice(0, 3000)} ${text}`);
@@ -937,9 +1390,17 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
   if (!text && !username && !publicName) return null;
 
   const isComment = /comment/i.test(spec.kind) || Boolean(pickPath(item, ["comment", "commentText"]));
-  const isBusinessSearch = Boolean(businessEmail || pickPath(item, ["externalUrl", "website", "businessAddress", "category", "businessCategoryName"]));
+  const isFollower = /follower|following/i.test(spec.kind);
+  const isProfile = /profile|channel/i.test(spec.kind);
+  const isBusinessSearch = Boolean(
+    /business|company/i.test(spec.kind || "") || businessEmail || pickPath(item, ["externalUrl", "website", "businessAddress", "category", "businessCategoryName", "companySize"])
+  );
   const sourceType = isComment
     ? "apify_social_comment_signal"
+    : isFollower
+      ? "apify_social_follower_extraction"
+      : isProfile
+        ? "apify_social_profile_extraction"
     : isBusinessSearch
       ? "apify_social_business_signal"
       : spec.kind === "social_video_search"
@@ -948,13 +1409,13 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
         ? "apify_social_group_post_signal"
         : "apify_social_search_signal";
 
-  if (isProgrammingSearch(config) && !isComment) {
+  if (isProgrammingSearch(config) && !isComment && !isFollower && !isProfile) {
     const explicitBuyer = hasServiceBuyingIntent(text) || hasExplicitHireRequest(text) || (hasOwnedProjectProblem(text) && hasDevelopmentTerm(text));
     if (!explicitBuyer) return null;
     if (isSellerOrAdSignal(text) && !explicitBuyer) return null;
   }
 
-  if (isTradingSearch(config) && !isComment && !hasTradingSignal(text)) {
+  if (isTradingSearch(config) && !isComment && !isFollower && !isProfile && !hasTradingSignal(text)) {
     return null;
   }
 
