@@ -954,6 +954,19 @@ function uniqueUrls(urls = []) {
     });
 }
 
+function youtubeVideoIdFromUrl(value = "") {
+  try {
+    const url = new URL(value);
+    if (url.hostname.includes("youtu.be")) return url.pathname.replace(/^\//, "").split("/")[0] || "";
+    if (url.searchParams.get("v")) return url.searchParams.get("v") || "";
+    const shortMatch = url.pathname.match(/\/shorts\/([^/?#]+)/i);
+    return shortMatch ? shortMatch[1] : "";
+  } catch {
+    const match = String(value || "").match(/(?:v=|youtu\.be\/|shorts\/)([a-zA-Z0-9_-]{8,})/);
+    return match ? match[1] : "";
+  }
+}
+
 function youtubeUrlsFromApifyResults(results = [], config = {}) {
   const fromMonitor = apifyMonitorUrls(config, /(youtube\.com\/watch|youtu\.be\/|youtube\.com\/shorts)/i);
   const fromSearch = results.flatMap((result) => {
@@ -965,7 +978,25 @@ function youtubeUrlsFromApifyResults(results = [], config = {}) {
   return uniqueUrls([...fromMonitor, ...fromSearch]).slice(0, APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT);
 }
 
-async function searchYouTubeCommentsFromVideos(videoUrls = [], config = {}) {
+function attachYouTubeSourceContext(prospect = {}, item = {}, contextByUrl = {}) {
+  if (!prospect || prospect.platform !== "YouTube" || !/comment/i.test(prospect.source_type || "")) return prospect;
+  const itemUrl = apifyItemUrl(item);
+  const videoId = item.videoId || youtubeVideoIdFromUrl(itemUrl || prospect.source_url);
+  const context = contextByUrl[itemUrl] || contextByUrl[prospect.source_url] || contextByUrl[videoId] || null;
+  if (!context) return prospect;
+  const sourceTitle = compact(context.title || prospect.source_item || "Video YouTube", 180);
+  const sourceSnippet = compact(context.snippet || "", 220);
+  return {
+    ...prospect,
+    source_page: "YouTube commenti recenti",
+    source_item: sourceTitle,
+    relevant_text: compact(`${prospect.relevant_text}. Fonte video: ${sourceTitle}. ${sourceSnippet}`, 700),
+    keyword_match: compact(`${prospect.keyword_match || ""}, ${sourceTitle}`, 180),
+    internal_notes: compact(`${prospect.internal_notes || ""} Video sorgente scoperto via Serper prima del comment mining.`, 400)
+  };
+}
+
+async function searchYouTubeCommentsFromVideos(videoUrls = [], config = {}, contextByUrl = {}) {
   const actorId = apifyYouTubeCommentsActorId();
   if (!actorId || !videoUrls.length || !sourceSelected(config, "YouTube")) return [];
   const spec = {
@@ -981,7 +1012,10 @@ async function searchYouTubeCommentsFromVideos(videoUrls = [], config = {}) {
     }
   };
   const items = await runApifyActor(spec);
-  return items.map((item) => prospectFromApifyItem(item, config, spec)).filter(Boolean);
+  return items
+    .map((item) => prospectFromApifyItem(item, config, spec))
+    .map((prospect, index) => attachYouTubeSourceContext(prospect, items[index], contextByUrl))
+    .filter(Boolean);
 }
 
 function youtubeVideoQueries(config = {}) {
@@ -1016,16 +1050,26 @@ async function searchYouTubeAudience(config) {
     throw new Error("SERPER_API_KEY richiesta per scoprire video YouTube da analizzare");
   }
   const settled = await Promise.allSettled(youtubeVideoQueries(config).map((query) => fetchSerper(query, config)));
-  const urls = uniqueUrls(
-    settled.flatMap((result) => {
+  const candidates = settled.flatMap((result) => {
       if (result.status !== "fulfilled") return [];
       return (result.value.organic || [])
-        .map((item) => item.link || item.url || "")
-        .filter((url) => /(youtube\.com\/watch|youtu\.be\/|youtube\.com\/shorts)/i.test(url));
-    })
-  ).slice(0, APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT);
+        .map((item) => ({
+          url: item.link || item.url || "",
+          title: stripHtml(item.title || ""),
+          snippet: stripHtml(item.snippet || "")
+        }))
+        .filter((item) => /(youtube\.com\/watch|youtu\.be\/|youtube\.com\/shorts)/i.test(item.url));
+    });
+  const urls = uniqueUrls(candidates.map((item) => item.url)).slice(0, APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT);
+  const contextByUrl = {};
+  candidates.forEach((item) => {
+    if (!item.url) return;
+    contextByUrl[item.url] = item;
+    const videoId = youtubeVideoIdFromUrl(item.url);
+    if (videoId) contextByUrl[videoId] = item;
+  });
   if (!urls.length) return [];
-  return searchYouTubeCommentsFromVideos(urls, config);
+  return searchYouTubeCommentsFromVideos(urls, config, contextByUrl);
 }
 
 async function searchApify(config) {
