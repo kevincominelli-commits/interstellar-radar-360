@@ -857,7 +857,7 @@ function defaultWorkspace() {
     },
     radarProspects: [],
     radar: {
-      activeTab: "hot",
+      activeTab: "all",
       resultIds: [],
       lastSearch: null,
       contactLogs: [],
@@ -1191,7 +1191,7 @@ let activePage = "dashboard";
 let selectedLeadId = workspace.leads[0]?.id || "";
 let activeLeadTab = workspace.finder?.activeTab || "top";
 let selectedRadarId = workspace.radarProspects?.[0]?.lead_id || "";
-let activeRadarTab = workspace.radar?.activeTab || "hot";
+let activeRadarTab = workspace.radar?.activeTab || "all";
 
 workspace.finder = { ...defaultWorkspace().finder, ...(workspace.finder || {}) };
 workspace.radar = { ...defaultWorkspace().radar, ...(workspace.radar || {}) };
@@ -3120,15 +3120,42 @@ function syncQuickRadarFlow() {
   const geoMode = document.querySelector('input[name="radarQuickGeo"]:checked')?.value || "italy";
   const city = document.querySelector("#radarQuickCity")?.value?.trim() || "";
   const selectedSources = getQuickRadarSources();
-  const programmingIntent =
-    "cerco sviluppatore, mi serve un sito, voglio creare un'app, automazione AI, chatbot, gestionale, software su misura, preventivo sito, bot, integrazione API";
+  const goalLower = goal.toLowerCase();
+  const isTradingGoal = /trading|forex|crypto|prop firm|mt5|metatrader|segnali|bot trading|xauusd/.test(goalLower);
+  const isProgrammingGoal = /programmatore|sviluppatore|sito|app|bot|automazioni|software|gestionale|ecommerce|ai|intelligenza artificiale/.test(goalLower);
+  const profile = isTradingGoal
+    ? {
+        sector: "trading, prop firm, forex, crypto, MT5, community trading, formazione",
+        keywords:
+          "come iniziare trading, prop firm consigli, quale broker, bot trading MT5, segnali trading, copy trading, non so da dove partire, voglio iniziare, info trading, corso trading",
+        hashtags: "#tradingitalia, #forexitalia, #propfirm, #mt5, #cryptoitalia",
+        competitors: "creator trading, canali prop firm, pagine forex, community trading, broker education",
+        intent: "come iniziare trading, prop firm consigli, quale broker, bot trading MT5, segnali trading, voglio iniziare, mi interessa, info, non so da dove partire"
+      }
+    : isProgrammingGoal
+      ? {
+          sector: "programmazione, AI, automazioni, siti web, app, bot, software",
+          keywords:
+            "cerco sviluppatore, mi serve un sito, voglio creare un'app, automazione AI, chatbot, gestionale, software su misura, preventivo sito, bot, integrazione API",
+          hashtags: "#startupitalia, #businessitalia, #ecommerceitalia, #ai, #automazioni",
+          competitors: "web agency, software house, no-code agency, automazioni AI",
+          intent:
+            "cerco sviluppatore, quanto costa un sito, mi serve un'app, cerco qualcuno che mi faccia, voglio automatizzare, mi serve un gestionale, consigli software, non so da dove partire, preventivo sito"
+        }
+      : {
+          sector: "business, creator, aziende locali, servizi, community",
+          keywords: `${goal}, info, mi interessa, quanto costa, consigli, cerco qualcuno, non so da dove partire, preventivo, zona`,
+          hashtags: "#businessitalia, #imprenditoria, #marketingitalia",
+          competitors: "creator di settore, pagine competitor, community pubbliche",
+          intent: "info, mi interessa, quanto costa, consigli, cerco qualcuno, non so da dove partire, preventivo, zona"
+        };
 
   setRadarField(form, "niche", goal);
-  setRadarField(form, "sector", "programmazione, AI, automazioni, siti web, app, bot, software");
-  setRadarField(form, "keywords", `${goal}, ${programmingIntent}`);
-  setRadarField(form, "hashtags", "#startupitalia, #businessitalia, #ecommerceitalia, #ai, #automazioni");
-  setRadarField(form, "competitors", "web agency, software house, no-code agency, automazioni AI");
-  setRadarField(form, "intentPhrases", programmingIntent);
+  setRadarField(form, "sector", profile.sector);
+  setRadarField(form, "keywords", `${goal}, ${profile.keywords}`);
+  setRadarField(form, "hashtags", profile.hashtags);
+  setRadarField(form, "competitors", profile.competitors);
+  setRadarField(form, "intentPhrases", profile.intent);
   setRadarField(form, "recencyMonths", "12");
   setRadarField(form, "minScore", "45");
   setRadarField(form, "limit", "60");
@@ -3239,7 +3266,7 @@ function extractMessageSignal(prospect = {}) {
 function detectRequestedSolution(prospect = {}) {
   const text = radarText(prospect);
   if (/ecommerce|shopify|woocommerce|shop online|negozio online/i.test(text)) return "ecommerce";
-  if (/\bapp\b|applicazione|mobile/i.test(text)) return "app";
+  if (/\bapp\b|applicazione|mobile/i.test(text)) return "app mobile";
   if (/gestionale|crm|database|dashboard/i.test(text)) return "gestionale/CRM";
   if (/chatbot|bot\b|whatsapp/i.test(text)) return "chatbot o automazione";
   if (/automazione|automatizzare|workflow|integrazione api|api\b/i.test(text)) return "automazione";
@@ -3259,14 +3286,19 @@ function buildRadarMessage(prospect = {}) {
   const source = prospect.source_page || prospect.platform || "una fonte pubblica";
   const hasPriceIntent = /prezzo|preventivo|costo|quanto costa|budget/i.test(`${prospect.detected_intent || ""} ${prospect.relevant_text || ""}`);
   const hasProblemIntent = /problema|non riesco|bloccato|aiuto|non funziona/i.test(`${prospect.detected_intent || ""} ${prospect.relevant_text || ""}`);
+  const hasTradingIntent = /trading|forex|crypto|prop firm|broker|mt5|metatrader|segnali|copy trading|bot trading|xauusd|come iniziare/i.test(
+    radarText(prospect)
+  );
   const context = signal
-    ? `ho visto su ${source} questo segnale: "${signal}"`
+    ? `ho visto questo tuo commento/segnale su ${source}: "${signal}"`
     : `ho visto ${target}${place} e mi sembra collegato a un possibile bisogno su ${solution}`;
-  const usefulAngle = hasPriceIntent
-    ? `posso darti una fascia realistica di costi per un ${solution}, spiegandoti cosa incide davvero sul prezzo`
-    : hasProblemIntent
-      ? `posso indicarti 2-3 strade pratiche per risolvere il problema senza complicarti il progetto`
-      : `posso mandarti 2 idee concrete su come impostare bene un ${solution}, prima ancora di parlare di preventivi`;
+  const usefulAngle = hasTradingIntent
+    ? "posso mandarti due spunti pratici su strumenti, automazioni o organizzazione del percorso, senza promesse strane e senza segnali miracolosi"
+    : hasPriceIntent
+      ? `posso aiutarti a capire quali parti incidono davvero sul costo di un ${solution}, così non parti alla cieca`
+      : hasProblemIntent
+        ? "posso darti un parere pratico su cosa controllerei prima e quali opzioni avresti"
+        : `posso mandarti un'idea concreta su come imposterei un progetto di tipo ${solution}`;
   const optOut =
     isAutomated
       ? "\n\nSe non vuoi ricevere altri messaggi, dimmelo pure e non ti ricontatto."
@@ -3277,11 +3309,11 @@ function buildRadarMessage(prospect = {}) {
 
 ${context}.
 
-Mi occupo di siti, app, automazioni AI e sistemi CRM per trasformare richieste reali in contatti gestibili.
+Ti scrivo perché il contesto sembra abbastanza specifico da meritare una risposta utile, non un messaggio generico.
 
-Se ha senso, posso prepararti una mini analisi concreta su ${solution}: cosa farei, priorità e stima indicativa dei passaggi.
+${usefulAngle}.
 
-Ti va se ti mando una sintesi breve?
+Se ha senso, ti mando una sintesi breve con 2-3 passaggi concreti.
 
 ${workspace.settings.signature}${optOut}`;
   }
@@ -3290,9 +3322,9 @@ ${workspace.settings.signature}${optOut}`;
 
 ${context}.
 
-Non ti scrivo un messaggio copia-incolla: lavoro su siti, app, bot e automazioni AI, quindi potrei aiutarti a capire come impostare bene questo ${solution}.
+${usefulAngle}.
 
-Se vuoi, ti mando un parere veloce e concreto su cosa farei nel tuo caso.
+Se vuoi, ti mando un parere veloce e concreto in base al tuo caso.
 
 ${workspace.settings.signature}${optOut}`;
 }
@@ -4142,6 +4174,16 @@ function renderRadarDetail() {
   `;
 }
 
+function radarSignalTypeLabel(prospect = {}) {
+  const sourceType = String(prospect.source_type || "").toLowerCase();
+  if (/comment/.test(sourceType)) return "Commento reale";
+  if (/marketplace|buyer_request/.test(sourceType)) return "Richiesta diretta";
+  if (/business|contact|directory/.test(sourceType)) return "Contatto business";
+  if (/forum|thread|q_and_a/.test(sourceType)) return "Discussione";
+  if (/audience/.test(sourceType)) return "Fonte da minare";
+  return "Segnale pubblico";
+}
+
 function renderRadar() {
   const root = document.querySelector('[data-page="radar"]');
   if (!root) return;
@@ -4162,10 +4204,15 @@ function renderRadar() {
           .map((prospect) => {
             const profileLink = prospect.profile_link || prospect.source_url || prospect.website;
             return `
-              <div class="radar-row" data-radar-id="${prospect.lead_id}">
+              <div class="radar-row ${prospect.lead_id === selectedRadarId ? "selected" : ""}" data-radar-id="${prospect.lead_id}">
                 <div class="radar-row-main">
+                  <div class="radar-row-kicker">
+                    <span>${escapeHtml(radarSignalTypeLabel(prospect))}</span>
+                    <span>${escapeHtml(prospect.platform)}</span>
+                    <span>${escapeHtml(prospect.detected_intent || "intent n/d")}</span>
+                  </div>
                   <strong>${escapeHtml(prospect.business_name || prospect.public_name || prospect.username_public || "Prospect pubblico")}</strong>
-                  <p>${escapeHtml(prospect.platform)} · ${escapeHtml(prospect.city || prospect.country || "area n/d")} · ${escapeHtml(prospect.detected_intent || "intent n/d")}</p>
+                  <p>${escapeHtml(prospect.city || prospect.country || "area n/d")} · ${escapeHtml(prospect.source_page || prospect.provider_source || "fonte pubblica")}</p>
                   <p>${escapeHtml(prospect.relevant_text || prospect.bio_public || "Testo pubblico non disponibile")}</p>
                 </div>
                 <span class="lead-score ${prospect.temperature}">${prospect.score_ai}</span>

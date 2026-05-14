@@ -154,6 +154,10 @@ Sempre con:
 - Aggiunta logica intent trading riutilizzabile: cerca commenti con bisogno reale tipo "come iniziare", "quale broker", "prop firm", "bot trading", "MT5", "segnali", senza promettere risultati finanziari.
 - Ottimizzata strategia YouTube per Vercel: Serper scopre i video rilevanti rapidamente, Apify viene usato per i commenti. L'Actor YouTube Search resta opt-in con `APIFY_ENABLE_YOUTUBE_SEARCH_ACTOR=true` perché puo andare in timeout.
 - Aumentato spazio Serper e riordinate query Italia: programmazione/trading cercano anche forum/community mirati come Inforge, Forum HTML.it, Reddit ItalyInformatica, FinanzaOnline, InvestireOggi e MQL5, non solo Facebook/YouTube/marketplace.
+- Migliorato filtro anti-fuffa: annunci/pagine che vendono servizi tipo "vuoi creare", "creo per te", webinar, call gratuite e web agency non vengono trattati come prospect; diventano fonti da minare solo dove abbiamo comment mining.
+- Riscritti i messaggi suggeriti Radar: tolto testo innaturale tipo "non ti scrivo un copia-incolla", tono piu breve, concreto e legato al segnale reale.
+- Ridisegnata sezione Radar: mission control piu semplice, fonti calde, flow a 4 step, risultati piu leggibili e tab "Tutti" di default.
+- Aggiornata cache asset a `radar360-18`.
 
 ## Regola operativa per il PDF completo
 

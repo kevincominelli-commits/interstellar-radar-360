@@ -2550,23 +2550,23 @@ body[data-theme="stripe"] .real-source-box > button {
 
 .radar-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 380px;
   grid-template-areas:
     "controls controls"
     "results detail";
-  gap: 12px;
+  gap: 14px;
   align-items: start;
 }
 
 .radar-control-card {
   grid-area: controls;
   display: grid;
-  grid-template-columns: minmax(330px, 1.05fr) minmax(250px, 0.72fr) minmax(360px, 1fr);
+  grid-template-columns: minmax(420px, 1.25fr) minmax(260px, 0.58fr) minmax(320px, 0.82fr);
   grid-template-areas:
     "head head head"
-    "guided howto import"
+    "guided guided howto"
     "form form import";
-  gap: 12px;
+  gap: 14px;
   align-items: start;
 }
 
@@ -2606,17 +2606,24 @@ body[data-theme="stripe"] .real-source-box > button {
 .radar-howto-card,
 .radar-empty-guide {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   background:
-    linear-gradient(135deg, rgba(124, 77, 255, 0.08), rgba(31, 143, 255, 0.035)),
+    radial-gradient(circle at 18% 0%, rgba(46, 233, 240, 0.1), transparent 34%),
+    linear-gradient(135deg, rgba(124, 77, 255, 0.09), rgba(31, 143, 255, 0.035)),
     rgba(255, 255, 255, 0.028);
 }
 
 .radar-guided-panel {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   margin-bottom: 0;
-  padding: 14px;
+  padding: 16px;
+}
+
+.radar-command-top {
+  display: grid;
+  gap: 6px;
+  max-width: 760px;
 }
 
 .radar-guided-panel span,
@@ -2630,7 +2637,12 @@ body[data-theme="stripe"] .real-source-box > button {
 .radar-guided-panel h3 {
   margin: 5px 0 0;
   color: var(--text);
-  font-size: 17px;
+  font-size: 24px;
+  letter-spacing: 0;
+}
+
+.radar-command-top p {
+  max-width: 680px;
 }
 
 .radar-question {
@@ -2638,14 +2650,40 @@ body[data-theme="stripe"] .real-source-box > button {
   gap: 8px;
 }
 
-.radar-question > input {
+.radar-mission-input {
+  display: grid;
+  gap: 8px;
+}
+
+.radar-mission-input > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.radar-question > input,
+.radar-mission-input > input,
+.radar-source-console input {
   width: 100%;
-  min-height: 40px;
+  min-height: 46px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.18);
   color: var(--text);
-  padding: 0 11px;
+  padding: 0 12px;
+  font-weight: 700;
+}
+
+.radar-source-console {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.7fr);
+  gap: 12px;
+}
+
+.radar-source-console > div {
+  display: grid;
+  gap: 8px;
 }
 
 .radar-quick-sources,
@@ -2655,7 +2693,7 @@ body[data-theme="stripe"] .real-source-box > button {
 }
 
 .radar-quick-sources {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .radar-geo-grid {
@@ -2667,18 +2705,32 @@ body[data-theme="stripe"] .real-source-box > button {
   display: flex;
   align-items: center;
   gap: 7px;
-  min-height: 34px;
+  min-height: 36px;
   border: 1px solid var(--line);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.035);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text);
   padding: 0 9px;
   font-size: 12px;
   font-weight: 750;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.radar-quick-sources label,
+.radar-geo-grid label {
+  justify-content: flex-start;
+}
+
+.radar-quick-sources label:has(input:checked),
+.radar-geo-grid label:has(input:checked) {
+  border-color: rgba(46, 233, 240, 0.38);
+  background: rgba(46, 233, 240, 0.08);
 }
 
 .radar-quick-sources input,
 .radar-geo-grid input {
+  flex: 0 0 auto;
   width: 12px;
   height: 12px;
   accent-color: var(--purple);
@@ -2699,9 +2751,14 @@ body[data-theme="stripe"] .real-source-box > button {
   margin: 7px 0 0;
 }
 
-.radar-guided-panel label {
+.radar-guided-panel > label {
   display: grid;
   gap: 7px;
+}
+
+.radar-guided-panel .radar-quick-sources label,
+.radar-guided-panel .radar-geo-grid label {
+  display: flex;
 }
 
 .radar-preset-summary {
@@ -2726,8 +2783,58 @@ body[data-theme="stripe"] .real-source-box > button {
 
 .radar-guided-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(220px, 1fr) 150px 170px;
   gap: 9px;
+}
+
+.radar-guided-actions button,
+.radar-import-box .button-row button {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text);
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.radar-guided-actions button:first-child {
+  min-height: 46px;
+  border-color: rgba(46, 233, 240, 0.42);
+  background: linear-gradient(135deg, #6b4dff, #1f8fff 52%, #2ee9f0);
+  color: white;
+  box-shadow: 0 14px 40px rgba(31, 143, 255, 0.22);
+}
+
+.radar-import-box .button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.radar-import-box .button-row button {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.radar-logic-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.radar-logic-strip span {
+  display: inline-grid;
+  min-height: 34px;
+  place-items: center;
+  border: 1px solid rgba(180, 198, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
 }
 
 .radar-howto-card {
@@ -2882,18 +2989,44 @@ body[data-theme="stripe"] .real-source-box > button {
 
 .radar-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 58px 126px auto;
+  grid-template-columns: minmax(0, 1fr) 60px 124px auto;
   gap: 12px;
   align-items: center;
-  min-height: 108px;
+  min-height: 118px;
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.035);
   padding: 12px;
 }
 
+.radar-row.selected {
+  border-color: rgba(46, 233, 240, 0.36);
+  box-shadow: inset 0 0 0 1px rgba(46, 233, 240, 0.08), 0 10px 32px rgba(31, 143, 255, 0.08);
+}
+
 .radar-row-main {
   min-width: 0;
+}
+
+.radar-row-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.radar-row-kicker span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border: 1px solid rgba(180, 198, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(124, 77, 255, 0.08);
+  color: #bfc8ff;
+  padding: 0 8px;
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
 }
 
 .radar-row-main strong {
@@ -3111,6 +3244,12 @@ body[data-theme="stripe"] .radar-advanced {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
+body[data-theme="stripe"] .radar-guided-panel {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(99, 102, 241, 0.1), transparent 34%),
+    linear-gradient(135deg, #ffffff, #f7f9fd);
+}
+
 body[data-theme="stripe"] .radar-row-main strong,
 body[data-theme="stripe"] .radar-matrix-row strong,
 body[data-theme="stripe"] .radar-source-group > strong,
@@ -3152,11 +3291,20 @@ body[data-theme="stripe"] .radar-step-label {
 body[data-theme="stripe"] .lead-actions a,
 body[data-theme="stripe"] .radar-message-preview textarea,
 body[data-theme="stripe"] .radar-question > input,
+body[data-theme="stripe"] .radar-mission-input > input,
+body[data-theme="stripe"] .radar-source-console input,
 body[data-theme="stripe"] .radar-quick-sources label,
 body[data-theme="stripe"] .radar-geo-grid label {
   border-color: #d8deea;
   background: #ffffff;
   color: #253248;
+}
+
+body[data-theme="stripe"] .radar-row-kicker span,
+body[data-theme="stripe"] .radar-logic-strip span {
+  border-color: #d8deea;
+  background: #f4f6fb;
+  color: #56637a;
 }
 
 @media (max-width: 1280px) {

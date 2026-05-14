@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Interstellar Dashboard Mockup</title>
-    <link rel="stylesheet" href="mockup-wow.css?v=radar360-17" />
+    <link rel="stylesheet" href="mockup-wow.css?v=radar360-18" />
   </head>
   <body data-theme="stripe">
     <canvas id="starCanvas" aria-hidden="true"></canvas>
@@ -503,44 +503,53 @@
               </div>
 
               <div class="radar-guided-panel">
-                <div class="radar-question">
-                  <span>1. Cliente target</span>
-                  <h3>Che tipo di clienti vuoi trovare?</h3>
+                <div class="radar-command-top">
+                  <span>Mission control</span>
+                  <h3>Dimmi chi vuoi trovare. Il Radar decide dove scavare.</h3>
+                  <p>Video, post e annunci non sono clienti: sono fonti calde. Il prospect vero è chi commenta, chiede info o mostra interesse.</p>
+                </div>
+
+                <label class="radar-mission-input">
+                  <span>Cliente target</span>
                   <input id="radarGoalInput" value="clienti interessati a trovare un programmatore, creare un sito, app, bot o automazioni AI" />
-                  <p>Scrivilo naturale, come lo diresti a me. Il Radar trasforma questa frase in keyword, intent e score.</p>
-                </div>
+                </label>
 
-                <div class="radar-question">
-                  <span>2. Dove devo cercare?</span>
-                  <div class="radar-quick-sources">
-                    <label><input type="checkbox" data-quick-source="Instagram" checked />Instagram</label>
-                    <label><input type="checkbox" data-quick-source="Facebook" checked />Facebook</label>
-                    <label><input type="checkbox" data-quick-source="TikTok" checked />TikTok</label>
-                    <label><input type="checkbox" data-quick-source="LinkedIn" checked />LinkedIn</label>
-                    <label><input type="checkbox" data-quick-source="YouTube" checked />YouTube</label>
-                    <label><input type="checkbox" data-quick-source="Reddit" checked />Reddit</label>
-                    <label><input type="checkbox" data-quick-source="Telegram" checked />Telegram</label>
-                    <label><input type="checkbox" data-quick-source="Forum" checked />Forum</label>
-                    <label><input type="checkbox" data-quick-source="Website" checked />Siti web</label>
-                    <label><input type="checkbox" data-quick-source="Directory" checked />Directory</label>
+                <div class="radar-source-console">
+                  <div>
+                    <span>Fonti calde</span>
+                    <div class="radar-quick-sources">
+                      <label><input type="checkbox" data-quick-source="YouTube" checked />YouTube comments</label>
+                      <label><input type="checkbox" data-quick-source="Facebook" checked />Facebook groups</label>
+                      <label><input type="checkbox" data-quick-source="Instagram" checked />Instagram</label>
+                      <label><input type="checkbox" data-quick-source="TikTok" checked />TikTok</label>
+                      <label><input type="checkbox" data-quick-source="LinkedIn" checked />LinkedIn</label>
+                      <label><input type="checkbox" data-quick-source="Forum" checked />Forum</label>
+                      <label><input type="checkbox" data-quick-source="Website" checked />Marketplace</label>
+                      <label><input type="checkbox" data-quick-source="Reddit" checked />Reddit</label>
+                    </div>
                   </div>
-                  <p>Social chiusi = assistenza manuale. Web, forum e directory = ricerca/automazione possibile dove consentito.</p>
-                </div>
-
-                <div class="radar-question">
-                  <span>3. Dove vuoi trovarli?</span>
-                  <div class="radar-geo-grid">
-                    <label><input type="radio" name="radarQuickGeo" value="italy" checked />Tutta Italia</label>
-                    <label><input type="radio" name="radarQuickGeo" value="city" />Città specifica</label>
-                    <label><input type="radio" name="radarQuickGeo" value="any" />Qualsiasi paese</label>
+                  <div>
+                    <span>Area</span>
+                    <div class="radar-geo-grid">
+                      <label><input type="radio" name="radarQuickGeo" value="italy" checked />Italia</label>
+                      <label><input type="radio" name="radarQuickGeo" value="city" />Città</label>
+                      <label><input type="radio" name="radarQuickGeo" value="any" />Ovunque</label>
+                    </div>
+                    <input id="radarQuickCity" placeholder="Città opzionale: Roma, Milano..." />
                   </div>
-                  <input id="radarQuickCity" placeholder="Es. Milano, Roma, Napoli..." />
                 </div>
 
                 <div class="radar-guided-actions">
-                  <button type="button" id="applyRadarPreset">Prepara ricerca</button>
-                  <button type="button" id="runLiveOpenWebSearch">Cerca clienti</button>
-                  <button type="button" class="ghost-button" id="runRadarPreset">Analizza importati</button>
+                  <button type="button" id="runLiveOpenWebSearch">Avvia Radar</button>
+                  <button type="button" class="ghost-button" id="applyRadarPreset">Prepara</button>
+                  <button type="button" class="ghost-button" id="runRadarPreset">Analizza import</button>
+                </div>
+
+                <div class="radar-logic-strip">
+                  <span>1. trova fonti</span>
+                  <span>2. legge segnali</span>
+                  <span>3. scarta fuffa</span>
+                  <span>4. ordina prospect</span>
                 </div>
               </div>
 
@@ -681,13 +690,12 @@
               </form>
 
               <div class="radar-howto-card">
-                <strong>Il cliente deve fare solo questo</strong>
+                <strong>Regole del motore</strong>
                 <ol>
-                  <li>Scrive che clienti vuole trovare.</li>
-                  <li>Spunta social, forum, web o directory.</li>
-                  <li>Sceglie Italia, città o paese libero. Poi preme <b>Cerca clienti</b>.</li>
+                  <li>Annunci, creator e video diventano fonti da minare, non prospect.</li>
+                  <li>I social aprono contatto manuale assistito, mai DM automatici.</li>
+                  <li>Ogni messaggio parte dal segnale reale trovato.</li>
                 </ol>
-                <p>La ricerca live in italiano controlla fonti pubbliche coerenti, esclude provider inglesi e non invia messaggi automatici.</p>
               </div>
 
               <div class="radar-import-box">
@@ -699,8 +707,8 @@
                   <span class="status-pill" id="radarProspectCount">0 prospect</span>
                 </div>
                 <div class="radar-source-starter">
-                  <strong>Trova fonti pubbliche</strong>
-                  <p>Questi pulsanti aprono ricerche utili. Copia richieste reali trovate online e incollale sotto.</p>
+                  <strong>Input manuale avanzato</strong>
+                  <p>Usalo per incollare URL, CSV o segnali presi da provider esterni. Non serve per la ricerca normale.</p>
                   <div class="button-row">
                     <button type="button" class="ghost-button" data-radar-open-search="programmingRequests">Richieste software</button>
                     <button type="button" class="ghost-button" data-radar-open-search="hotPagesRequests">Pagine calde</button>
@@ -732,15 +740,15 @@
               <div class="finder-stats radar-stats" id="radarStats"></div>
 
               <div class="lead-tabs radar-tabs" id="radarTabs">
-                <button type="button" class="active" data-radar-tab="hot">Hot</button>
+                <button type="button" class="active" data-radar-tab="all">Tutti</button>
+                <button type="button" data-radar-tab="hot">Hot</button>
                 <button type="button" data-radar-tab="warm">Warm</button>
                 <button type="button" data-radar-tab="cold">Cold</button>
-                <button type="button" data-radar-tab="social">Social Leads</button>
-                <button type="button" data-radar-tab="web">Web Leads</button>
-                <button type="button" data-radar-tab="forum">Forum Leads</button>
-                <button type="button" data-radar-tab="local">Local Leads</button>
-                <button type="button" data-radar-tab="automated">Automated Possible</button>
-                <button type="button" data-radar-tab="manual">Manual Contact</button>
+                <button type="button" data-radar-tab="social">Social</button>
+                <button type="button" data-radar-tab="web">Web</button>
+                <button type="button" data-radar-tab="forum">Forum</button>
+                <button type="button" data-radar-tab="automated">Auto</button>
+                <button type="button" data-radar-tab="manual">Manual</button>
               </div>
 
               <div class="system-toolbar finder-toolbar radar-toolbar">
@@ -1108,6 +1116,6 @@
       </main>
     </div>
 
-    <script src="mockup-wow.js?v=radar360-17"></script>
+    <script src="mockup-wow.js?v=radar360-18"></script>
   </body>
 </html>

@@ -147,7 +147,7 @@ function isProgrammingSearch(config = {}) {
 }
 
 function isAudienceMiningSource(prospect = {}) {
-  return /apify_social_video_source|apify_social_post_source/i.test(prospect.source_type || "");
+  return /audience_source|apify_social_video_source|apify_social_post_source/i.test(prospect.source_type || "");
 }
 
 function isTradingSearch(config = {}) {
@@ -347,8 +347,14 @@ function isMarketplaceOrCommunityLead(link = "", text = "") {
 function isMarketingContentNoise(link = "", text = "") {
   const haystack = `${hostnameOf(link)} ${link} ${text}`;
   if (hasExplicitHireRequest(text)) return false;
-  return /quanto costa (un |una |)(sito|app)|preventivo (gratis|per un sito|sito web|troppo alto)|realizzazione siti|creazione siti|web agency|agenzia web|sito web per aziende|migliori costruttori|consulenza gratuita|prenota consulenza|richiedi preventivo|servizio di web design|social media manager|seo|branding|marketing|modulo contatti|avere un sito|mi serve un sito se ho/i.test(
+  return /quanto costa (un |una |)(sito|app)|preventivo (gratis|per un sito|sito web|troppo alto)|realizzazione siti|creazione siti|web agency|agenzia web|sito web per aziende|migliori costruttori|consulenza gratuita|prenota consulenza|richiedi preventivo|servizio di web design|social media manager|seo|branding|marketing|modulo contatti|avere un sito|mi serve un sito se ho|vuoi creare|vuoi sviluppare|ti serve (un |una |)(sito|app|piattaforma)|creo\/personalizzo|creiamo per te|realizziamo|sviluppiamo|costruiamo|ti aiutiamo a|scopri come|guarda il webinar|iscriviti al webinar|fissa una call|scarica la guida/i.test(
     haystack
+  );
+}
+
+function isSellerOrAdSignal(text = "") {
+  return /vuoi creare|vuoi sviluppare|ti serve (un |una |)(sito|app|piattaforma)|creo\/personalizzo|creo per te|creiamo per te|realizziamo|sviluppiamo|costruiamo|agenzia|web agency|software house|prenota|consulenza gratuita|fissa una call|scopri come|guarda il webinar|webinar gratuito|clicca qui|link in bio|scrivimi info|ti aiutiamo a|servizio di/i.test(
+    text
   );
 }
 
@@ -549,10 +555,12 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
   const isForum = !isSocialPage && !isMarketplace && /forum|community|reddit|discussioni|thread|risposte|stackoverflow|quora/i.test(haystack);
   const isBusinessContact = /contatti|preventivo|richiedi|azienda|agenzia|servizi|software house|web agency|professionista|freelance|budget|pubblicato da/i.test(haystack);
   const hasContactIntent = hasServiceBuyingIntent(text) || (hasClientIntent(text) && hasDevelopmentTerm(text));
+  const sellerOrAd = isSellerOrAdSignal(text);
   if (!link || !title) return null;
   if (isItalianMode(config) && !isItalianWebResult(link, text)) return null;
   if (!passesExplicitRecency(text, config)) return null;
   if (isProgrammingSearch(config) && isMarketingContentNoise(link, text)) return null;
+  if (isProgrammingSearch(config) && sellerOrAd && !/youtube\.com|youtu\.be/i.test(link)) return null;
   if (isProgrammingSearch(config) && !hasExplicitHireRequest(text)) return null;
   if (isProgrammingSearch(config) && !isMarketplaceOrCommunityLead(link, text) && !/budget|pubblicato da|solo a chi parla italiano/i.test(text)) return null;
   if (isProgrammingSearch(config) && !hasContactIntent && !hasOwnedProjectProblem(text) && !/forum|reddit|community|discussione/i.test(haystack)) {
@@ -575,6 +583,8 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
       : "Website";
   const sourceType = isMarketplace
     ? "marketplace_buyer_request"
+    : sellerOrAd
+      ? "audience_source_to_mine"
     : isSocialPage
       ? "social_page_buyer_request"
       : isBusinessContact
