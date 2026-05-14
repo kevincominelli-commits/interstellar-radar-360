@@ -4029,13 +4029,37 @@ function syncRadarSourceFilter() {
     return map;
   }, new Map());
   const configured = Array.isArray(workspace.radar.lastSearch?.sources) ? workspace.radar.lastSearch.sources : getQuickRadarSources();
-  const sources = [...new Set([...configured, ...allRadarProspects().map((prospect) => prospect.platform)].filter(Boolean))].sort((a, b) =>
-    a.localeCompare(b, "it")
-  );
+  const discovered = allRadarProspects().map((prospect) => prospect.platform).filter(Boolean);
+  const sources = [...new Set([...allRadarSourceValues, ...configured, ...discovered].filter(Boolean))];
   select.innerHTML = `<option value="all">Tutte fonti</option>${sources
-    .map((source) => `<option value="${escapeHtml(source)}">${escapeHtml(source)} (${counts.get(source) || 0})</option>`)
+    .map((source) => `<option value="${escapeHtml(source)}">${escapeHtml(source)} (${counts.get(source) || 0} finali)</option>`)
     .join("")}`;
   select.value = sources.includes(current) ? current : "all";
+}
+
+function radarEmptyGuideMarkup() {
+  const selectedSource = document.querySelector("#radarSourceFilter")?.value ?? "all";
+  const selectedMode = document.querySelector("#radarContactModeFilter")?.value ?? "all";
+  const hasRun = Boolean(workspace.radar.lastSearch?.createdAt || workspace.radar.lastRunAt);
+  const sourceNote =
+    selectedSource !== "all"
+      ? `<p><b>${escapeHtml(selectedSource)}</b> e attiva, ma ora ha 0 prospect finali con questi filtri. Se nel riepilogo fonti vedi segnali trovati, significa che sono stati scartati per qualita, lingua, data, intento debole o perche erano contenuti di chi vende invece di persone interessate.</p>`
+      : "";
+  const modeNote =
+    selectedMode !== "all"
+      ? `<p>Il filtro contatto e su <b>${selectedMode === "manual_assist" ? "Manual assist" : "Automated possible"}</b>. Passa a <b>Tutti contatti</b> se vuoi vedere anche gli altri canali.</p>`
+      : "";
+  return `<div class="radar-empty-guide">
+    <strong>${hasRun ? "0 prospect finali in questa vista" : "Nessun prospect ancora"}</strong>
+    ${sourceNote}
+    ${modeNote}
+    <p>Il Radar non deve riempirti la lista con spazzatura. Deve trovare segnali reali, filtrarli e mostrarti solo quelli con motivo concreto.</p>
+    <ol>
+      <li>Scegli cosa vuoi vendere nella ricerca guidata.</li>
+      <li>Spunta dove cercare: social, YouTube, forum, web e directory.</li>
+      <li>Premi <b>Avvia Radar</b>. Se una fonte resta a 0 finali, servono dati/API migliori o URL piu specifici da analizzare.</li>
+    </ol>
+  </div>`;
 }
 
 function providerVisibleCount(providerName = "", prospects = []) {
@@ -4291,15 +4315,7 @@ function renderRadar() {
             `;
           })
           .join("")
-      : `<div class="radar-empty-guide">
-          <strong>Nessun prospect ancora</strong>
-          <p>Il Radar non inventa contatti. Hai lanciato la ricerca, ma il database è vuoto oppure non ci sono segnali compatibili con i filtri.</p>
-          <ol>
-            <li>Premi <b>Richieste software</b> nel box Fonti importate.</li>
-            <li>Copia una richiesta reale trovata online nel formato facile.</li>
-            <li>Premi <b>Importa segnali reali</b> e poi <b>Lancia Radar 360</b>.</li>
-          </ol>
-        </div>`;
+      : radarEmptyGuideMarkup();
   }
 
   renderRadarDetail();
