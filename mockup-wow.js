@@ -1210,7 +1210,7 @@ refreshPlanPeriod();
 workspace.leads = workspace.leads.map((lead) => normalizeLead(lead)).filter((lead) => lead.username || lead.company);
 workspace.radarProspects = (workspace.radarProspects || [])
   .map((prospect) => normalizeRadarProspect(prospect))
-  .filter((prospect) => prospect.username_public || prospect.business_name || prospect.source_url || prospect.relevant_text);
+  .filter((prospect) => (prospect.username_public || prospect.business_name || prospect.source_url || prospect.relevant_text) && !radarIsSellerOrAdNoise(prospect));
 saveWorkspace();
 
 function navigateTo(page) {
@@ -3014,6 +3014,17 @@ function radarText(prospect = {}) {
     .toLowerCase();
 }
 
+function radarIsSellerOrAdNoise(prospect = {}) {
+  const text = radarText(prospect);
+  const directBuyerSignal =
+    /cerco (un |una |)(programmatore|sviluppatore|freelance|persona|agenzia)|sto cercando (un |una |)(programmatore|sviluppatore)|mi serve (un |una |)(sito|app|software|gestionale|bot|automazione)|voglio creare (un |una |)(sito|app|software|piattaforma)|devo creare (un |una |)(sito|app|software|piattaforma)|preventivo (sito|app|software|gestionale)|budget/i.test(text);
+  const sellerSignal =
+    /realizzazione siti|creazione siti|siti web ottimizzati|web agency|agenzia web|software house|branding, strategia|servizio di web design|social media manager|seo per aziende|consulenza gratuita|prenota (una |)consulenza|fissa (una |)call|richiedi preventivo gratis|scopri come|guarda il webinar|iscriviti al webinar|scarica la guida|link in bio|vuoi creare|vuoi sviluppare|ti serve (un |una |)(sito|app|piattaforma|software)|creo\/personalizzo|creo per te|creiamo per te|realizziamo per te|sviluppiamo per te|costruiamo per te|ti aiutiamo a|guadagna online|soldi facili|metodo garantito|risultati garantiti/i.test(text);
+  const sourceType = String(prospect.source_type || "").toLowerCase();
+  if (/audience_source/.test(sourceType)) return true;
+  return sellerSignal && !directBuyerSignal;
+}
+
 function detectRadarIntent(text = "", customPhrases = []) {
   const lower = String(text).toLowerCase();
   const hits = [];
@@ -3309,11 +3320,11 @@ function buildRadarMessage(prospect = {}) {
 
 ${context}.
 
-Ti scrivo perché il contesto sembra abbastanza specifico da meritare una risposta utile, non un messaggio generico.
+Mi occupo di siti, app, bot e automazioni AI. Da quello che ho letto, il punto sembra abbastanza concreto.
 
 ${usefulAngle}.
 
-Se ha senso, ti mando una sintesi breve con 2-3 passaggi concreti.
+Se ha senso, ti mando una sintesi breve con cosa farei, cosa eviterei e una stima realistica dei prossimi passi.
 
 ${workspace.settings.signature}${optOut}`;
   }
@@ -3322,9 +3333,11 @@ ${workspace.settings.signature}${optOut}`;
 
 ${context}.
 
+Mi occupo di siti, app, bot e automazioni AI.
+
 ${usefulAngle}.
 
-Se vuoi, ti mando un parere veloce e concreto in base al tuo caso.
+Se vuoi, ti mando 2-3 idee pratiche su come lo imposterei e cosa eviterei per non buttare soldi o tempo.
 
 ${workspace.settings.signature}${optOut}`;
 }
@@ -3342,7 +3355,7 @@ function buildConversationStarters(prospect = {}, objective = "aprire conversazi
   const baseOffer =
     prospect.contact_mode === "automated_possible"
       ? "posso mandarti due idee concrete su acquisizione clienti e automazioni, con esempi pratici"
-      : "posso mandarti due idee pratiche, senza messaggi copia-incolla e senza farti perdere tempo";
+      : "posso mandarti due idee pratiche e dritte al punto, senza farti perdere tempo";
 
   const variants = {
     breve: `${greeting} ho visto questo: "${context}". Se ti va, posso mandarti 2 idee concrete per ${business}${city}.`,
@@ -3526,20 +3539,22 @@ function radarProspectFromLead(lead) {
 function allRadarProspects() {
   const merged = [...(workspace.radarProspects || []), ...workspace.leads.map(radarProspectFromLead)];
   const known = new Set();
-  return merged.filter((prospect) => {
-    const key = [
-      prospect.platform,
-      prospect.username_public,
-      prospect.business_name,
-      prospect.source_url,
-      prospect.relevant_text.slice(0, 60)
-    ]
-      .join("|")
-      .toLowerCase();
-    if (known.has(key)) return false;
-    known.add(key);
-    return true;
-  });
+  return merged
+    .filter((prospect) => !radarIsSellerOrAdNoise(prospect))
+    .filter((prospect) => {
+      const key = [
+        prospect.platform,
+        prospect.username_public,
+        prospect.business_name,
+        prospect.source_url,
+        prospect.relevant_text.slice(0, 60)
+      ]
+        .join("|")
+        .toLowerCase();
+      if (known.has(key)) return false;
+      known.add(key);
+      return true;
+    });
 }
 
 function getRadarProspectById(id = selectedRadarId) {
@@ -3674,7 +3689,7 @@ function buildRadarPipeline(config = getRadarConfig(), candidateIds) {
   const candidateSet = Array.isArray(candidateIds) ? new Set(candidateIds) : null;
   const sourceProspects = candidateSet ? allRadarProspects().filter((prospect) => candidateSet.has(prospect.lead_id)) : allRadarProspects();
   const raw = sourceProspects.map((prospect) => createRadarScoredProspect(prospect, config));
-  const cleaned = raw.filter((prospect) => radarHasUsefulText(prospect) && (!config.excludeBots || !radarNoiseDetected(prospect)));
+  const cleaned = raw.filter((prospect) => radarHasUsefulText(prospect) && !radarIsSellerOrAdNoise(prospect) && (!config.excludeBots || !radarNoiseDetected(prospect)));
   const preFiltered = cleaned.filter((prospect) => radarHasBuyingSignal(prospect, config));
   const semantic = preFiltered.filter((prospect) => radarSemanticFit(prospect, config));
   const aiBase = semantic.filter(
@@ -4807,7 +4822,7 @@ function radarProspectIdentity(prospect = {}) {
 }
 
 function addRadarProspects(prospects = []) {
-  const normalizedProspects = prospects.map((prospect) => normalizeRadarProspect(prospect));
+  const normalizedProspects = prospects.map((prospect) => normalizeRadarProspect(prospect)).filter((prospect) => !radarIsSellerOrAdNoise(prospect));
   const knownKeys = new Set(workspace.radarProspects.map(radarProspectIdentity));
   const fresh = normalizedProspects.filter((prospect) => {
     const key = radarProspectIdentity(prospect);
