@@ -344,10 +344,18 @@ function isMarketplaceOrCommunityLead(link = "", text = "") {
   );
 }
 
+function isMarketplaceSellerListing(link = "", text = "") {
+  const haystack = `${hostnameOf(link)} ${link} ${text}`;
+  if (hasExplicitHireRequest(text) || /budget|pubblicato da|sto cercando|mi serve|voglio creare|devo creare/i.test(text)) return false;
+  return /i migliori \d+|migliori (sviluppatori|programmatori|freelance|web designer)|trova (un |uno |una |i |)(freelance|sviluppatore|programmatore|professionista|web designer)|assumi (un |uno |una |)(freelance|sviluppatore|programmatore)|network di freelance|professionisti esperti|ricevi preventivi|confronta preventivi|preventivi gratis|servizi freelance/i.test(
+    haystack
+  );
+}
+
 function isMarketingContentNoise(link = "", text = "") {
   const haystack = `${hostnameOf(link)} ${link} ${text}`;
   if (hasExplicitHireRequest(text)) return false;
-  return /quanto costa (un |una |)(sito|app)|preventivo (gratis|per un sito|sito web|troppo alto)|realizzazione siti|creazione siti|web agency|agenzia web|sito web per aziende|migliori costruttori|consulenza gratuita|prenota consulenza|richiedi preventivo|servizio di web design|social media manager|seo|branding|marketing|modulo contatti|avere un sito|mi serve un sito se ho|vuoi creare|vuoi sviluppare|ti serve (un |una |)(sito|app|piattaforma)|creo\/personalizzo|creiamo per te|realizziamo|sviluppiamo|costruiamo|ti aiutiamo a|scopri come|guarda il webinar|iscriviti al webinar|fissa una call|scarica la guida/i.test(
+  return /quanto costa (un |una |)(sito|app)|preventivo (gratis|per un sito|sito web|troppo alto)|realizzazione siti|creazione siti|web agency|agenzia web|sito web per aziende|migliori costruttori|consulenza gratuita|prenota consulenza|richiedi preventivo|servizio di web design|social media manager|seo|branding|marketing|modulo contatti|avere un sito|mi serve un sito se ho|vuoi creare|vuoi sviluppare|ti serve (un |una |)(sito|app|piattaforma)|creo\/personalizzo|creiamo per te|realizziamo|sviluppiamo|costruiamo|ti aiutiamo a|scopri come|guarda il webinar|iscriviti al webinar|fissa una call|scarica la guida|network di freelance|professionisti esperti|ricevi preventivi|confronta preventivi/i.test(
     haystack
   );
 }
@@ -560,6 +568,7 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
   if (isItalianMode(config) && !isItalianWebResult(link, text)) return null;
   if (!passesExplicitRecency(text, config)) return null;
   if (isProgrammingSearch(config) && isMarketingContentNoise(link, text)) return null;
+  if (isProgrammingSearch(config) && isMarketplaceSellerListing(link, text)) return null;
   if (isProgrammingSearch(config) && sellerOrAd && !/youtube\.com|youtu\.be/i.test(link)) return null;
   if (isProgrammingSearch(config) && !hasExplicitHireRequest(text)) return null;
   if (isProgrammingSearch(config) && !isMarketplaceOrCommunityLead(link, text) && !/budget|pubblicato da|solo a chi parla italiano/i.test(text)) return null;
