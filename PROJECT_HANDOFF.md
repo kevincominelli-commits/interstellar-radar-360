@@ -150,6 +150,8 @@ Sempre con:
 - Integrato provider Apify nel backend Radar: usa `APIFY_TOKEN` da Vercel, lancia Actor social con limiti stretti di risultati/costo, normalizza output Instagram/TikTok/YouTube/Facebook in prospect Radar e mantiene social in manual assist.
 - Aggiunto passaggio hashtag dal frontend al backend per usare gli Actor social Apify.
 - Aggiornata cache asset a `radar360-17`.
+- Esteso Apify con logica audience-first: YouTube Search trova video/fonti calde, poi il backend usa i video come input per YouTube Comments e trasforma i commentatori in prospect. I video sorgente non vengono piu trattati come clienti finali.
+- Aggiunta logica intent trading riutilizzabile: cerca commenti con bisogno reale tipo "come iniziare", "quale broker", "prop firm", "bot trading", "MT5", "segnali", senza promettere risultati finanziari.
 
 ## Regola operativa per il PDF completo
 

@@ -82,10 +82,12 @@ APIFY_INSTAGRAM_HASHTAG_ACTOR_ID=apify/instagram-hashtag-scraper
 APIFY_TIKTOK_ACTOR_ID=clockworks/tiktok-scraper
 APIFY_YOUTUBE_ACTOR_ID=streamers/youtube-scraper
 APIFY_FACEBOOK_GROUPS_ACTOR_ID=apify/facebook-groups-scraper
-APIFY_YOUTUBE_COMMENTS_ACTOR_ID=...
+APIFY_YOUTUBE_COMMENTS_ACTOR_ID=knotless_cadence/youtube-comments-scraper
+APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT=2
+APIFY_YOUTUBE_COMMENTS_PER_VIDEO=25
 ```
 
-`APIFY_YOUTUBE_COMMENTS_ACTOR_ID` e opzionale: usalo solo quando si decide quale Actor commenti adottare e si passano URL YouTube reali nei monitor URL.
+`APIFY_YOUTUBE_COMMENTS_ACTOR_ID` e opzionale: se non lo imposti, il backend usa un Actor commenti YouTube predefinito con limiti bassi. Puoi mettere `off` per disattivare il comment mining.
 
 ## Regola prodotto fondamentale
 

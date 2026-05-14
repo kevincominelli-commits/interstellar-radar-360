@@ -4,8 +4,10 @@ const DEFAULT_RECENCY_MONTHS = 12;
 const SERPER_MAX_QUERIES = 10;
 const APIFY_MAX_RESULTS = envNumber("APIFY_MAX_RESULTS", 5, 1, 25);
 const APIFY_MAX_RUNS = envNumber("APIFY_MAX_RUNS", 3, 1, 8);
-const APIFY_TIMEOUT_SECONDS = envNumber("APIFY_TIMEOUT_SECONDS", 55, 15, 240);
+const APIFY_TIMEOUT_SECONDS = envNumber("APIFY_TIMEOUT_SECONDS", 28, 10, 55);
 const APIFY_MAX_CHARGE_USD = envNumber("APIFY_MAX_CHARGE_USD", 0.35, 0.05, 10);
+const APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT = envNumber("APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT", 2, 1, 5);
+const APIFY_YOUTUBE_COMMENTS_PER_VIDEO = envNumber("APIFY_YOUTUBE_COMMENTS_PER_VIDEO", 25, 5, 120);
 
 const providerSourceMap = {
   reddit: ["Reddit", "Forum"],
@@ -101,6 +103,7 @@ function compact(value = "", max = 520) {
 function inferIntent(text = "") {
   const lower = text.toLowerCase();
   if (/quanto costa|prezzo|preventivo|budget|costo|quote|pricing|price/.test(lower)) return "prezzo / preventivo";
+  if (/come inizio|come iniziare|quale broker|prop firm|challenge|funded|segnali|copy trading|bot trading|expert advisor|metatrader|mt5|forex|crypto|xauusd/.test(lower)) return "interesse trading";
   if (/cerco|mi serve|sto cercando|looking for|need (a|an)|hire|someone to build|developer needed|freelancer/.test(lower)) return "ricerca servizio";
   if (/non riesco|problema|aiuto|bloccato|help|issue|stuck|can't/.test(lower)) return "problema espresso";
   if (/app|sito|website|software|automazione|automation|chatbot|gestionale|bot|crm|landing|ecommerce|shopify|wordpress/.test(lower)) return "sviluppo / automazione";
@@ -141,7 +144,37 @@ function isProgrammingSearch(config = {}) {
   return hasDevelopmentTerm(`${config.q} ${config.niche} ${config.keywords}`);
 }
 
+function isAudienceMiningSource(prospect = {}) {
+  return /apify_social_video_source|apify_social_post_source/i.test(prospect.source_type || "");
+}
+
+function isTradingSearch(config = {}) {
+  return /trading|forex|crypto|criptovalute|xauusd|gold|prop firm|funded|challenge|metatrader|mt5|expert advisor|segnali|copy trading|bot trading|investimenti/i.test(
+    `${config.q || ""} ${config.niche || ""} ${config.keywords || ""} ${config.hashtags || ""}`
+  );
+}
+
+function hasTradingSignal(text = "") {
+  const lower = asText(text).toLowerCase();
+  const tradingContext =
+    /\b(trading|forex|crypto|criptovalute|bitcoin|prop firm|funded|challenge|xauusd|gold|oro|nasdaq|sp500|metatrader|mt4|mt5|expert advisor|ea\b|bot trading|copy trading|scalping|segnali|broker)\b/i.test(
+      lower
+    );
+  const buyerOrNeed =
+    /\b(come inizio|come iniziare|iniziare|principiante|non so|mi serve|cerco|vorrei|mi interessa|info|consigli|consigliate|quale broker|che broker|prop firm consigli|challenge|corso|mentorship|segnali|bot|automatizzare|perdo|non riesco|aiuto|funziona davvero|vale la pena|opinioni|recensioni)\b/i.test(
+      lower
+    );
+  return tradingContext && buyerOrNeed;
+}
+
 function isUsefulProspectForSearch(prospect = {}, config = {}) {
+  if (isAudienceMiningSource(prospect)) return false;
+  if (isTradingSearch(config)) {
+    const text = `${prospect.source_item || ""} ${prospect.relevant_text || ""} ${prospect.bio_public || ""} ${prospect.source_type || ""}`;
+    if (/garantito|100%|soldi facili|diventa ricco|pump|casino|bonus/i.test(text)) return false;
+    if (prospect.platform === "YouTube" && !/comment/i.test(prospect.source_type || "")) return false;
+    return hasTradingSignal(text) || (/comment/i.test(prospect.source_type || "") && /trading|forex|crypto|prop firm|mt5|xauusd/i.test(text));
+  }
   if (!isProgrammingSearch(config)) return true;
   const text = `${prospect.source_item || ""} ${prospect.relevant_text || ""} ${prospect.bio_public || ""} ${prospect.source_type || ""}`;
   if (/revshare|revenue share/i.test(text)) return false;
@@ -603,9 +636,21 @@ function apifySearchTerms(config = {}) {
         "preventivo gestionale"
       ]
     : [];
+  const trading = isTradingSearch(config)
+    ? [
+        "trading per principianti",
+        "come iniziare trading",
+        "prop firm Italia",
+        "forex trading Italia",
+        "trading automatico",
+        "bot trading MT5",
+        "xauusd strategia",
+        "copy trading"
+      ]
+    : [];
   const city = config.city ? ` ${config.city}` : "";
   const country = config.country ? ` ${config.country}` : "";
-  return [...new Set([...direct, ...programming].map((term) => compact(`${term}${country}${city}`, 90)))]
+  return [...new Set([...direct, ...programming, ...trading].map((term) => compact(`${term}${country}${city}`, 90)))]
     .filter(Boolean)
     .slice(0, 5);
 }
@@ -624,10 +669,34 @@ function apifyMonitorUrls(config = {}, pattern) {
   return (config.monitorUrls || []).filter((url) => pattern.test(url)).slice(0, 6);
 }
 
+function apifyYouTubeCommentsActorId() {
+  if (process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID === "off") return "";
+  return process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID || "knotless_cadence/youtube-comments-scraper";
+}
+
 function apifyRunSpecs(config = {}) {
   const terms = apifySearchTerms(config);
   const hashtags = apifyHashtags(config);
   const specs = [];
+
+  if (sourceSelected(config, "YouTube") && terms.length) {
+    specs.push({
+      name: "Apify YouTube Search",
+      actorId: process.env.APIFY_YOUTUBE_ACTOR_ID || "streamers/youtube-scraper",
+      platform: "YouTube",
+      kind: "social_video_search",
+      limit: isTradingSearch(config) || isProgrammingSearch(config) ? Math.min(APIFY_MAX_RESULTS, 3) : APIFY_MAX_RESULTS,
+      input: {
+        searchQueries: terms.slice(0, 3),
+        maxResults: isTradingSearch(config) || isProgrammingSearch(config) ? Math.min(APIFY_MAX_RESULTS, 3) : Math.min(APIFY_MAX_RESULTS, 8),
+        maxResultsShorts: 0,
+        maxResultStreams: 0,
+        sortingOrder: "date",
+        dateFilter: config.recencyMonths <= 1 ? "month" : "year",
+        videoType: "video"
+      }
+    });
+  }
 
   if (sourceSelected(config, "Instagram") && terms.length) {
     specs.push({
@@ -676,25 +745,6 @@ function apifyRunSpecs(config = {}) {
     });
   }
 
-  if (sourceSelected(config, "YouTube") && terms.length) {
-    specs.push({
-      name: "Apify YouTube Search",
-      actorId: process.env.APIFY_YOUTUBE_ACTOR_ID || "streamers/youtube-scraper",
-      platform: "YouTube",
-      kind: "social_video_search",
-      limit: APIFY_MAX_RESULTS,
-      input: {
-        searchQueries: terms.slice(0, 3),
-        maxResults: Math.min(APIFY_MAX_RESULTS, 8),
-        maxResultsShorts: 0,
-        maxResultStreams: 0,
-        sortingOrder: "date",
-        dateFilter: config.recencyMonths <= 1 ? "month" : "year",
-        videoType: "video"
-      }
-    });
-  }
-
   const facebookGroupUrls = apifyMonitorUrls(config, /facebook\.com\/groups/i);
   if (sourceSelected(config, "Facebook") && facebookGroupUrls.length) {
     specs.push({
@@ -712,16 +762,17 @@ function apifyRunSpecs(config = {}) {
   }
 
   const youtubeUrls = apifyMonitorUrls(config, /(youtube\.com\/watch|youtu\.be\/|youtube\.com\/shorts)/i);
-  if (sourceSelected(config, "YouTube") && youtubeUrls.length && process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID) {
+  const youtubeCommentsActorId = apifyYouTubeCommentsActorId();
+  if (sourceSelected(config, "YouTube") && youtubeUrls.length && youtubeCommentsActorId) {
     specs.push({
       name: "Apify YouTube Comments",
-      actorId: process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID,
+      actorId: youtubeCommentsActorId,
       platform: "YouTube",
       kind: "social_comment_signal",
       limit: APIFY_MAX_RESULTS,
       input: {
-        videoUrls: youtubeUrls,
-        maxCommentsPerVideo: Math.min(80, Math.max(10, APIFY_MAX_RESULTS * 10)),
+        videoUrls: youtubeUrls.slice(0, APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT),
+        maxCommentsPerVideo: APIFY_YOUTUBE_COMMENTS_PER_VIDEO,
         sortBy: "newest"
       }
     });
@@ -856,6 +907,8 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
     ? "apify_social_comment_signal"
     : isBusinessSearch
       ? "apify_social_business_signal"
+      : spec.kind === "social_video_search"
+        ? "apify_social_video_source"
       : spec.kind === "social_group_posts"
         ? "apify_social_group_post_signal"
         : "apify_social_search_signal";
@@ -887,6 +940,49 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
   };
 }
 
+function uniqueUrls(urls = []) {
+  const seen = new Set();
+  return urls
+    .map((url) => String(url || "").trim())
+    .filter(Boolean)
+    .filter((url) => {
+      const key = url.toLowerCase().replace(/[?&]feature=[^&]+/g, "");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function youtubeUrlsFromApifyResults(results = [], config = {}) {
+  const fromMonitor = apifyMonitorUrls(config, /(youtube\.com\/watch|youtu\.be\/|youtube\.com\/shorts)/i);
+  const fromSearch = results.flatMap((result) => {
+    if (result.status !== "fulfilled" || result.value.spec.platform !== "YouTube") return [];
+    return result.value.items
+      .map((item) => apifyItemUrl(item))
+      .filter((url) => /(youtube\.com\/watch|youtu\.be\/|youtube\.com\/shorts)/i.test(url));
+  });
+  return uniqueUrls([...fromMonitor, ...fromSearch]).slice(0, APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT);
+}
+
+async function searchYouTubeCommentsFromVideos(videoUrls = [], config = {}) {
+  const actorId = apifyYouTubeCommentsActorId();
+  if (!actorId || !videoUrls.length || !sourceSelected(config, "YouTube")) return [];
+  const spec = {
+    name: "Apify YouTube Comments",
+    actorId,
+    platform: "YouTube",
+    kind: "social_comment_signal",
+    limit: APIFY_MAX_RESULTS,
+    input: {
+      videoUrls,
+      maxCommentsPerVideo: APIFY_YOUTUBE_COMMENTS_PER_VIDEO,
+      sortBy: "newest"
+    }
+  };
+  const items = await runApifyActor(spec);
+  return items.map((item) => prospectFromApifyItem(item, config, spec)).filter(Boolean);
+}
+
 async function searchApify(config) {
   if (!process.env.APIFY_TOKEN) {
     throw new Error("APIFY_TOKEN non configurata su Vercel");
@@ -901,6 +997,12 @@ async function searchApify(config) {
       ? result.value.items.map((item) => prospectFromApifyItem(item, config, result.value.spec)).filter(Boolean)
       : []
   );
+  const youtubeUrls = youtubeUrlsFromApifyResults(settled, config);
+  const alreadyScrapedComments = prospects.some((prospect) => prospect.platform === "YouTube" && /comment/i.test(prospect.source_type));
+  if (youtubeUrls.length && !alreadyScrapedComments) {
+    const commentProspects = await searchYouTubeCommentsFromVideos(youtubeUrls, config).catch(() => []);
+    prospects.push(...commentProspects);
+  }
   if (!prospects.length && settled.every((result) => result.status === "rejected")) {
     throw new Error(settled.map((result) => result.reason?.message || "Actor Apify non riuscito").join(" | "));
   }
