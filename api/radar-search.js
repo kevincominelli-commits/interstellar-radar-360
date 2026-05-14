@@ -346,6 +346,7 @@ function isMarketplaceOrCommunityLead(link = "", text = "") {
 
 function isMarketplaceSellerListing(link = "", text = "") {
   const haystack = `${hostnameOf(link)} ${link} ${text}`;
+  if (/^sviluppatori? .*freelance:|^programmatori? .*freelance:|i migliori \d+|migliori (sviluppatori|programmatori|freelance|web designer)/i.test(text)) return true;
   if (hasExplicitHireRequest(text) || /budget|pubblicato da|sto cercando|mi serve|voglio creare|devo creare/i.test(text)) return false;
   return /i migliori \d+|migliori (sviluppatori|programmatori|freelance|web designer)|trova (un |uno |una |i |)(freelance|sviluppatore|programmatore|professionista|web designer)|assumi (un |uno |una |)(freelance|sviluppatore|programmatore)|network di freelance|professionisti esperti|ricevi preventivi|confronta preventivi|preventivi gratis|servizi freelance/i.test(
     haystack

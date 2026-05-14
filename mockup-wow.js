@@ -3022,6 +3022,7 @@ function radarIsSellerOrAdNoise(prospect = {}) {
     /realizzazione siti|creazione siti|siti web ottimizzati|web agency|agenzia web|software house|branding, strategia|servizio di web design|social media manager|seo per aziende|consulenza gratuita|prenota (una |)consulenza|fissa (una |)call|richiedi preventivo gratis|scopri come|guarda il webinar|iscriviti al webinar|scarica la guida|link in bio|vuoi creare|vuoi sviluppare|ti serve (un |una |)(sito|app|piattaforma|software)|creo\/personalizzo|creo per te|creiamo per te|realizziamo per te|sviluppiamo per te|costruiamo per te|ti aiutiamo a|guadagna online|soldi facili|metodo garantito|risultati garantiti|i migliori \d+|migliori (sviluppatori|programmatori|freelance|web designer)|trova (un |uno |una |i |)(freelance|sviluppatore|programmatore|professionista)|assumi (un |uno |una |)(freelance|sviluppatore|programmatore)|network di freelance|professionisti esperti|ricevi preventivi|confronta preventivi/i.test(text);
   const sourceType = String(prospect.source_type || "").toLowerCase();
   if (/audience_source/.test(sourceType)) return true;
+  if (/^sviluppatori? .*freelance:|^programmatori? .*freelance:|i migliori \d+|migliori (sviluppatori|programmatori|freelance|web designer)/i.test(text)) return true;
   return sellerSignal && !directBuyerSignal;
 }
 
