@@ -571,13 +571,33 @@ function audienceSeedTerms(config = {}) {
   const raw = apifySplitList(`${config.niche || ""}, ${config.keywords || ""}, ${config.hashtags || ""}`)
     .map((item) => item.replace(/^#/, "").trim())
     .filter((item) => item.length >= 3);
+  if (isTradingSearch(config)) {
+    return [
+      "trader italiani",
+      "forex italia",
+      "prop firm italia",
+      "tradingitalia",
+      "trading per principianti",
+      "bot trading mt5",
+      "crypto trading italia",
+      "copy trading italia"
+    ];
+  }
   const programming = isProgrammingSearch(config)
     ? ["programmazione", "sviluppo app", "siti web", "automazioni AI", "software gestionale", "ecommerce", "startup Italia", "no-code"]
     : [];
-  const trading = isTradingSearch(config)
-    ? ["trading", "forex", "prop firm", "bot trading", "MT5", "crypto", "copy trading", "trading principianti"]
-    : [];
-  return [...new Set([...raw, ...programming, ...trading])].slice(0, 8);
+  return [...new Set([...raw, ...programming])].slice(0, 8);
+}
+
+function isSourceDiscoveryNoise(text = "", link = "", config = {}) {
+  const haystack = `${hostnameOf(link)} ${link} ${text}`.toLowerCase();
+  if (isJobOrHiringNoise(text, link)) return true;
+  if (isTradingSearch(config)) {
+    return /italian trade agency|ice agenzia|trade agency|food trade|wine and food|aahar|bellavita|export|import|manufacturer|manufacturers|turkish-manufacturers|business forum|partner country|trading cards|trader joe|italian brainrot/i.test(
+      haystack
+    );
+  }
+  return false;
 }
 
 function sourceDiscoveryQueries(config) {
@@ -620,7 +640,7 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
   const isBusinessContact = /contatti|azienda|directory|paginegialle|scheda|maps|servizi|professionista|business/i.test(haystack);
   if (!link || !title) return null;
   if (!passesExplicitRecency(text, config)) return null;
-  if (isJobOrHiringNoise(text, link)) return null;
+  if (isSourceDiscoveryNoise(text, link, config)) return null;
   const platform = isSocialPage
     ? host.includes("facebook")
       ? "Facebook"
@@ -1770,11 +1790,12 @@ async function searchApify(config) {
   const discoveredSources = process.env.SERPER_API_KEY
     ? await searchSerper(config).catch(() => [])
     : [];
+  const selectedDiscoveredSources = discoveredSources.filter((source) => sourceSelected(config, source.platform));
   const enrichedConfig = {
     ...config,
     monitorUrls: uniqueUrls([
       ...(config.monitorUrls || []),
-      ...discoveredSources
+      ...selectedDiscoveredSources
         .map((source) => source.source_url)
         .filter((url) => /^https?:\/\//i.test(url))
     ]).slice(0, 24)
@@ -1809,7 +1830,7 @@ async function searchApify(config) {
   if (!prospects.length && settled.every((result) => result.status === "rejected")) {
     throw new Error(settled.map((result) => result.reason?.message || "Actor Apify non riuscito").join(" | "));
   }
-  return [...discoveredSources, ...prospects];
+  return [...selectedDiscoveredSources, ...prospects];
 }
 
 const SerperProvider = {
