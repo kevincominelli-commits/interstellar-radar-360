@@ -3148,7 +3148,7 @@ function applyRadarPreset(key = "programming", shouldRun = false) {
 }
 
 function getQuickRadarSources() {
-  const selected = [...document.querySelectorAll("[data-quick-source]:checked")].map((input) => input.value);
+  const selected = [...document.querySelectorAll("[data-quick-source]:checked")].map((input) => input.dataset.quickSource || input.value);
   return selected.length ? selected : allRadarSourceValues;
 }
 
