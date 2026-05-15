@@ -593,7 +593,7 @@ function isSourceDiscoveryNoise(text = "", link = "", config = {}) {
   const haystack = `${hostnameOf(link)} ${link} ${text}`.toLowerCase();
   if (isJobOrHiringNoise(text, link)) return true;
   if (isTradingSearch(config)) {
-    if (!/\b(trading|trader|forex|prop firm|propfirm|mt4|mt5|metatrader|crypto|criptovalute|xauusd|scalping|analisi tecnica|mercati finanziari|investimenti|borsa|copy trading)\b/i.test(haystack)) {
+    if (!/(#trading|tradingitalia|trading online|trading automatico|trading per principianti|bot trading|copy trading|\bforex\b|prop firm|propfirm|mt4|mt5|metatrader|crypto|criptovalute|xauusd|scalping|analisi tecnica|mercati finanziari|investimenti|borsa)/i.test(haystack)) {
       return true;
     }
     return /italian trade agency|ice agenzia|trade agency|food trade|wine and food|aahar|bellavita|export|import|manufacturer|manufacturers|turkish-manufacturers|business forum|partner country|trading cards|trader joe|italian brainrot/i.test(
@@ -785,7 +785,7 @@ function apifyMonitorUrls(config = {}, pattern) {
 
 function apifyYouTubeCommentsActorId() {
   if (process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID === "off") return "";
-  return process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID || "knotless_cadence/youtube-comments-scraper";
+  return process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID || "thescrapelab/apify-youtube-comment-scraper-2-0";
 }
 
 function apifyInstagramLikesActorId() {
@@ -1169,7 +1169,12 @@ function apifyRunSpecs(config = {}) {
       input: {
         videoUrls: youtubeUrls.slice(0, APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT),
         maxCommentsPerVideo: APIFY_YOUTUBE_COMMENTS_PER_VIDEO,
-        sortBy: "newest"
+        maxCommentPagesPerVideo: 2,
+        includeReplies: false,
+        fallbackToYtDlpComments: true,
+        timeoutSec: Math.min(25, APIFY_TIMEOUT_SECONDS),
+        sortBy: "newest",
+        proxyConfiguration: { useApifyProxy: true, apifyProxyGroups: ["RESIDENTIAL"] }
       }
     });
   }
@@ -1421,6 +1426,9 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
         "author",
         "authorName",
         "authorUsername",
+        "author_handle",
+        "authorHandle",
+        "author_name",
         "author.name",
         "author.username",
         "user.username",
@@ -1445,6 +1453,8 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
         "owner.fullName",
         "owner.name",
         "authorFullName",
+        "authorName",
+        "author_name",
         "authorMeta.nickName",
         "name",
         "title",
@@ -1513,7 +1523,21 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
   );
   const lastInteraction =
     normalizeApifyTimestamp(
-      firstValue(pickPath(item, ["timestamp", "createdAt", "takenAt", "taken_at", "date", "publishedAt", "uploadDate", "scrapedAt", "createTimeISO"]))
+      firstValue(
+        pickPath(item, [
+          "timestamp",
+          "createdAt",
+          "takenAt",
+          "taken_at",
+          "date",
+          "published_at",
+          "publishedTimeText",
+          "publishedAt",
+          "uploadDate",
+          "scrapedAt",
+          "createTimeISO"
+        ])
+      )
     ) || new Date().toISOString();
 
   if (!sourceUrl && !profileLink) return null;
@@ -1570,7 +1594,7 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
     phone_business_public: String(firstValue(pickPath(item, ["phone", "phoneNumber", "businessPhone"]), "")).trim(),
     source_url: sourceUrl || profileLink,
     source_page: spec.name,
-    source_item: compact(firstValue(pickPath(item, ["title", "caption", "postText", "text", "commentText"]), publicName || username), 180),
+    source_item: compact(firstValue(pickPath(item, ["title", "video_title", "videoTitle", "caption", "postText", "text", "commentText"]), publicName || username), 180),
     relevant_text: text,
     city: config.city,
     country: config.country,
@@ -1688,7 +1712,12 @@ async function searchYouTubeCommentsFromVideos(videoUrls = [], config = {}, cont
     input: {
       videoUrls,
       maxCommentsPerVideo: APIFY_YOUTUBE_COMMENTS_PER_VIDEO,
-      sortBy: "newest"
+      maxCommentPagesPerVideo: 2,
+      includeReplies: false,
+      fallbackToYtDlpComments: true,
+      timeoutSec: Math.min(25, APIFY_TIMEOUT_SECONDS),
+      sortBy: "newest",
+      proxyConfiguration: { useApifyProxy: true, apifyProxyGroups: ["RESIDENTIAL"] }
     }
   };
   const items = await runApifyActor(spec);
