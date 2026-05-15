@@ -2319,7 +2319,7 @@ module.exports = async function handler(req, res) {
     });
   const audienceLeads = uniqueAll.filter((prospect) => !isAudienceMiningSource(prospect));
   const sourceOnly = uniqueAll.filter((prospect) => isAudienceMiningSource(prospect));
-  const unique = [...audienceLeads.slice(0, config.limit), ...sourceOnly.slice(0, Math.max(20, Math.min(80, config.limit)))];
+  const unique = audienceLeads.slice(0, config.limit);
 
   return json(res, 200, {
     generated_at: new Date().toISOString(),
@@ -2327,6 +2327,13 @@ module.exports = async function handler(req, res) {
     providers,
     provider_status,
     fallback_relaxed: !strictProspects.length && relaxedProspects.length > 0,
+    sources_discovered: sourceOnly.length,
+    audience_extracted: audienceLeads.length,
+    extraction_note: audienceLeads.length
+      ? "Audience pubblica estratta da fonti social."
+      : sourceOnly.length
+        ? "Fonti trovate, ma nessun commentatore/like/follower rivelabile estratto dagli Actor configurati."
+        : "Nessuna fonte utile e nessuna audience estratta.",
     prospects: unique
   });
 };

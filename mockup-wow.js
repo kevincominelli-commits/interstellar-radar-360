@@ -5616,11 +5616,15 @@ async function runLiveOpenWebSearch() {
       .map((provider) => `${provider.name}: ${provider.error}`)
       .join(" · ");
     const providerNote = providerErrors ? ` Provider da configurare/controllare: ${providerErrors}.` : "";
+    const extractionNote = payload.extraction_note ? ` ${payload.extraction_note}` : "";
+    const sourceNote = payload.sources_discovered && !visibleLiveCount
+      ? ` Ho trovato ${payload.sources_discovered} fonti, ma non le mostro come prospect perché sarebbero solo annunci/post/pagine.`
+      : "";
     setFeedback(
       "#radarFeedback",
       visibleLiveCount
         ? `${visibleLiveCount} prospect rivelati${fresh.length ? `, nuova audience salvata nella pool` : ""}${payload.fallback_relaxed ? " con filtro allargato" : ""}. Fonti: ${providerSummary || payload.providers?.join(", ") || "fonti pubbliche"}.${providerNote}`
-        : `Discovery completata, ma non ci sono prospect rivelabili con questi filtri. Prova una fonte specifica o una nicchia più ampia.${providerNote}`
+        : `Discovery completata, ma non ci sono persone rivelabili con questi filtri.${sourceNote}${extractionNote}${providerNote}`
     );
   } catch (error) {
     setFeedback(
