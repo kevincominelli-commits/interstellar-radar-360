@@ -3233,7 +3233,7 @@ function expandRadarKeywords(config = {}) {
 
 function radarIsSourceOnly(prospect = {}) {
   const sourceType = String(prospect.source_type || "").toLowerCase();
-  return /audience_source|video_source|post_source|social_search|social_hashtag|ad_source|source_to_mine/.test(sourceType) && !/comment|follower|profile|business|directory|crm/.test(sourceType);
+  return /audience_source|video_source|post_source|profile_source|social_search|social_hashtag|ad_source|source_to_mine/.test(sourceType) && !/comment|follower|business|directory|crm/.test(sourceType);
 }
 
 function radarAudienceTags(prospect = {}, config = {}) {

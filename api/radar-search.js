@@ -10,7 +10,9 @@ const APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT = envNumber("APIFY_YOUTUBE_COMMENT_VIDEO
 const APIFY_YOUTUBE_COMMENTS_PER_VIDEO = envNumber("APIFY_YOUTUBE_COMMENTS_PER_VIDEO", 15, 5, 120);
 const APIFY_COMMENTS_PER_SOURCE = envNumber("APIFY_COMMENTS_PER_SOURCE", 15, 5, 250);
 const APIFY_FOLLOWERS_PER_SOURCE = envNumber("APIFY_FOLLOWERS_PER_SOURCE", 20, 5, 500);
+const APIFY_LIKES_PER_SOURCE = envNumber("APIFY_LIKES_PER_SOURCE", 20, 5, 500);
 const APIFY_PROFILES_PER_SOURCE = envNumber("APIFY_PROFILES_PER_SOURCE", 6, 1, 80);
+const APIFY_INSTAGRAM_POSTS_PER_PROFILE = envNumber("APIFY_INSTAGRAM_POSTS_PER_PROFILE", 4, 1, 20);
 
 const providerSourceMap = {
   reddit: ["Reddit", "Forum"],
@@ -145,12 +147,32 @@ function isCareerOrNoise(text = "") {
   );
 }
 
+function isJobOrHiringNoise(text = "", link = "") {
+  const host = hostnameOf(link);
+  const haystack = `${host} ${link} ${text}`.toLowerCase();
+  if (
+    /indeed|infojobs|glassdoor|monster|jooble|jobrapido|talent\.com|adzuna|careerjet|helplavoro|lavoro\.|linkedin\.com\/jobs|\/jobs\//i.test(
+      haystack
+    )
+  ) {
+    return true;
+  }
+  if (/\/(jobs?|careers?|lavora-con-noi|posizioni-aperte|candidature|recruiting|work-with-us)(\/|$|\?)/i.test(haystack)) {
+    return true;
+  }
+  return /\b(offert[ae] di lavoro|annuncio di lavoro|posizione aperta|posizioni aperte|lavora con noi|cerchiamo sviluppatore|cerchiamo programmatore|cerchiamo developer|assumiamo|assunzione|candidati|candidatura|curriculum|cv\b|recruiter|risorse umane|stage|tirocinio|junior developer|senior developer|full[-\s]?time|part[-\s]?time|contratto|ral\b|stipendio|vacancy|hiring|we are hiring|job offer|job opening|remote job)\b/i.test(
+    haystack
+  );
+}
+
 function isProgrammingSearch(config = {}) {
   return hasDevelopmentTerm(`${config.q} ${config.niche} ${config.keywords}`);
 }
 
 function isAudienceMiningSource(prospect = {}) {
-  return /audience_source|apify_social_video_source|apify_social_post_source/i.test(prospect.source_type || "");
+  return /audience_source|apify_social_(video|post|profile)_source|apify_social_search_signal|apify_social_hashtag|ad_source|source_to_mine/i.test(
+    prospect.source_type || ""
+  );
 }
 
 function isTradingSearch(config = {}) {
@@ -174,9 +196,11 @@ function hasTradingSignal(text = "") {
 
 function isUsefulProspectForSearch(prospect = {}, config = {}) {
   const sourceType = String(prospect.source_type || "");
+  const noiseText = `${prospect.source_item || ""} ${prospect.relevant_text || ""} ${prospect.bio_public || ""} ${sourceType}`;
+  if (isJobOrHiringNoise(noiseText, prospect.source_url || prospect.profile_link || prospect.website)) return false;
   if (isAudienceMiningSource(prospect) || /source_to_mine/i.test(sourceType)) return true;
-  if (/comment|follower|profile|channel|group|community/i.test(sourceType)) {
-    const text = `${prospect.source_item || ""} ${prospect.relevant_text || ""} ${prospect.bio_public || ""} ${sourceType}`;
+  if (/comment|follower|like|reaction|profile|channel|group|community/i.test(sourceType)) {
+    const text = noiseText;
     if (/garantito|100%|soldi facili|pump|casino|bonus|airdrop|follow4follow/i.test(text)) return false;
     if (isItalianMode(config) && prospect.estimated_language === "en" && !looksItalian(text)) {
       return /italia|italy|italiano|roma|milano|napoli|torino|bologna/i.test(`${prospect.source_url || ""} ${prospect.source_page || ""}`);
@@ -474,6 +498,8 @@ function getQuery(req) {
 }
 
 function providerEnabled(config, providerKey) {
+  const audienceProviderKeys = new Set(["serper", "youtubeAudience", "apify", "directUrls"]);
+  if (!audienceProviderKeys.has(providerKey)) return false;
   if (isItalianMode(config) && italianModeDisabledProviders.has(providerKey)) return false;
   if (!config.sources.length) return true;
   const values = providerSourceMap[providerKey] || [];
@@ -559,20 +585,21 @@ function sourceDiscoveryQueries(config) {
   const city = config.city ? ` ${config.city}` : "";
   const terms = audienceSeedTerms(config);
   const primary = terms[0] || config.niche || "business";
+  const antiJob = "-jobs -job -lavoro -offerte -assunzioni -assunzione -careers -career -recruiting -cv";
   const sourceQueries = [];
   terms.slice(0, 4).forEach((term) => {
-    sourceQueries.push(`site:instagram.com ${term} ${country}${city} creator community`);
-    sourceQueries.push(`site:tiktok.com ${term} ${country}${city}`);
-    sourceQueries.push(`site:youtube.com/watch ${term} ${country}${city}`);
+    sourceQueries.push(`site:instagram.com ${term} ${country}${city} creator community ${antiJob}`);
+    sourceQueries.push(`site:instagram.com/reel ${term} ${country}${city} ${antiJob}`);
+    sourceQueries.push(`site:tiktok.com ${term} ${country}${city} creator ${antiJob}`);
+    sourceQueries.push(`site:youtube.com/watch ${term} ${country}${city} commenti community ${antiJob}`);
   });
-  sourceQueries.push(`site:facebook.com/groups ${primary} ${country}${city}`);
-  sourceQueries.push(`site:linkedin.com/posts ${primary} ${country}${city}`);
-  sourceQueries.push(`site:reddit.com/r/ ${primary} ${country}${city} -inurl:?tl=`);
-  sourceQueries.push(`${primary} community ${country}${city}`);
-  sourceQueries.push(`${primary} forum ${country}${city}`);
-  sourceQueries.push(`${primary} canale Telegram ${country}${city}`);
-  sourceQueries.push(`${primary} creator ${country}${city}`);
-  sourceQueries.push(`${primary} pagine ${country}${city}`);
+  sourceQueries.push(`site:facebook.com/groups ${primary} ${country}${city} community ${antiJob}`);
+  sourceQueries.push(`site:linkedin.com/posts ${primary} ${country}${city} creator community ${antiJob}`);
+  sourceQueries.push(`site:reddit.com/r/ ${primary} ${country}${city} community -inurl:?tl= ${antiJob}`);
+  sourceQueries.push(`${primary} community ${country}${city} ${antiJob}`);
+  sourceQueries.push(`${primary} canale Telegram ${country}${city} ${antiJob}`);
+  sourceQueries.push(`${primary} creator ${country}${city} ${antiJob}`);
+  sourceQueries.push(`${primary} pagine Instagram ${country}${city} ${antiJob}`);
   return [...new Set(sourceQueries.map((query) => query.replace(/\s+/g, " ").trim()))].slice(0, SERPER_MAX_QUERIES);
 }
 
@@ -593,6 +620,7 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
   const isBusinessContact = /contatti|azienda|directory|paginegialle|scheda|maps|servizi|professionista|business/i.test(haystack);
   if (!link || !title) return null;
   if (!passesExplicitRecency(text, config)) return null;
+  if (isJobOrHiringNoise(text, link)) return null;
   const platform = isSocialPage
     ? host.includes("facebook")
       ? "Facebook"
@@ -683,23 +711,28 @@ function apifySearchTerms(config = {}) {
     ? [
         "programmazione",
         "sviluppo app",
+        "sviluppo software",
+        "creare app",
         "siti web",
         "automazioni AI",
         "software gestionale",
         "ecommerce Italia",
-        "startup Italia"
+        "startup Italia",
+        "imprenditori digitali"
       ]
     : [];
   const trading = isTradingSearch(config)
     ? [
+        "trading",
+        "trading Italia",
         "trading per principianti",
-        "come iniziare trading",
         "prop firm Italia",
         "forex trading Italia",
         "trading automatico",
         "bot trading MT5",
-        "xauusd strategia",
-        "copy trading"
+        "xauusd",
+        "copy trading",
+        "crypto trading Italia"
       ]
     : [];
   const city = config.city ? ` ${config.city}` : "";
@@ -714,7 +747,11 @@ function apifyHashtags(config = {}) {
   const fromKeywords = apifySplitList(config.keywords)
     .filter((item) => item.startsWith("#"))
     .map((item) => item.replace(/^#/, ""));
-  const fallback = isProgrammingSearch(config) ? ["startupitalia", "businessitalia", "ecommerceitalia", "automazioni", "intelligenzaartificiale"] : [];
+  const fallback = isProgrammingSearch(config)
+    ? ["startupitalia", "businessitalia", "ecommerceitalia", "automazioni", "intelligenzaartificiale", "sviluppoapp"]
+    : isTradingSearch(config)
+      ? ["tradingitalia", "forexitalia", "propfirm", "tradingperprincipianti", "bottrading", "mt5"]
+      : [];
   return [...new Set([...fromInput, ...fromKeywords, ...fallback].map((item) => item.replace(/[^\p{L}\p{N}_-]/gu, "").trim()).filter(Boolean))]
     .slice(0, 6);
 }
@@ -726,6 +763,11 @@ function apifyMonitorUrls(config = {}, pattern) {
 function apifyYouTubeCommentsActorId() {
   if (process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID === "off") return "";
   return process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID || "knotless_cadence/youtube-comments-scraper";
+}
+
+function apifyInstagramLikesActorId() {
+  if (process.env.APIFY_INSTAGRAM_LIKES_ACTOR_ID === "off") return "";
+  return process.env.APIFY_INSTAGRAM_LIKES_ACTOR_ID || "scrapapi/instagram-likes-scraper";
 }
 
 function apifyActorId(envName, fallback = "") {
@@ -913,17 +955,42 @@ function apifyRunSpecs(config = {}) {
         includeNestedComments: true
       }
     });
+    pushApifySpec(specs, "APIFY_INSTAGRAM_LIKES_ACTOR_ID", "scrapapi/instagram-likes-scraper", {
+      name: "Apify Instagram Likes",
+      platform: "Instagram",
+      kind: "social_like_signal",
+      limit: Math.min(APIFY_LIKES_PER_SOURCE, APIFY_MAX_RESULTS * 8),
+      input: {
+        startUrls: instagramPostUrls,
+        maxCount: APIFY_LIKES_PER_SOURCE,
+        proxyConfiguration: { useApifyProxy: true }
+      }
+    });
   }
 
   if (sourceSelected(config, "Instagram") && instagramProfiles.length) {
-    pushApifySpec(specs, "APIFY_INSTAGRAM_PROFILE_ACTOR_ID", "apify/instagram-profile-scraper", {
-      name: "Apify Instagram Profiles",
+    pushApifySpec(specs, "APIFY_INSTAGRAM_POSTS_ACTOR_ID", "apify/instagram-post-scraper", {
+      name: "Apify Instagram Posts",
       platform: "Instagram",
-      kind: "social_profile_extraction",
+      kind: "social_post_source",
+      limit: Math.min(APIFY_INSTAGRAM_POSTS_PER_PROFILE * instagramProfiles.length, APIFY_MAX_RESULTS * 4),
+      input: {
+        usernames: instagramProfiles.map((username) => username.replace(/^@/, "")),
+        resultsLimit: APIFY_INSTAGRAM_POSTS_PER_PROFILE,
+        onlyPostsNewerThan: apifyRelativeRecency(config),
+        addParentData: false
+      }
+    });
+    pushApifySpec(specs, "APIFY_INSTAGRAM_PROFILE_ACTOR_ID", "apify/instagram-profile-scraper", {
+      name: "Apify Instagram Source Profiles",
+      platform: "Instagram",
+      kind: "social_profile_source",
       limit: APIFY_PROFILES_PER_SOURCE,
       input: {
         usernames: instagramProfiles,
-        resultsLimit: APIFY_PROFILES_PER_SOURCE
+        resultsLimit: APIFY_PROFILES_PER_SOURCE,
+        resultsType: "details",
+        addParentData: false
       }
     });
     pushApifySpec(specs, "APIFY_INSTAGRAM_FOLLOWERS_ACTOR_ID", "scrapapi/instagram-followers-scraper", {
@@ -1278,6 +1345,9 @@ function apifyItemUrl(item = {}) {
         "twitterUrl",
         "tweetUrl",
         "commentUrl",
+        "likedPostUrl",
+        "likedPost.url",
+        "post.url",
         "permalink",
         "link",
         "sourceUrl",
@@ -1290,6 +1360,21 @@ function apifyItemUrl(item = {}) {
       item.videoId ? `https://www.youtube.com/watch?v=${item.videoId}` : ""
     )
   ).trim();
+}
+
+function looksLikeFakeSocialProfile(username = "", text = "", item = {}) {
+  const handle = String(username || "").replace(/^@/, "").toLowerCase();
+  const haystack = `${handle} ${text} ${JSON.stringify(item).slice(0, 1000)}`.toLowerCase();
+  if (!handle || handle.length < 3) return true;
+  if (/^\d{6,}$/.test(handle)) return true;
+  if (/^[a-z]{1,4}\d{6,}$/.test(handle)) return true;
+  if (/(airdrop|casino|bonus|giveaway|free money|pump|follow4follow|onlyfans|sex|xxx|loan|crypto giveaway|guaranteed profit)/i.test(haystack)) return true;
+  const followers = Number(firstValue(pickPath(item, ["followersCount", "followers", "followerCount"]), NaN));
+  const posts = Number(firstValue(pickPath(item, ["postsCount", "posts", "mediaCount"]), NaN));
+  const isPrivate = String(firstValue(pickPath(item, ["isPrivate", "private"]), "")).toLowerCase() === "true";
+  if (Number.isFinite(followers) && followers <= 1 && Number.isFinite(posts) && posts <= 0) return true;
+  if (isPrivate && !text) return true;
+  return false;
 }
 
 function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
@@ -1400,17 +1485,23 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
   if (!text && !username && !publicName) return null;
 
   const isComment = /comment/i.test(spec.kind) || Boolean(pickPath(item, ["comment", "commentText"]));
+  const isLike = /like|reaction/i.test(spec.kind);
   const isFollower = /follower|following/i.test(spec.kind);
   const isProfile = /profile|channel/i.test(spec.kind);
+  const isSourceProfile = /profile_source/i.test(spec.kind);
   const isBusinessSearch = Boolean(
     /business|company/i.test(spec.kind || "") || businessEmail || pickPath(item, ["externalUrl", "website", "businessAddress", "category", "businessCategoryName", "companySize"])
   );
   const sourceType = isComment
     ? "apify_social_comment_signal"
-    : isFollower
+    : isLike
+      ? "apify_social_like_signal"
+      : isFollower
       ? "apify_social_follower_extraction"
-      : isProfile
-        ? "apify_social_profile_extraction"
+      : isSourceProfile
+        ? "apify_social_profile_source"
+        : isProfile
+          ? "apify_social_profile_extraction"
     : isBusinessSearch
       ? "apify_social_business_signal"
       : spec.kind === "social_video_search"
@@ -1419,13 +1510,15 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
         ? "apify_social_group_post_signal"
         : "apify_social_search_signal";
 
-  if (isProgrammingSearch(config) && !isComment && !isFollower && !isProfile) {
+  if ((isComment || isLike || isFollower) && looksLikeFakeSocialProfile(username || publicName, text, item)) return null;
+
+  if (isProgrammingSearch(config) && !isComment && !isLike && !isFollower && !isProfile && !isSourceProfile) {
     const explicitBuyer = hasServiceBuyingIntent(text) || hasExplicitHireRequest(text) || (hasOwnedProjectProblem(text) && hasDevelopmentTerm(text));
     if (!explicitBuyer) return null;
     if (isSellerOrAdSignal(text) && !explicitBuyer) return null;
   }
 
-  if (isTradingSearch(config) && !isComment && !isFollower && !isProfile && !hasTradingSignal(text)) {
+  if (isTradingSearch(config) && !isComment && !isLike && !isFollower && !isProfile && !isSourceProfile && !hasTradingSignal(text)) {
     return null;
   }
 
@@ -1493,6 +1586,43 @@ function youtubeUrlsFromApifyResults(results = [], config = {}) {
   return uniqueUrls([...fromMonitor, ...fromSearch]).slice(0, APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT);
 }
 
+function instagramPostUrlFromItem(item = {}) {
+  const direct = apifyItemUrl(item);
+  if (/instagram\.com\/(p|reel|tv)\//i.test(direct)) return direct;
+  const shortcode = firstValue(pickPath(item, ["shortCode", "shortcode", "code", "postShortcode", "node.shortcode"]));
+  return shortcode ? `https://www.instagram.com/p/${String(shortcode).replace(/^\/+|\/+$/g, "")}/` : "";
+}
+
+function instagramPostUrlsFromApifyResults(results = [], config = {}) {
+  const fromMonitor = apifyMonitorUrls(config, /instagram\.com\/(p|reel|tv)\//i, 12);
+  const fromItems = results.flatMap((result) => {
+    if (result.status !== "fulfilled" || result.value.spec.platform !== "Instagram") return [];
+    return result.value.items.flatMap((item) => {
+      const nestedPosts = [
+        ...(Array.isArray(item.latestPosts) ? item.latestPosts : []),
+        ...(Array.isArray(item.posts) ? item.posts : []),
+        ...(Array.isArray(item.edge_owner_to_timeline_media?.edges) ? item.edge_owner_to_timeline_media.edges.map((edge) => edge.node || edge) : [])
+      ];
+      return [instagramPostUrlFromItem(item), ...nestedPosts.map((post) => instagramPostUrlFromItem(post))];
+    });
+  });
+  return uniqueUrls([...fromMonitor, ...fromItems])
+    .filter((url) => /instagram\.com\/(p|reel|tv)\//i.test(url))
+    .slice(0, Math.min(12, APIFY_INSTAGRAM_POSTS_PER_PROFILE * APIFY_PROFILES_PER_SOURCE));
+}
+
+function attachInstagramSourceContext(prospect = {}, postUrl = "") {
+  if (!prospect || prospect.platform !== "Instagram") return prospect;
+  if (!/comment|like|follower/i.test(prospect.source_type || "")) return prospect;
+  return {
+    ...prospect,
+    source_page: /like/i.test(prospect.source_type) ? "Instagram like pubblici" : "Instagram commenti/follower pubblici",
+    source_item: prospect.source_item || "Interazione pubblica Instagram",
+    relevant_text: compact(`${prospect.relevant_text || "Utente pubblico trovato su fonte Instagram coerente con la nicchia."} Fonte: ${postUrl}`, 700),
+    internal_notes: compact(`${prospect.internal_notes || ""} Audience estratta da post/fonte Instagram scoperta automaticamente.`, 420)
+  };
+}
+
 function attachYouTubeSourceContext(prospect = {}, item = {}, contextByUrl = {}) {
   if (!prospect || prospect.platform !== "YouTube" || !/comment/i.test(prospect.source_type || "")) return prospect;
   const itemUrl = apifyItemUrl(item);
@@ -1530,6 +1660,52 @@ async function searchYouTubeCommentsFromVideos(videoUrls = [], config = {}, cont
   return items
     .map((item) => prospectFromApifyItem(item, config, spec))
     .map((prospect, index) => attachYouTubeSourceContext(prospect, items[index], contextByUrl))
+    .filter(Boolean);
+}
+
+async function searchInstagramCommentsFromPosts(postUrls = [], config = {}) {
+  if (!postUrls.length || !sourceSelected(config, "Instagram")) return [];
+  const actorId = apifyActorId("APIFY_INSTAGRAM_COMMENTS_ACTOR_ID", "apify/instagram-comment-scraper");
+  if (!actorId) return [];
+  const spec = {
+    name: "Apify Instagram Comments",
+    actorId,
+    platform: "Instagram",
+    kind: "social_comment_signal",
+    limit: Math.min(APIFY_COMMENTS_PER_SOURCE, APIFY_MAX_RESULTS * 8),
+    input: {
+      directUrls: postUrls,
+      resultsLimit: APIFY_COMMENTS_PER_SOURCE,
+      includeNestedComments: true
+    }
+  };
+  const items = await runApifyActor(spec);
+  return items
+    .map((item) => prospectFromApifyItem(item, config, spec))
+    .map((prospect, index) => attachInstagramSourceContext(prospect, postUrls[index % postUrls.length]))
+    .filter(Boolean);
+}
+
+async function searchInstagramLikesFromPosts(postUrls = [], config = {}) {
+  if (!postUrls.length || !sourceSelected(config, "Instagram")) return [];
+  const actorId = apifyInstagramLikesActorId();
+  if (!actorId) return [];
+  const spec = {
+    name: "Apify Instagram Likes",
+    actorId,
+    platform: "Instagram",
+    kind: "social_like_signal",
+    limit: Math.min(APIFY_LIKES_PER_SOURCE, APIFY_MAX_RESULTS * 8),
+    input: {
+      startUrls: postUrls,
+      maxCount: APIFY_LIKES_PER_SOURCE,
+      proxyConfiguration: { useApifyProxy: true }
+    }
+  };
+  const items = await runApifyActor(spec);
+  return items
+    .map((item) => prospectFromApifyItem(item, config, spec))
+    .map((prospect, index) => attachInstagramSourceContext(prospect, postUrls[index % postUrls.length]))
     .filter(Boolean);
 }
 
@@ -1618,6 +1794,17 @@ async function searchApify(config) {
   if (youtubeUrls.length && !alreadyScrapedComments) {
     const commentProspects = await searchYouTubeCommentsFromVideos(youtubeUrls, enrichedConfig).catch(() => []);
     prospects.push(...commentProspects);
+  }
+  const instagramPostUrls = instagramPostUrlsFromApifyResults(settled, enrichedConfig);
+  const alreadyScrapedInstagramComments = prospects.some((prospect) => prospect.platform === "Instagram" && /comment/i.test(prospect.source_type));
+  const alreadyScrapedInstagramLikes = prospects.some((prospect) => prospect.platform === "Instagram" && /like/i.test(prospect.source_type));
+  if (instagramPostUrls.length && !alreadyScrapedInstagramComments) {
+    const commentProspects = await searchInstagramCommentsFromPosts(instagramPostUrls, enrichedConfig).catch(() => []);
+    prospects.push(...commentProspects);
+  }
+  if (instagramPostUrls.length && !alreadyScrapedInstagramLikes && process.env.APIFY_ENABLE_INSTAGRAM_LIKES !== "false") {
+    const likeProspects = await searchInstagramLikesFromPosts(instagramPostUrls, enrichedConfig).catch(() => []);
+    prospects.push(...likeProspects);
   }
   if (!prospects.length && settled.every((result) => result.status === "rejected")) {
     throw new Error(settled.map((result) => result.reason?.message || "Actor Apify non riuscito").join(" | "));
@@ -2033,7 +2220,7 @@ module.exports = async function handler(req, res) {
 
   const strictProspects = prospects.filter((prospect) => isUsefulProspectForSearch(prospect, config));
   const relaxedProspects =
-    strictProspects.length || !isProgrammingSearch(config)
+    strictProspects.length || isProgrammingSearch(config) || isTradingSearch(config)
       ? strictProspects
       : prospects
           .filter((prospect) => {
@@ -2048,14 +2235,16 @@ module.exports = async function handler(req, res) {
           }));
 
   const seen = new Set();
-  const unique = relaxedProspects
+  const uniqueAll = relaxedProspects
     .filter((prospect) => {
       const key = `${prospect.platform}|${prospect.username_public || ""}|${prospect.profile_link || ""}|${prospect.source_url}|${prospect.relevant_text.slice(0, 80)}`.toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
-    })
-    .slice(0, config.limit);
+    });
+  const audienceLeads = uniqueAll.filter((prospect) => !isAudienceMiningSource(prospect));
+  const sourceOnly = uniqueAll.filter((prospect) => isAudienceMiningSource(prospect));
+  const unique = [...audienceLeads.slice(0, config.limit), ...sourceOnly.slice(0, Math.max(20, Math.min(80, config.limit)))];
 
   return json(res, 200, {
     generated_at: new Date().toISOString(),

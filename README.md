@@ -46,7 +46,7 @@ npm run check
 - `mockup-wow.html`: struttura app.
 - `mockup-wow.css`: grafica, layout, temi.
 - `mockup-wow.js`: logica dashboard, Radar 360, CRM, localStorage.
-- `api/radar-search.js`: ricerca live su fonti open web supportate. In modalita Italia esclude provider inglesi rumorosi e usa Reddit Italia, WordPress, Serper, Open Web IT e URL diretti.
+- `api/radar-search.js`: motore Radar audience-first. Serper serve solo a scoprire fonti social/community; Apify estrae commentatori, like, follower pubblici disponibili e profili pubblici; i provider web generici sono esclusi dal flusso principale per evitare offerte di lavoro e articoli inutili.
 - `vercel.json`: configurazione deploy.
 
 ## Motore SaaS attuale
@@ -79,12 +79,17 @@ APIFY_MAX_RUNS=6
 APIFY_MAX_CHARGE_USD=0.12
 APIFY_COMMENTS_PER_SOURCE=15
 APIFY_FOLLOWERS_PER_SOURCE=20
+APIFY_LIKES_PER_SOURCE=20
 APIFY_PROFILES_PER_SOURCE=6
+APIFY_INSTAGRAM_POSTS_PER_PROFILE=4
 APIFY_INSTAGRAM_SEARCH_ACTOR_ID=apify/instagram-search-scraper
 APIFY_INSTAGRAM_HASHTAG_ACTOR_ID=apify/instagram-hashtag-scraper
+APIFY_INSTAGRAM_POSTS_ACTOR_ID=apify/instagram-post-scraper
 APIFY_INSTAGRAM_COMMENTS_ACTOR_ID=apify/instagram-comment-scraper
 APIFY_INSTAGRAM_PROFILE_ACTOR_ID=apify/instagram-profile-scraper
 APIFY_INSTAGRAM_FOLLOWERS_ACTOR_ID=scrapapi/instagram-followers-scraper
+APIFY_INSTAGRAM_LIKES_ACTOR_ID=scrapapi/instagram-likes-scraper
+APIFY_ENABLE_INSTAGRAM_LIKES=true
 APIFY_TIKTOK_ACTOR_ID=clockworks/tiktok-scraper
 APIFY_TIKTOK_COMMENTS_ACTOR_ID=dltik/tiktok-scraper
 APIFY_TIKTOK_PROFILE_ACTOR_ID=dltik/tiktok-scraper
@@ -112,7 +117,9 @@ APIFY_REDDIT_ACTOR_ID=prodiger/reddit-scraper
 APIFY_TELEGRAM_ACTOR_ID=viralanalyzer/telegram-channel-scraper
 ```
 
-Budget iniziale consigliato: circa 30 euro/mese. Per questo i default sono prudenti: massimo 6 Actor Apify per ricerca, pochi commenti/follower per fonte e costo massimo basso per run. Gli Actor pesanti o piu rischiosi per budget, come Facebook Search/Ads e X Search, sono agganciati ma disattivati finche non li abiliti con le variabili `APIFY_ENABLE_*`.
+Budget iniziale consigliato: circa 30 euro/mese. Per questo i default sono prudenti: massimo 6 Actor Apify per ricerca, pochi commenti/follower/like per fonte e costo massimo basso per run. Gli Actor pesanti o piu rischiosi per budget, come Facebook Search/Ads e X Search, sono agganciati ma disattivati finche non li abiliti con le variabili `APIFY_ENABLE_*`.
+
+Nota prodotto: il Radar non deve usare Serper/Google per mostrare “clienti”. Serper trova fonti da minare: pagine Instagram, video YouTube, creator TikTok, gruppi, canali e community. I prospect rivelati devono arrivare soprattutto da commenti, like, follower pubblici disponibili e profili attivi estratti da quelle fonti.
 
 Di default YouTube usa Serper per scoprire video e Apify solo per leggere commenti recenti. `APIFY_ENABLE_YOUTUBE_SEARCH_ACTOR=true` riattiva anche l'Actor YouTube Search, ma puo essere lento su Vercel. `APIFY_YOUTUBE_COMMENTS_ACTOR_ID` puo essere `off` per disattivare il comment mining.
 
