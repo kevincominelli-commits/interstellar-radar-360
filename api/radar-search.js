@@ -1,3 +1,5 @@
+const { createRadarStore, isAudienceSource } = require("./_radar-store");
+
 const DEFAULT_LIMIT = 30;
 const MAX_PROVIDER_RESULTS = 10;
 const DEFAULT_RECENCY_MONTHS = 12;
@@ -419,6 +421,11 @@ function getQuery(req) {
   const limit = Math.max(5, Math.min(250, Number(params.get("limit") || DEFAULT_LIMIT)));
   const audienceType = params.get("audienceType") || "mix";
   const radarMode = params.get("radarMode") || "auto";
+  const minScore = Math.max(0, Math.min(100, Number(params.get("minScore") || 0)));
+  const workspaceId = params.get("workspaceId") || "interstellar-internal";
+  const userId = params.get("userId") || "local-user";
+  const operationMode = params.get("operationMode") || "balanced";
+  const workspaceSeed = params.get("workspaceSeed") || "";
   const base = [niche, keywords, country, city].filter(Boolean).join(" ");
   return {
     q: compact(base, 180),
@@ -435,7 +442,12 @@ function getQuery(req) {
     limit,
     visibleLimit,
     audienceType,
-    radarMode
+    radarMode,
+    minScore,
+    workspaceId,
+    userId,
+    operationMode,
+    workspaceSeed
   };
 }
 
@@ -2213,6 +2225,52 @@ module.exports = async function handler(req, res) {
   if (req.method !== "GET") return json(res, 405, { error: "Method not allowed" });
 
   const config = getQuery(req);
+  const store = createRadarStore();
+  let dbPool = null;
+  let dbSearch = null;
+  let databaseError = "";
+
+  if (store.enabled) {
+    try {
+      dbPool = await store.ensurePool(config);
+      dbSearch = await store.createSearch(config, dbPool);
+      const poolPreview = await store.selectFromPool(dbPool, config, config.visibleLimit, {
+        commit: false,
+        searchId: dbSearch.id
+      });
+      if (poolPreview.length >= config.visibleLimit || config.radarMode === "pool") {
+        const revealed = await store.selectFromPool(dbPool, config, config.visibleLimit, {
+          commit: true,
+          searchId: dbSearch.id
+        });
+        await store.completeSearch(dbSearch.id, {
+          status: "completed",
+          credits_spent: revealed.length
+        });
+        return json(res, 200, {
+          generated_at: new Date().toISOString(),
+          query: config.q,
+          db_enabled: true,
+          pool_first: true,
+          pool_id: dbPool.id,
+          providers: [],
+          provider_status: [],
+          fallback_relaxed: false,
+          sources_discovered: 0,
+          audience_extracted: revealed.length,
+          extraction_note: revealed.length
+            ? "Prospect rivelati dalla pool interna. Nessun provider chiamato."
+            : "Pool vuota per questa audience.",
+          prospects: revealed
+        });
+      }
+    } catch (error) {
+      databaseError = error.message || "Database Radar non disponibile";
+      dbPool = null;
+      dbSearch = null;
+    }
+  }
+
   const providerTasks = [
     ["Reddit", "reddit", searchReddit],
     ["Hacker News", "hackerNews", searchHackerNews],
@@ -2272,11 +2330,38 @@ module.exports = async function handler(req, res) {
     });
   const audienceLeads = uniqueAll.filter((prospect) => !isAudienceMiningSource(prospect));
   const sourceOnly = uniqueAll.filter((prospect) => isAudienceMiningSource(prospect));
-  const unique = audienceLeads.slice(0, config.limit);
+  let visibleProspects = audienceLeads.slice(0, config.visibleLimit);
+  let poolId = dbPool?.id || "";
+
+  if (store.enabled && dbPool && !databaseError) {
+    try {
+      const sourcesByKey = await store.persistSources(uniqueAll, config);
+      await store.persistAudience(audienceLeads, dbPool, config, sourcesByKey);
+      const revealed = await store.selectFromPool(dbPool, config, config.visibleLimit, {
+        commit: true,
+        searchId: dbSearch?.id
+      });
+      if (revealed.length) visibleProspects = revealed;
+      await store.completeSearch(dbSearch?.id, {
+        status: "completed",
+        credits_spent: visibleProspects.length
+      });
+    } catch (error) {
+      databaseError = error.message || "Persistenza Radar non disponibile";
+      await store.completeSearch(dbSearch?.id, {
+        status: "failed",
+        error_message: databaseError
+      }).catch(() => null);
+    }
+  }
 
   return json(res, 200, {
     generated_at: new Date().toISOString(),
     query: config.q,
+    db_enabled: store.enabled && !databaseError,
+    database_error: databaseError,
+    pool_first: false,
+    pool_id: poolId,
     providers,
     provider_status,
     fallback_relaxed: !strictProspects.length && relaxedProspects.length > 0,
@@ -2287,6 +2372,6 @@ module.exports = async function handler(req, res) {
       : sourceOnly.length
         ? "Fonti trovate, ma nessun commentatore/like/follower rivelabile estratto dagli Actor configurati."
         : "Nessuna fonte utile e nessuna audience estratta.",
-    prospects: unique
+    prospects: visibleProspects
   });
 };

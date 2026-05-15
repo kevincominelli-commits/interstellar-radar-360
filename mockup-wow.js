@@ -4439,10 +4439,12 @@ function renderRadarHistoryView() {
 }
 
 function renderRadarAdminView() {
+  const backend = workspace.radar.backend || {};
   return `
     <div class="radar-empty-guide">
       <strong>Admin Radar</strong>
       <p>Vista interna: pool, overfetch, provider, costi e qualità fonti. Questi dati non sono mostrati all'utente finale.</p>
+      <p>Backend DB: ${backend.db_enabled ? "attivo" : "non configurato"}${backend.pool_first ? " · ultima ricerca servita dalla pool" : ""}${backend.database_error ? ` · errore: ${escapeHtml(backend.database_error)}` : ""}</p>
     </div>
     ${renderRadarPoolsView()}
   `;
@@ -5580,6 +5582,11 @@ async function runLiveOpenWebSearch() {
     recencyMonths: String(config.recencyMonths || 12),
     audienceType: config.audienceType || "mix",
     radarMode: config.radarMode || "auto",
+    workspaceId: radarWorkspaceId(),
+    userId: "local-user",
+    minScore: String(config.minScore || 0),
+    operationMode: config.operationMode || "balanced",
+    workspaceSeed: config.workspaceSeed || "",
     visibleLimit: String(requestedVisible),
     limit: String(config.internalTargetLeads || config.limit || 30)
   });
@@ -5600,6 +5607,13 @@ async function runLiveOpenWebSearch() {
       fallback_relaxed: Boolean(payload.fallback_relaxed)
     });
     workspace.radar.lastProviderStatus = payload.provider_status || [];
+    workspace.radar.backend = {
+      db_enabled: Boolean(payload.db_enabled),
+      pool_first: Boolean(payload.pool_first),
+      pool_id: payload.pool_id || "",
+      database_error: payload.database_error || "",
+      updated_at: new Date().toISOString()
+    };
     const fresh = addRadarProspects(payload.prospects || [], config);
     const updatedPool = ensureRadarPool(config);
     syncRadarPoolCounts(updatedPool.id);

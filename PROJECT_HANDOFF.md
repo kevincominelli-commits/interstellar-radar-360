@@ -161,6 +161,9 @@ Sempre con:
 - Esteso catalogo Apify Actor del Radar in modalita estrazione: Instagram search/hashtag/commenti/profili/follower, Facebook gruppi/commenti/pagine/search/ads opzionali, TikTok search/commenti/profili/follower, LinkedIn post/profile/company, X profile/search/follower con cookie, Reddit post+commenti, Telegram canali pubblici.
 - Impostato budget Apify iniziale prudente da circa 30 euro/mese: default `APIFY_MAX_RUNS=6`, `APIFY_MAX_CHARGE_USD=0.12`, pochi commenti/follower per fonte, actor costosi opzionali spenti finche non vengono abilitati.
 - Aggiornata cache asset a `radar360-23`.
+- Aggiunto backend store Supabase opzionale per Radar: `api/_radar-store.js` gestisce `lead_pools`, `leads`, `lead_sources`, `lead_pool_members`, `lead_reveals`, `radar_searches`, pool-first, scoring backend, weighted random, cooldown e anti-overlap tra workspace.
+- Aggiunto schema production `database/radar_schema.sql`. Con `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` su Vercel, l'API prima prova a rivelare prospect dalla pool DB e chiama Serper/Apify solo se la pool non basta.
+- Aggiunto endpoint `api/radar-admin.js` per snapshot admin backend e aggiornato cache asset a `radar360-28`.
 
 ## Regola operativa per il PDF completo
 
@@ -188,7 +191,7 @@ Prima fase immediata prima del lavoro dal PDF:
 2. Migliorare i risultati per la nicchia "clienti interessati a programmazione".
 3. Configurare `SERPER_API_KEY` su Vercel e fare redeploy, poi misurare qualita/volume dei risultati.
 4. Configurare `APIFY_TOKEN` su Vercel e testare gli Actor con limiti bassi: Instagram Search, Instagram Hashtag, TikTok Search, YouTube Search e Facebook Groups su URL pubblici.
-4. Salvare utenti e workspace in database vero, non solo localStorage.
+4. Configurare Supabase eseguendo `database/radar_schema.sql`, poi aggiungere `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` su Vercel per attivare pool backend/anti-overlap reale.
 5. Collegare Stripe reale ai piani gia presenti nel motore.
 6. Collegare Google Calendar/Meet con OAuth vero quando si passa da MVP locale a SaaS.
 7. Separare meglio:

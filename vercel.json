@@ -4,6 +4,9 @@
   "functions": {
     "api/radar-search.js": {
       "maxDuration": 60
+    },
+    "api/radar-admin.js": {
+      "maxDuration": 30
     }
   },
   "headers": [

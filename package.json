@@ -4,6 +4,6 @@
   "private": true,
   "scripts": {
     "start": "python3 -m http.server 4176",
-    "check": "node --check mockup-wow.js"
+    "check": "node --check mockup-wow.js && node --check api/radar-search.js && node --check api/_radar-store.js"
   }
 }

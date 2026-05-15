@@ -47,6 +47,9 @@ npm run check
 - `mockup-wow.css`: grafica, layout, temi.
 - `mockup-wow.js`: logica dashboard, Radar 360, CRM, localStorage.
 - `api/radar-search.js`: motore Radar audience-first. Serper serve solo a scoprire fonti social/community; Apify estrae commentatori, like, follower pubblici disponibili e profili pubblici; i provider web generici sono esclusi dal flusso principale per evitare offerte di lavoro e articoli inutili.
+- `api/_radar-store.js`: storage backend Supabase opzionale per pool, lead, fonti, reveal, search log, scoring e anti-overlap.
+- `api/radar-admin.js`: snapshot admin backend per pool, ricerche, reveal e fonti quando Supabase e configurato.
+- `database/radar_schema.sql`: schema SQL Supabase per rendere il Radar persistente e condiviso tra workspace.
 - `vercel.json`: configurazione deploy.
 
 ## Motore SaaS attuale
@@ -58,7 +61,7 @@ Il frontend include gia un motore locale per piani e limiti:
 - limiti per ricerche live, analisi Radar, export, campagne, offerte, appuntamenti e automazioni
 - usage log mensile in Settings
 
-Stripe/Supabase sono il prossimo collegamento cloud, non ancora credenziali reali.
+Stripe e auth utenti restano il prossimo collegamento commerciale. Supabase e gia predisposto lato Radar: se configuri le variabili Vercel, la pool smette di essere solo localStorage e diventa database backend.
 
 ## Stato motore Radar
 
@@ -69,6 +72,16 @@ Variabile richiesta per Serper:
 ```text
 SERPER_API_KEY=...
 ```
+
+Variabili Supabase per pool/anti-overlap backend:
+
+```text
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+RADAR_ADMIN_KEY=... # opzionale, protegge /api/radar-admin
+```
+
+Prima di inserirle, esegui `database/radar_schema.sql` nel SQL editor Supabase.
 
 Variabili Apify:
 
