@@ -972,7 +972,12 @@ function apifyRunSpecs(config = {}) {
       input: {
         directUrls: instagramPostUrls,
         resultsLimit: APIFY_COMMENTS_PER_SOURCE,
-        includeNestedComments: true
+        maxComments: APIFY_COMMENTS_PER_SOURCE,
+        maxReplies: 0,
+        includeNestedComments: false,
+        isNewestComments: true,
+        sessionId: process.env.APIFY_INSTAGRAM_SESSION_ID || undefined,
+        proxyConfiguration: { useApifyProxy: true }
       }
     });
     pushApifySpec(specs, "APIFY_INSTAGRAM_LIKES_ACTOR_ID", "scrapapi/instagram-likes-scraper", {
@@ -1407,6 +1412,9 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
         "screenName",
         "handle",
         "ownerUsername",
+        "ownerUserName",
+        "owner.username",
+        "owner.userName",
         "author",
         "authorName",
         "authorUsername",
@@ -1431,6 +1439,8 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
         "fullName",
         "full_name",
         "ownerFullName",
+        "owner.fullName",
+        "owner.name",
         "authorFullName",
         "authorMeta.nickName",
         "name",
@@ -1475,6 +1485,8 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
         "profileUrl",
         "profileURL",
         "profile_url",
+        "ownerProfileUrl",
+        "owner.profileUrl",
         "authorChannelUrl",
         "channelUrl",
         "authorUrl",
@@ -1696,7 +1708,12 @@ async function searchInstagramCommentsFromPosts(postUrls = [], config = {}) {
     input: {
       directUrls: postUrls,
       resultsLimit: APIFY_COMMENTS_PER_SOURCE,
-      includeNestedComments: true
+      maxComments: APIFY_COMMENTS_PER_SOURCE,
+      maxReplies: 0,
+      includeNestedComments: false,
+      isNewestComments: true,
+      sessionId: process.env.APIFY_INSTAGRAM_SESSION_ID || undefined,
+      proxyConfiguration: { useApifyProxy: true }
     }
   };
   const items = await runApifyActor(spec);

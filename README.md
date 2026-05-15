@@ -90,6 +90,7 @@ APIFY_INSTAGRAM_PROFILE_ACTOR_ID=apify/instagram-profile-scraper
 APIFY_INSTAGRAM_FOLLOWERS_ACTOR_ID=scrapapi/instagram-followers-scraper
 APIFY_INSTAGRAM_LIKES_ACTOR_ID=scrapapi/instagram-likes-scraper
 APIFY_ENABLE_INSTAGRAM_LIKES=true
+APIFY_INSTAGRAM_SESSION_ID=
 APIFY_TIKTOK_ACTOR_ID=clockworks/tiktok-scraper
 APIFY_TIKTOK_COMMENTS_ACTOR_ID=dltik/tiktok-scraper
 APIFY_TIKTOK_PROFILE_ACTOR_ID=dltik/tiktok-scraper
