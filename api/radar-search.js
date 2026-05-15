@@ -786,7 +786,7 @@ function apifyMonitorUrls(config = {}, pattern) {
 
 function apifyYouTubeCommentsActorId() {
   if (process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID === "off") return "";
-  return process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID || "thescrapelab/apify-youtube-comment-scraper-2-0";
+  return process.env.APIFY_YOUTUBE_COMMENTS_ACTOR_ID || "streamers/youtube-comments-scraper";
 }
 
 function apifyInstagramLikesActorId() {
@@ -1168,7 +1168,9 @@ function apifyRunSpecs(config = {}) {
       kind: "social_comment_signal",
       limit: APIFY_MAX_RESULTS,
       input: {
+        startUrls: youtubeUrls.slice(0, APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT).map((url) => ({ url })),
         videoUrls: youtubeUrls.slice(0, APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT),
+        maxComments: APIFY_YOUTUBE_COMMENTS_PER_VIDEO,
         maxCommentsPerVideo: APIFY_YOUTUBE_COMMENTS_PER_VIDEO,
         maxCommentPagesPerVideo: 2,
         includeReplies: false,
@@ -1711,7 +1713,9 @@ async function searchYouTubeCommentsFromVideos(videoUrls = [], config = {}, cont
     kind: "social_comment_signal",
     limit: APIFY_MAX_RESULTS,
     input: {
+      startUrls: videoUrls.map((url) => ({ url })),
       videoUrls,
+      maxComments: APIFY_YOUTUBE_COMMENTS_PER_VIDEO,
       maxCommentsPerVideo: APIFY_YOUTUBE_COMMENTS_PER_VIDEO,
       maxCommentPagesPerVideo: 2,
       includeReplies: false,
