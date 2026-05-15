@@ -2807,8 +2807,8 @@ const allRadarSourceValues = [
 
 const radarGuidedPresets = {
   programming: {
-    title: "Clienti per programmazione, AI e automazioni",
-    summary: "Cerca persone e aziende che chiedono siti web, app, gestionali, bot, chatbot, automazioni AI o software su misura.",
+    title: "Audience per programmazione, AI e automazioni",
+    summary: "Cerca pagine, creator, community e utenti attivi compatibili con siti web, app, gestionali, bot, chatbot, automazioni AI e software.",
     fields: {
       niche: "sviluppo software automazioni AI siti web app bot",
       sector: "PMI creator ecommerce aziende locali startup",
@@ -2816,12 +2816,12 @@ const radarGuidedPresets = {
       city: "",
       language: "it",
       keywords:
-        "cerco sviluppatore, mi serve un sito, voglio creare un'app, automazione AI, chatbot, gestionale, landing page, ecommerce, software su misura, sito web professionale, integrazione API, tool AI",
+        "sviluppo software, automazioni AI, no-code, app business, SaaS Italia, ecommerce, software gestionale, creator tech, startup Italia, tool AI, chatbot, CRM, integrazione API",
       hashtags: "#startupitalia, #businessitalia, #ecommerceitalia, #ai, #automazioni",
       competitors: "web agency, software house, no-code agency, automazioni AI",
       monitorUrls: "",
       intentPhrases:
-        "cerco sviluppatore, quanto costa un sito, mi serve un'app, cerco qualcuno che mi faccia, voglio automatizzare, mi serve un gestionale, consigli software, non so da dove partire, preventivo sito, chatbot per azienda",
+        "info, consigli, come funziona, tutorial, community, strumenti, confronto tool, automazioni, no-code, AI business, ecommerce, startup, commenti recenti",
       recencyMonths: "12",
       minScore: "45",
       limit: "60",
@@ -3037,14 +3037,14 @@ function radarText(prospect = {}) {
 
 function radarIsSellerOrAdNoise(prospect = {}) {
   const text = radarText(prospect);
-  const directBuyerSignal =
-    /cerco (un |una |)(programmatore|sviluppatore|freelance|persona|agenzia)|sto cercando (un |una |)(programmatore|sviluppatore)|mi serve (un |una |)(sito|app|software|gestionale|bot|automazione)|voglio creare (un |una |)(sito|app|software|piattaforma)|devo creare (un |una |)(sito|app|software|piattaforma)|preventivo (sito|app|software|gestionale)|budget/i.test(text);
+  const blockedOpportunitySignal =
+    /offert[ae] di lavoro|annuncio di lavoro|posizione aperta|lavora con noi|assumiamo|assunzione|curriculum|cv\b|recruiter|stage|tirocinio|full[-\s]?time|part[-\s]?time|freelance job|servizi freelance|network di freelance|cerco (un |una |)(programmatore|sviluppatore|freelance)|sto cercando (un |una |)(programmatore|sviluppatore)|assumi (un |uno |una |)(freelance|sviluppatore|programmatore)/i.test(text);
   const sellerSignal =
     /realizzazione siti|creazione siti|siti web ottimizzati|web agency|agenzia web|software house|branding, strategia|servizio di web design|social media manager|seo per aziende|consulenza gratuita|prenota (una |)consulenza|fissa (una |)call|richiedi preventivo gratis|scopri come|guarda il webinar|iscriviti al webinar|scarica la guida|link in bio|vuoi creare|vuoi sviluppare|ti serve (un |una |)(sito|app|piattaforma|software)|creo\/personalizzo|creo per te|creiamo per te|realizziamo per te|sviluppiamo per te|costruiamo per te|ti aiutiamo a|guadagna online|soldi facili|metodo garantito|risultati garantiti|i migliori \d+|migliori (sviluppatori|programmatori|freelance|web designer)|trova (un |uno |una |i |)(freelance|sviluppatore|programmatore|professionista)|assumi (un |uno |una |)(freelance|sviluppatore|programmatore)|network di freelance|professionisti esperti|ricevi preventivi|confronta preventivi/i.test(text);
   const sourceType = String(prospect.source_type || "").toLowerCase();
   if (/audience_source/.test(sourceType)) return true;
   if (/^sviluppatori? .*freelance:|^programmatori? .*freelance:|i migliori \d+|migliori (sviluppatori|programmatori|freelance|web designer)/i.test(text)) return true;
-  return sellerSignal && !directBuyerSignal;
+  return blockedOpportunitySignal || sellerSignal;
 }
 
 function detectRadarIntent(text = "", customPhrases = []) {
@@ -3178,18 +3178,18 @@ function syncQuickRadarFlow() {
       ? {
           sector: "programmazione, AI, automazioni, siti web, app, bot, software",
           keywords:
-            "cerco sviluppatore, mi serve un sito, voglio creare un'app, automazione AI, chatbot, gestionale, software su misura, preventivo sito, bot, integrazione API",
+            "sviluppo software, automazioni AI, no-code, app business, SaaS Italia, ecommerce, software gestionale, creator tech, startup Italia, tool AI, chatbot, CRM, integrazione API",
           hashtags: "#startupitalia, #businessitalia, #ecommerceitalia, #ai, #automazioni",
           competitors: "web agency, software house, no-code agency, automazioni AI",
           intent:
-            "cerco sviluppatore, quanto costa un sito, mi serve un'app, cerco qualcuno che mi faccia, voglio automatizzare, mi serve un gestionale, consigli software, non so da dove partire, preventivo sito"
+            "info, consigli, come funziona, tutorial, community, strumenti, confronto tool, automazioni, no-code, AI business, ecommerce, startup, commenti recenti"
         }
       : {
           sector: "business, creator, aziende locali, servizi, community",
-          keywords: `${goal}, info, mi interessa, quanto costa, consigli, cerco qualcuno, non so da dove partire, preventivo, zona`,
+          keywords: `${goal}, info, consigli, opinioni, recensioni, community, creator, pagina, canale, gruppo, zona`,
           hashtags: "#businessitalia, #imprenditoria, #marketingitalia",
           competitors: "creator di settore, pagine competitor, community pubbliche",
-          intent: "info, mi interessa, quanto costa, consigli, cerco qualcuno, non so da dove partire, preventivo, zona"
+          intent: "info, consigli, opinioni, recensioni, community, creator, commenti recenti, zona"
         };
 
   setRadarField(form, "niche", goal);
@@ -5505,7 +5505,7 @@ function radarSearchQuery(kind) {
   const queries = {
     programmingRequests: `site:instagram.com OR site:tiktok.com OR site:youtube.com/watch "programmazione" "app" "automazioni AI" ${country}${city}`,
     hotPagesRequests: `site:facebook.com/groups OR site:linkedin.com/posts "startup" "sviluppo app" "software" ${country}${city}`,
-    marketplaceRequests: `(site:techlance.it OR site:addlance.com OR site:freelancer.co.it) "app" "sito" "software" ${country}${city}`,
+    marketplaceRequests: `(site:instagram.com OR site:tiktok.com OR site:youtube.com/watch) "sviluppo software" "automazioni AI" "startup" ${country}${city}`,
     forumRequests: `("programmazione" OR "sviluppo app" OR "automazioni") (forum OR reddit OR community) ${country}${city}`,
     businessWeb: `("software house" OR "web agency" OR "startup" OR "ecommerce") ${country}${city}`,
     italianForumRequests: `("programmazione" OR "software gestionale" OR "startup") ("forum italiano" OR forum OR community OR reddit) ${country}${city}`,
@@ -5519,7 +5519,7 @@ function openRadarSearch(kind) {
   window.open(`https://www.google.com/search?q=${query}`, "_blank", "noopener");
   setFeedback(
     "#radarFeedback",
-    "Ricerca aperta. Quando trovi una richiesta reale, copia fonte, nome/link/testo nel box 'Fonti importate' e poi premi Importa."
+    "Ricerca aperta. Quando trovi una fonte, creator o community utile, copia link e testo nel box 'Fonti importate' e poi premi Importa."
   );
 }
 
@@ -5678,9 +5678,9 @@ Object.assign(helpContent, {
   },
   radarKeywords: {
     title: "Keyword e frasi",
-    intro: "Sono segnali che il radar cerca nel testo pubblico.",
-    steps: ["Inserisci termini di nicchia.", "Aggiungi frasi tipo prezzo/info/cerco.", "Non deve essere troppo stretto."],
-    example: "cerco sviluppatore, quanto costa un sito, mi serve un'app"
+    intro: "Sono segnali di nicchia per trovare fonti e audience compatibili.",
+    steps: ["Inserisci termini di nicchia.", "Aggiungi community, creator, canali, strumenti e argomenti collegati.", "Non usare frasi da annuncio o lavoro."],
+    example: "sviluppo software, automazioni AI, no-code, app business"
   },
   radarHashtags: {
     title: "Hashtag",

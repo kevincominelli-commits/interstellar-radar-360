@@ -29,32 +29,27 @@ const providerSourceMap = {
 };
 
 const italianSignals = [
-  "cerco sviluppatore",
-  "mi serve un sito",
-  "quanto costa un sito",
-  "preventivo sito",
-  "voglio creare un'app",
-  "mi serve un gestionale",
-  "voglio automatizzare",
-  "cerco qualcuno che mi faccia",
-  "aiuto sito wordpress",
-  "problema sito ecommerce",
-  "non funziona il mio sito",
-  "software gestionale azienda",
-  "chatbot per azienda",
-  "software su misura"
+  "creator italiani",
+  "community italiana",
+  "pagine italiane",
+  "gruppi italiani",
+  "canali italiani",
+  "contenuti recenti",
+  "commenti recenti",
+  "utenti attivi",
+  "discussioni italiane",
+  "hashtag italiani"
 ];
 
 const englishSignals = [
-  "looking for a developer",
-  "need a website developer",
-  "hire web developer",
-  "need app developer",
-  "build a custom software",
-  "automation developer",
-  "chatbot for my business",
-  "website quote",
-  "software for my business"
+  "active creators",
+  "niche community",
+  "public comments",
+  "audience pages",
+  "related channels",
+  "recent posts",
+  "public followers",
+  "similar accounts"
 ];
 
 const italianModeDisabledProviders = new Set(["hackerNews", "stackExchange", "devTo", "github"]);
@@ -70,26 +65,24 @@ const italianAllowedRedditCommunities = new Set([
   "italia",
   "italy",
   "italyinformatica",
-  "italiacareeradvice",
   "italiapersonalfinance",
   "imprenditoria",
   "commercialisti"
 ]);
 
 const italianProgrammingSignals = [
-  "cerco programmatore",
-  "cerco freelance sito web",
-  "cerco web agency",
-  "devo creare un sito",
-  "devo fare un ecommerce",
-  "rifare sito aziendale",
-  "preventivo app",
-  "preventivo gestionale",
-  "automazione processi aziendali",
-  "integrare api",
-  "sito per la mia attività",
-  "crm per azienda",
-  "software per azienda"
+  "programmazione italiana",
+  "sviluppo software",
+  "automazioni AI",
+  "no-code Italia",
+  "startup Italia",
+  "ecommerce Italia",
+  "creator tech italiani",
+  "SaaS Italia",
+  "software gestionale",
+  "AI business Italia",
+  "community sviluppatori",
+  "imprenditori digitali"
 ];
 
 function envNumber(name, fallback, min = 0, max = Number.MAX_SAFE_INTEGER) {
@@ -109,34 +102,15 @@ function compact(value = "", max = 520) {
 
 function inferIntent(text = "") {
   const lower = text.toLowerCase();
-  if (/quanto costa|prezzo|preventivo|budget|costo|quote|pricing|price/.test(lower)) return "prezzo / preventivo";
+  if (/comment|reply|risposta|info|opinioni|consigli|recensioni|vale la pena|come funziona|tutorial/.test(lower)) return "audience attiva";
   if (/come inizio|come iniziare|quale broker|prop firm|challenge|funded|segnali|copy trading|bot trading|expert advisor|metatrader|mt5|forex|crypto|xauusd/.test(lower)) return "interesse trading";
-  if (/cerco|mi serve|sto cercando|looking for|need (a|an)|hire|someone to build|developer needed|freelancer/.test(lower)) return "ricerca servizio";
-  if (/non riesco|problema|aiuto|bloccato|help|issue|stuck|can't/.test(lower)) return "problema espresso";
-  if (/app|sito|website|software|automazione|automation|chatbot|gestionale|bot|crm|landing|ecommerce|shopify|wordpress/.test(lower)) return "sviluppo / automazione";
-  return "interesse potenziale";
-}
-
-function hasClientIntent(text = "") {
-  return /quanto costa|prezzo|preventivo|budget|cerco|mi serve|sto cercando|looking for|need (a|an)|hire|someone to build|developer needed|freelancer|for my business|my website|my app|non riesco|problema|aiuto|bloccato|stuck|can't|help/i.test(
-    text
-  );
+  if (/creator|community|gruppo|canale|pagina|follower|hashtag|reel|video|post/.test(lower)) return "fonte audience";
+  if (/app|sito|website|software|automazione|automation|chatbot|gestionale|bot|crm|landing|ecommerce|shopify|wordpress|saas|no-code|startup/.test(lower)) return "audience tech/business";
+  return "audience compatibile";
 }
 
 function hasDevelopmentTerm(text = "") {
-  return /sviluppatore|programmatore|sito|app\b|applicazione|software|automazione|chatbot|gestionale|bot\b|crm\b|landing|ecommerce|shopify|wordpress|api\b|web developer|website|app developer|custom software|automation|developer|freelancer/i.test(
-    text
-  );
-}
-
-function hasServiceBuyingIntent(text = "") {
-  return /cerco (uno |una |un |qualcuno |)(sviluppatore|programmatore|freelancer|web agency|software house)|mi serve (un |una |)(sito|app|applicazione|gestionale|software|bot|chatbot|automazione)|voglio creare (un |una |)(sito|app|software|bot|chatbot|gestionale)|quanto costa (un |una |)(sito|app|software|bot|chatbot|gestionale)|preventivo (sito|app|software|bot|chatbot|gestionale)|qualcuno che (mi |)(faccia|sviluppi|crei).*(sito|app|software|bot|chatbot|gestionale)|looking for (a |an |)(developer|freelancer|agency)|need (a |an |)(website|app|developer|software|automation|chatbot)|hire (a |an |)(developer|freelancer|agency)|someone to build/i.test(
-    text
-  );
-}
-
-function hasOwnedProjectProblem(text = "") {
-  return /(il mio|la mia|per la mia|per il mio|my|for my).{0,30}(sito|app|website|software|store|ecommerce|shop|crm|bot|chatbot|gestionale|business|azienda)|errore.{0,40}(sito|app|website|wordpress|shopify)|non funziona.{0,40}(sito|app|website|wordpress|shopify)/i.test(
+  return /programmazione|sviluppo|sito|app\b|applicazione|software|automazione|chatbot|gestionale|bot\b|crm\b|landing|ecommerce|shopify|wordpress|api\b|website|custom software|automation|saas|no-code|startup|tool ai|ai business/i.test(
     text
   );
 }
@@ -151,7 +125,7 @@ function isJobOrHiringNoise(text = "", link = "") {
   const host = hostnameOf(link);
   const haystack = `${host} ${link} ${text}`.toLowerCase();
   if (
-    /indeed|infojobs|glassdoor|monster|jooble|jobrapido|talent\.com|adzuna|careerjet|helplavoro|lavoro\.|linkedin\.com\/jobs|\/jobs\//i.test(
+    /indeed|infojobs|glassdoor|monster|jooble|jobrapido|talent\.com|adzuna|careerjet|helplavoro|lavoro\.|linkedin\.com\/jobs|\/jobs\/|freelancer\.|upwork|fiverr|addlance|techlance|malt\./i.test(
       haystack
     )
   ) {
@@ -160,7 +134,7 @@ function isJobOrHiringNoise(text = "", link = "") {
   if (/\/(jobs?|careers?|lavora-con-noi|posizioni-aperte|candidature|recruiting|work-with-us)(\/|$|\?)/i.test(haystack)) {
     return true;
   }
-  return /\b(offert[ae] di lavoro|annuncio di lavoro|posizione aperta|posizioni aperte|lavora con noi|cerchiamo sviluppatore|cerchiamo programmatore|cerchiamo developer|assumiamo|assunzione|candidati|candidatura|curriculum|cv\b|recruiter|risorse umane|stage|tirocinio|junior developer|senior developer|full[-\s]?time|part[-\s]?time|contratto|ral\b|stipendio|vacancy|hiring|we are hiring|job offer|job opening|remote job)\b/i.test(
+  return /\b(offert[ae] di lavoro|annuncio di lavoro|posizione aperta|posizioni aperte|lavora con noi|cerchiamo sviluppatore|cerchiamo programmatore|cerchiamo developer|assumiamo|assunzione|candidati|candidatura|curriculum|cv\b|recruiter|risorse umane|stage|tirocinio|junior developer|senior developer|full[-\s]?time|part[-\s]?time|contratto|ral\b|stipendio|vacancy|hiring|we are hiring|job offer|job opening|remote job|freelance job|servizi freelance|network di freelance|assumi un freelance)\b/i.test(
     haystack
   );
 }
@@ -187,11 +161,11 @@ function hasTradingSignal(text = "") {
     /\b(trading|forex|crypto|criptovalute|bitcoin|prop firm|funded|challenge|xauusd|gold|oro|nasdaq|sp500|metatrader|mt4|mt5|expert advisor|ea\b|bot trading|copy trading|scalping|segnali|broker)\b/i.test(
       lower
     );
-  const buyerOrNeed =
-    /\b(come inizio|come iniziare|iniziare|principiante|non so|mi serve|cerco|vorrei|mi interessa|info|consigli|consigliate|quale broker|che broker|prop firm consigli|challenge|corso|mentorship|segnali|bot|automatizzare|perdo|non riesco|aiuto|funziona davvero|vale la pena|opinioni|recensioni)\b/i.test(
+  const audienceSignal =
+    /\b(come inizio|come iniziare|iniziare|principiante|non so|vorrei|mi interessa|info|consigli|consigliate|quale broker|che broker|prop firm consigli|challenge|corso|mentorship|segnali|bot|automatizzare|perdo|non riesco|aiuto|funziona davvero|vale la pena|opinioni|recensioni|commenti|community|creator)\b/i.test(
       lower
     );
-  return tradingContext && buyerOrNeed;
+  return tradingContext && audienceSignal;
 }
 
 function isUsefulProspectForSearch(prospect = {}, config = {}) {
@@ -213,15 +187,13 @@ function isUsefulProspectForSearch(prospect = {}, config = {}) {
     if (prospect.platform === "YouTube" && !/comment/i.test(prospect.source_type || "")) return false;
     return hasTradingSignal(text) || (/comment/i.test(prospect.source_type || "") && /trading|forex|crypto|prop firm|mt5|xauusd/i.test(text));
   }
-  if (!isProgrammingSearch(config)) return true;
   const text = `${prospect.source_item || ""} ${prospect.relevant_text || ""} ${prospect.bio_public || ""} ${prospect.source_type || ""}`;
   if (/revshare|revenue share/i.test(text)) return false;
-  if ((prospect.email_business_public || prospect.contact_form_url) && /business|website|directory|contact|direct_url/i.test(prospect.source_type || "")) {
-    return true;
+  if (isCareerOrNoise(text)) return false;
+  if (isProgrammingSearch(config)) {
+    return hasDevelopmentTerm(text) || /startup|ecommerce|creator|business|community|automazioni|software|saas|no-code|ai/i.test(text);
   }
-  const strongBuyingIntent = hasServiceBuyingIntent(text) || (hasOwnedProjectProblem(text) && hasDevelopmentTerm(text));
-  if (isCareerOrNoise(text) && !strongBuyingIntent) return false;
-  return strongBuyingIntent || (hasClientIntent(text) && hasDevelopmentTerm(text) && /azienda|business|progetto|project|cliente|client|shop|store|ecommerce|startup/i.test(text));
+  return true;
 }
 
 function isItalianMode(config = {}) {
@@ -235,7 +207,7 @@ function italianTextScore(text = "") {
   let score = 0;
   if (/[àèéìòù]/.test(lower)) score += 2;
   if (
-    /\b(cerco|serve|servirebbe|vorrei|qualcuno|consigli|preventivo|prezzo|costo|quanto costa|sito|sviluppatore|programmatore|gestionale|automazione|azienda|attività|italia|roma|milano|napoli|torino|bologna|veneto|lombardia|lazio)\b/.test(
+    /\b(info|consigli|opinioni|recensioni|community|creator|pagina|canale|gruppo|commenti|sito|software|gestionale|automazione|azienda|attività|italia|roma|milano|napoli|torino|bologna|veneto|lombardia|lazio)\b/.test(
       lower
     )
   ) {
@@ -259,7 +231,7 @@ function languageMatchesConfig(prospect = {}, config = {}) {
   }`;
   const lower = text.toLowerCase();
   if (prospect.estimated_language === "en" && !looksItalian(text)) return false;
-  if (/\b(looking for|need a|need an|hire|website quote|custom software|developer needed|for my business|hacker news|stack exchange|dev community|github issues)\b/.test(lower)) {
+  if (/\b(hacker news|stack exchange|dev community|github issues)\b/.test(lower)) {
     return looksItalian(text);
   }
   return looksItalian(text);
@@ -267,8 +239,8 @@ function languageMatchesConfig(prospect = {}, config = {}) {
 
 function inferLanguage(text = "", fallback = "it") {
   const lower = text.toLowerCase();
-  if (/[àèéìòù]|\b(cerco|quanto|sito|sviluppatore|preventivo|azienda|gestionale)\b/.test(lower)) return "it";
-  if (/\b(need|looking|hire|website|developer|business|software|automation)\b/.test(lower)) return "en";
+  if (/[àèéìòù]|\b(info|consigli|opinioni|recensioni|sito|azienda|gestionale|automazione|community|creator|canale|pagina)\b/.test(lower)) return "it";
+  if (/\b(website|business|software|automation|community|creator|channel|page|comments|followers)\b/.test(lower)) return "en";
   if (fallback === "it") return looksItalian(lower) ? "it" : "unknown";
   return fallback === "any" ? "en" : fallback;
 }
@@ -359,42 +331,12 @@ function isItalianWebResult(link = "", text = "") {
   const subreddit = redditCommunityFromUrl(link);
   if (isTranslatedRedditUrl(link)) return false;
   if (subreddit && !italianAllowedRedditCommunities.has(subreddit)) return false;
-  if (/freelancer\./i.test(host) && !/(freelancer\.co\.it|freelancer\.com)$/i.test(host)) return false;
-  if (/instagram\.com/i.test(host) && !hasExplicitHireRequest(text)) return false;
+  if (isJobOrHiringNoise(text, link)) return false;
+  if (/instagram\.com|tiktok\.com|youtube\.com|facebook\.com|t\.me|telegram\.me/i.test(host)) return true;
   if (host.endsWith(".it")) return true;
   if (/reddit\.com$/i.test(host) && italianAllowedRedditCommunities.has(subreddit)) return true;
   if (/forum\.html\.it|html\.it|giorgiotave\.it|forumfree\.it|forumcommunity\.net|alfemminile\.com|finanzaonline\.com|investireoggi\.it|mql5\.com|hwupgrade\.it|inforge\.net/i.test(host)) return true;
-  return looksItalian(text) && !/\b(looking for|need a|hire|developer wanted|busco|caut|desarrollador|programare)\b/i.test(text);
-}
-
-function hasExplicitHireRequest(text = "") {
-  return /cerco (uno |una |un |qualcuno |)(sviluppatore|programmatore|freelance|web agency|software house)|cerco (sviluppatore|programmatore|freelance)|sto cercando (uno |una |un |qualcuno |)(sviluppatore|programmatore|freelance)|buongiorno cerco|solo a chi parla italiano.{0,80}cerco|cerco.{0,80}(sito ecommerce|app|bot|gestionale|software)|sistemare (gestionale|sito|app|software)|budget.{0,80}(sito|app|software|gestionale|sviluppatore|programmatore)|pubblicato da/i.test(
-    text
-  );
-}
-
-function isMarketplaceOrCommunityLead(link = "", text = "") {
-  const host = hostnameOf(link);
-  return /facebook\.com|linkedin\.com|freelancer\.|addlance\.com|techlance\.it|malt\.it|inforge\.net|forum\.|reddit\.com|italia\.it|iprogrammatori\.it|arduino\.cc/i.test(
-    `${host} ${link} ${text}`
-  );
-}
-
-function isMarketplaceSellerListing(link = "", text = "") {
-  const haystack = `${hostnameOf(link)} ${link} ${text}`;
-  if (/^sviluppatori? .*freelance:|^programmatori? .*freelance:|i migliori \d+|migliori (sviluppatori|programmatori|freelance|web designer)/i.test(text)) return true;
-  if (hasExplicitHireRequest(text) || /budget|pubblicato da|sto cercando|mi serve|voglio creare|devo creare/i.test(text)) return false;
-  return /i migliori \d+|migliori (sviluppatori|programmatori|freelance|web designer)|trova (un |uno |una |i |)(freelance|sviluppatore|programmatore|professionista|web designer)|assumi (un |uno |una |)(freelance|sviluppatore|programmatore)|network di freelance|professionisti esperti|ricevi preventivi|confronta preventivi|preventivi gratis|servizi freelance/i.test(
-    haystack
-  );
-}
-
-function isMarketingContentNoise(link = "", text = "") {
-  const haystack = `${hostnameOf(link)} ${link} ${text}`;
-  if (hasExplicitHireRequest(text)) return false;
-  return /quanto costa (un |una |)(sito|app)|preventivo (gratis|per un sito|sito web|troppo alto)|realizzazione siti|creazione siti|web agency|agenzia web|sito web per aziende|migliori costruttori|consulenza gratuita|prenota consulenza|richiedi preventivo|servizio di web design|social media manager|seo|branding|marketing|modulo contatti|avere un sito|mi serve un sito se ho|vuoi creare|vuoi sviluppare|ti serve (un |una |)(sito|app|piattaforma)|creo\/personalizzo|creiamo per te|realizziamo|sviluppiamo|costruiamo|ti aiutiamo a|scopri come|guarda il webinar|iscriviti al webinar|fissa una call|scarica la guida|network di freelance|professionisti esperti|ricevi preventivi|confronta preventivi/i.test(
-    haystack
-  );
+  return looksItalian(text) && !/\b(busco|caut|desarrollador|programare)\b/i.test(text);
 }
 
 function isSellerOrAdSignal(text = "") {
@@ -551,21 +493,14 @@ async function fetchSerper(query, config = {}) {
 }
 
 function liveQueries(config) {
+  const country = config.country || "Italia";
   const city = config.city ? ` ${config.city}` : "";
-  const country = config.country ? ` ${config.country}` : "";
-  const signals = isItalianMode(config)
-    ? [...italianSignals, ...italianProgrammingSignals]
-    : config.language === "en"
-      ? englishSignals
-      : config.language === "any"
-        ? [...italianSignals, ...englishSignals]
-        : italianSignals;
-  const custom = String(config.keywords || "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 8);
-  return [...new Set([config.q, ...custom, ...signals.map((signal) => `${signal}${country}${city}`)])].filter(Boolean).slice(0, isItalianMode(config) ? 18 : 16);
+  const terms = audienceSeedTerms(config);
+  return [
+    ...terms.map((term) => `${term} community ${country}${city}`),
+    ...terms.map((term) => `${term} creator ${country}${city}`),
+    ...terms.map((term) => `${term} forum ${country}${city}`)
+  ].map((query) => query.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, isItalianMode(config) ? 18 : 16);
 }
 
 function audienceSeedTerms(config = {}) {
@@ -573,13 +508,34 @@ function audienceSeedTerms(config = {}) {
     .map((item) => item.replace(/^#/, "").trim())
     .filter((item) => item.length >= 3);
   if (isTradingSearch(config)) {
+    const botTradingSearch = /bot trading|trading automatico|expert advisor|mql5|mt5|metatrader|ea mt5/i.test(
+      `${config.q || ""} ${config.niche || ""} ${config.keywords || ""} ${config.hashtags || ""}`
+    );
+    if (botTradingSearch) {
+      return [
+        "trading automatico",
+        "expert advisor",
+        "MQL5 Italia",
+        "bot trading mt5",
+        "EA MT5",
+        "metatrader 5",
+        "trader italiani",
+        "forex italia",
+        "prop firm italia",
+        "copy trading italia"
+      ];
+    }
     return [
       "trader italiani",
       "forex italia",
       "prop firm italia",
       "tradingitalia",
       "trading per principianti",
+      "trading automatico",
+      "expert advisor",
+      "MQL5 Italia",
       "bot trading mt5",
+      "EA MT5",
       "crypto trading italia",
       "copy trading italia"
     ];
@@ -609,21 +565,29 @@ function sourceDiscoveryQueries(config) {
   const city = config.city ? ` ${config.city}` : "";
   const terms = audienceSeedTerms(config);
   const primary = terms[0] || config.niche || "business";
-  const antiJob = "-jobs -job -lavoro -offerte -assunzioni -assunzione -careers -career -recruiting -cv";
+  const negativeQuerySuffix = "-jobs -job -hiring -career -careers -lavoro -offerte -assunzioni -assunzione -recruiting -cv -freelance -freelancer -indeed -glassdoor -infojobs -monster -jooble";
   const sourceQueries = [];
+  const selectedSources = new Set(config.sources || []);
+  const wants = (source) => !selectedSources.size || selectedSources.has(source);
   terms.slice(0, 4).forEach((term) => {
-    sourceQueries.push(`site:instagram.com ${term} ${country}${city} creator community ${antiJob}`);
-    sourceQueries.push(`site:instagram.com/reel ${term} ${country}${city} ${antiJob}`);
-    sourceQueries.push(`site:tiktok.com ${term} ${country}${city} creator ${antiJob}`);
-    sourceQueries.push(`site:youtube.com/watch ${term} ${country}${city} commenti community ${antiJob}`);
+    if (wants("Instagram")) {
+      sourceQueries.push(`site:instagram.com ${term} ${country}${city} creator community ${negativeQuerySuffix}`);
+      sourceQueries.push(`site:instagram.com/reel ${term} ${country}${city} ${negativeQuerySuffix}`);
+    }
+    if (wants("TikTok")) sourceQueries.push(`site:tiktok.com ${term} ${country}${city} creator ${negativeQuerySuffix}`);
+    if (wants("YouTube")) {
+      sourceQueries.push(`site:youtube.com/watch ${term} ${country}${city} commenti community ${negativeQuerySuffix}`);
+      sourceQueries.push(`site:youtube.com/@ ${term} ${country}${city} canale creator ${negativeQuerySuffix}`);
+    }
   });
-  sourceQueries.push(`site:facebook.com/groups ${primary} ${country}${city} community ${antiJob}`);
-  sourceQueries.push(`site:linkedin.com/posts ${primary} ${country}${city} creator community ${antiJob}`);
-  sourceQueries.push(`site:reddit.com/r/ ${primary} ${country}${city} community -inurl:?tl= ${antiJob}`);
-  sourceQueries.push(`${primary} community ${country}${city} ${antiJob}`);
-  sourceQueries.push(`${primary} canale Telegram ${country}${city} ${antiJob}`);
-  sourceQueries.push(`${primary} creator ${country}${city} ${antiJob}`);
-  sourceQueries.push(`${primary} pagine Instagram ${country}${city} ${antiJob}`);
+  if (wants("Facebook")) sourceQueries.push(`site:facebook.com/groups ${primary} ${country}${city} community ${negativeQuerySuffix}`);
+  if (wants("LinkedIn")) sourceQueries.push(`site:linkedin.com/posts ${primary} ${country}${city} creator community ${negativeQuerySuffix}`);
+  if (wants("Reddit") || wants("Forum")) sourceQueries.push(`site:reddit.com/r/ ${primary} ${country}${city} community -inurl:?tl= ${negativeQuerySuffix}`);
+  if (wants("Telegram")) sourceQueries.push(`${primary} canale Telegram ${country}${city} ${negativeQuerySuffix}`);
+  if (wants("Website") || wants("Blog") || wants("Forum")) sourceQueries.push(`${primary} community ${country}${city} ${negativeQuerySuffix}`);
+  if (wants("Directory") || wants("Reviews") || wants("Website")) sourceQueries.push(`${primary} pagine locali directory recensioni ${country}${city} ${negativeQuerySuffix}`);
+  if (wants("Instagram")) sourceQueries.push(`${primary} pagine Instagram ${country}${city} ${negativeQuerySuffix}`);
+  if (!sourceQueries.length) sourceQueries.push(`${primary} creator community ${country}${city} ${negativeQuerySuffix}`);
   return [...new Set(sourceQueries.map((query) => query.replace(/\s+/g, " ").trim()))].slice(0, SERPER_MAX_QUERIES);
 }
 
@@ -639,8 +603,7 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
   const haystack = `${link} ${title} ${snippet}`;
   const host = hostnameOf(link);
   const isSocialPage = /facebook\.com|linkedin\.com|instagram\.com|tiktok\.com|youtube\.com/i.test(host);
-  const isMarketplace = /freelancer\.|addlance\.com|techlance\.it|malt\.it/i.test(host);
-  const isForum = !isSocialPage && !isMarketplace && /forum|community|reddit|discussioni|thread|risposte|stackoverflow|quora/i.test(haystack);
+  const isForum = !isSocialPage && /forum|community|reddit|discussioni|thread|risposte|stackoverflow|quora/i.test(haystack);
   const isBusinessContact = /contatti|azienda|directory|paginegialle|scheda|maps|servizi|professionista|business/i.test(haystack);
   if (!link || !title) return null;
   if (!passesExplicitRecency(text, config)) return null;
@@ -667,7 +630,7 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
         ? "social_source_to_mine"
         : isForum
           ? "community_source_to_mine"
-          : isBusinessContact || isMarketplace
+          : isBusinessContact
             ? "business_directory_source_to_mine"
             : "website_source_to_mine";
   return {
@@ -689,7 +652,7 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
     interactions_detected: 1,
     last_interaction: new Date().toISOString(),
     provider_source: provider,
-    source_reliability: isMarketplace || isSocialPage ? 86 : isForum ? 74 : 68,
+    source_reliability: isSocialPage ? 86 : isForum ? 74 : 68,
     internal_notes: "Fonte scoperta da Serper. Non è un lead finale: va usata per estrarre audience/commentatori/follower pubblici disponibili."
   };
 }
@@ -1574,10 +1537,11 @@ function prospectFromApifyItem(item = {}, config = {}, spec = {}) {
 
   if ((isComment || isLike || isFollower) && looksLikeFakeSocialProfile(username || publicName, text, item)) return null;
 
+  if (isJobOrHiringNoise(text, sourceUrl || profileLink)) return null;
+
   if (isProgrammingSearch(config) && !isComment && !isLike && !isFollower && !isProfile && !isSourceProfile) {
-    const explicitBuyer = hasServiceBuyingIntent(text) || hasExplicitHireRequest(text) || (hasOwnedProjectProblem(text) && hasDevelopmentTerm(text));
-    if (!explicitBuyer) return null;
-    if (isSellerOrAdSignal(text) && !explicitBuyer) return null;
+    if (isSellerOrAdSignal(text)) return null;
+    if (!hasDevelopmentTerm(text) && !/startup|ecommerce|creator|community|automazioni|software|saas|no-code|ai business/i.test(text)) return null;
   }
 
   if (isTradingSearch(config) && !isComment && !isLike && !isFollower && !isProfile && !isSourceProfile && !hasTradingSignal(text)) {
@@ -1907,11 +1871,11 @@ const ApifyProvider = {
 
 async function searchReddit(config) {
   const queries = liveQueries(config).slice(0, isItalianMode(config) ? 7 : 16);
-  const jobs = [];
+  const requests = [];
   if (isItalianMode(config)) {
     for (const subreddit of italianRedditCommunities) {
       for (const query of queries) {
-        jobs.push(
+        requests.push(
           fetchJson(
             `https://www.reddit.com/r/${encodeURIComponent(subreddit)}/search.json?q=${encodeURIComponent(query)}&restrict_sr=1&sort=new&t=year&limit=5`
           )
@@ -1919,14 +1883,14 @@ async function searchReddit(config) {
       }
     }
     queries.slice(0, 6).forEach((query) => {
-      jobs.push(fetchJson(`https://www.reddit.com/search.json?q=${encodeURIComponent(`${query} Italia`)}&sort=new&t=year&limit=7`));
+      requests.push(fetchJson(`https://www.reddit.com/search.json?q=${encodeURIComponent(`${query} Italia`)}&sort=new&t=year&limit=7`));
     });
   } else {
     queries.forEach((query) => {
-      jobs.push(fetchJson(`https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=new&t=year&limit=${Math.min(config.limit, 10)}`));
+      requests.push(fetchJson(`https://www.reddit.com/search.json?q=${encodeURIComponent(query)}&sort=new&t=year&limit=${Math.min(config.limit, 10)}`));
     });
   }
-  const settled = await Promise.allSettled(jobs);
+  const settled = await Promise.allSettled(requests);
   return settled.flatMap((result) =>
     result.status === "fulfilled" ? (result.value.data?.children || []).map(({ data }) => ({
     platform: "Reddit",
@@ -1951,18 +1915,7 @@ async function searchReddit(config) {
 }
 
 async function searchDuckDuckGo(config) {
-  const focusedQueries = isItalianMode(config)
-    ? [
-        `"cerco sviluppatore" "sito" ${config.country || "Italia"} ${config.city || ""}`,
-        `"mi serve un sito" "preventivo" ${config.country || "Italia"} ${config.city || ""}`,
-        `"cerco programmatore" "app" ${config.country || "Italia"} ${config.city || ""}`,
-        `"software gestionale" "preventivo" "azienda" ${config.country || "Italia"} ${config.city || ""}`,
-        `"voglio automatizzare" "azienda" ${config.country || "Italia"} ${config.city || ""}`,
-        `"rifare sito" "azienda" ${config.country || "Italia"} ${config.city || ""}`,
-        `"cerco web agency" "preventivo" ${config.country || "Italia"} ${config.city || ""}`,
-        `"chatbot" "azienda" "preventivo" ${config.country || "Italia"} ${config.city || ""}`
-      ]
-    : liveQueries(config).slice(0, 8);
+  const focusedQueries = sourceDiscoveryQueries(config).slice(0, 8);
 
   const settled = await Promise.allSettled(
     focusedQueries
@@ -1992,9 +1945,8 @@ async function searchDuckDuckGo(config) {
         const snippet = stripHtml(snippetMatch?.[1] || "");
         const text = compact(`${title}. ${snippet}`);
         const isForum = /forum|community|reddit|discussioni|thread|domanda|risposte/i.test(`${rawUrl} ${title} ${snippet}`);
-        const hasContactIntent = hasServiceBuyingIntent(text) || (hasClientIntent(text) && hasDevelopmentTerm(text));
-        const isBusinessContact = /contatti|preventivo|richiedi|azienda|agenzia|servizi|software house|web agency/i.test(`${rawUrl} ${title} ${snippet}`);
-        if (!rawUrl || !title || (!hasContactIntent && !isBusinessContact)) return null;
+        const isBusinessContact = /contatti|azienda|servizi|community|creator|canale|gruppo|forum|pagina|directory/i.test(`${rawUrl} ${title} ${snippet}`);
+        if (!rawUrl || !title || isJobOrHiringNoise(text, rawUrl)) return null;
         return {
           platform: isForum ? "Forum" : "Website",
           source_type: isBusinessContact ? "search_engine_business_signal" : "search_engine_public_signal",
@@ -2059,17 +2011,17 @@ async function searchHackerNews(config) {
 async function searchStackExchange(config) {
   const sites = ["stackoverflow", "webmasters", "wordpress", "webapps", "softwarerecs", "softwareengineering"];
   const queries = liveQueries(config).slice(0, 5);
-  const jobs = [];
+  const requests = [];
   for (const site of sites) {
     for (const query of queries) {
-      jobs.push(
+      requests.push(
         fetchJson(
           `https://api.stackexchange.com/2.3/search/advanced?order=desc&sort=creation&q=${encodeURIComponent(query)}&site=${encodeURIComponent(site)}&pagesize=${Math.min(MAX_PROVIDER_RESULTS, 5)}&filter=default`
         )
       );
     }
   }
-  const settled = await Promise.allSettled(jobs);
+  const settled = await Promise.allSettled(requests);
   return settled.flatMap((result) =>
     result.status === "fulfilled"
       ? (result.value.items || []).map((item) => {
@@ -2129,8 +2081,8 @@ async function searchDevTo(config) {
               source_reliability: keywords.split(/\s+/).some((word) => word.length > 4 && text.toLowerCase().includes(word)) ? 63 : 50
             };
           })
-          .filter((prospect) => inferIntent(prospect.relevant_text) !== "interesse potenziale" || prospect.source_reliability >= 60)
-          .filter((prospect) => hasClientIntent(prospect.relevant_text) || prospect.source_reliability >= 60)
+          .filter((prospect) => !isJobOrHiringNoise(prospect.relevant_text, prospect.source_url))
+          .filter((prospect) => inferIntent(prospect.relevant_text) !== "audience compatibile" || prospect.source_reliability >= 60)
       : []
   );
 }
@@ -2168,7 +2120,7 @@ async function searchWordPress(config) {
             provider_source: "WordPress.com public search",
             source_reliability: 58
           };
-        }).filter((prospect) => hasClientIntent(prospect.relevant_text) || prospect.email_business_public)
+        }).filter((prospect) => !isJobOrHiringNoise(prospect.relevant_text, prospect.source_url))
       : []
   );
 }
@@ -2261,7 +2213,7 @@ module.exports = async function handler(req, res) {
   if (req.method !== "GET") return json(res, 405, { error: "Method not allowed" });
 
   const config = getQuery(req);
-  const providerJobs = [
+  const providerTasks = [
     ["Reddit", "reddit", searchReddit],
     ["Hacker News", "hackerNews", searchHackerNews],
     ["Stack Exchange", "stackExchange", searchStackExchange],
@@ -2274,9 +2226,9 @@ module.exports = async function handler(req, res) {
     ["GitHub", "github", searchGitHubIssues],
     ["Direct URL", "directUrls", searchDirectUrls]
   ].filter(([, key]) => providerEnabled(config, key) && (key !== "directUrls" || config.monitorUrls.length));
-  const settled = await Promise.allSettled(providerJobs.map(([, , fn]) => fn(config)));
-  const providers = providerJobs.filter((_, index) => settled[index].status === "fulfilled").map(([name]) => name);
-  const provider_status = providerJobs.map(([name], index) => ({
+  const settled = await Promise.allSettled(providerTasks.map(([, , fn]) => fn(config)));
+  const providers = providerTasks.filter((_, index) => settled[index].status === "fulfilled").map(([name]) => name);
+  const provider_status = providerTasks.map(([name], index) => ({
     name,
     status: settled[index].status,
     count: settled[index].status === "fulfilled" ? settled[index].value.length : 0,
@@ -2301,7 +2253,8 @@ module.exports = async function handler(req, res) {
           .filter((prospect) => {
             const text = `${prospect.source_item || ""} ${prospect.relevant_text || ""} ${prospect.source_type || ""}`;
             if (/revshare|revenue share|dating|conoscere qualcuno|amici/i.test(text)) return false;
-            return hasDevelopmentTerm(text) || hasClientIntent(text);
+            if (isJobOrHiringNoise(text, prospect.source_url || prospect.profile_link || prospect.website)) return false;
+            return hasDevelopmentTerm(text) || /community|creator|pagina|canale|gruppo|forum|commenti|followers|audience|recensioni|opinioni|consigli/i.test(text);
           })
           .map((prospect) => ({
             ...prospect,

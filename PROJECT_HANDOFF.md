@@ -144,8 +144,8 @@ Sempre con:
 - Aggiornata cache asset a `radar360-14`.
 - Corretta copy feedback ricerca live: mostra risultati live analizzati e nuovi inseriti nel database separatamente.
 - Aggiornata cache asset a `radar360-15`.
-- Stretta ulteriore su Serper per programmazione: query orientate a richieste esplicite e filtro che scarta articoli/guide/contenuti SEO se non contengono frasi tipo "cerco sviluppatore/programmatore", "budget", "pubblicato da", "solo a chi parla italiano".
-- Spostata la strategia Serper da forum generici a pagine/fonti calde: gruppi Facebook, marketplace freelance, LinkedIn posts, TechLance, AddLance, Freelancer, Malt e solo forum/community come fallback. I risultati social vengono marcati come Facebook/LinkedIn/Instagram ecc. per contact mode manual assist.
+- Serper ora lavora solo come discovery engine audience-first: trova pagine, creator, community, canali, gruppi, hashtag e contenuti da cui Apify puo estrarre commentatori, like, follower pubblici disponibili e profili pubblici.
+- Rimossa dal flusso Radar la vecchia strategia basata su richieste esplicite, marketplace non-audience e annunci. Job board, career page, offerte e marketplace vengono filtrati prima di salvare le fonti.
 - Aggiornata cache asset a `radar360-16`.
 - Integrato provider Apify nel backend Radar: usa `APIFY_TOKEN` da Vercel, lancia Actor social con limiti stretti di risultati/costo, normalizza output Instagram/TikTok/YouTube/Facebook in prospect Radar e mantiene social in manual assist.
 - Aggiunto passaggio hashtag dal frontend al backend per usare gli Actor social Apify.
