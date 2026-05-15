@@ -593,6 +593,9 @@ function isSourceDiscoveryNoise(text = "", link = "", config = {}) {
   const haystack = `${hostnameOf(link)} ${link} ${text}`.toLowerCase();
   if (isJobOrHiringNoise(text, link)) return true;
   if (isTradingSearch(config)) {
+    if (!/\b(trading|trader|forex|prop firm|propfirm|mt4|mt5|metatrader|crypto|criptovalute|xauusd|scalping|analisi tecnica|mercati finanziari|investimenti|borsa|copy trading)\b/i.test(haystack)) {
+      return true;
+    }
     return /italian trade agency|ice agenzia|trade agency|food trade|wine and food|aahar|bellavita|export|import|manufacturer|manufacturers|turkish-manufacturers|business forum|partner country|trading cards|trader joe|italian brainrot/i.test(
       haystack
     );
