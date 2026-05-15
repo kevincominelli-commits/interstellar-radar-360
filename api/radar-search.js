@@ -4,10 +4,10 @@ const DEFAULT_RECENCY_MONTHS = 12;
 const SERPER_MAX_QUERIES = 12;
 const APIFY_MAX_RESULTS = envNumber("APIFY_MAX_RESULTS", 5, 1, 50);
 const APIFY_MAX_RUNS = envNumber("APIFY_MAX_RUNS", 6, 1, 30);
-const APIFY_TIMEOUT_SECONDS = envNumber("APIFY_TIMEOUT_SECONDS", 42, 10, 55);
+const APIFY_TIMEOUT_SECONDS = envNumber("APIFY_TIMEOUT_SECONDS", 22, 8, 45);
 const APIFY_MAX_CHARGE_USD = envNumber("APIFY_MAX_CHARGE_USD", 0.12, 0.03, 10);
-const APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT = envNumber("APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT", 2, 1, 5);
-const APIFY_YOUTUBE_COMMENTS_PER_VIDEO = envNumber("APIFY_YOUTUBE_COMMENTS_PER_VIDEO", 15, 5, 120);
+const APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT = envNumber("APIFY_YOUTUBE_COMMENT_VIDEO_LIMIT", 1, 1, 5);
+const APIFY_YOUTUBE_COMMENTS_PER_VIDEO = envNumber("APIFY_YOUTUBE_COMMENTS_PER_VIDEO", 5, 3, 120);
 const APIFY_COMMENTS_PER_SOURCE = envNumber("APIFY_COMMENTS_PER_SOURCE", 15, 5, 250);
 const APIFY_FOLLOWERS_PER_SOURCE = envNumber("APIFY_FOLLOWERS_PER_SOURCE", 20, 5, 500);
 const APIFY_LIKES_PER_SOURCE = envNumber("APIFY_LIKES_PER_SOURCE", 20, 5, 500);
@@ -500,6 +500,7 @@ function getQuery(req) {
 function providerEnabled(config, providerKey) {
   const audienceProviderKeys = new Set(["serper", "youtubeAudience", "apify", "directUrls"]);
   if (!audienceProviderKeys.has(providerKey)) return false;
+  if (providerKey === "apify" && config.sources.length && config.sources.every((source) => source === "YouTube")) return false;
   if (isItalianMode(config) && italianModeDisabledProviders.has(providerKey)) return false;
   if (!config.sources.length) return true;
   const values = providerSourceMap[providerKey] || [];
