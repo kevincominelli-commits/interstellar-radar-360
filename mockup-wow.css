@@ -1517,7 +1517,7 @@ button:disabled {
 
 .finder-stats {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
   gap: 1px;
   margin-bottom: 12px;
   overflow: hidden;
@@ -1781,11 +1781,22 @@ button:disabled {
   display: inline-grid;
   place-items: center;
   width: 46px;
-  height: 32px;
+  min-height: 38px;
   border-radius: 999px;
   background: rgba(104, 230, 143, 0.12);
   color: var(--green);
   font-weight: 900;
+  line-height: 1;
+}
+
+.lead-score small {
+  display: block;
+  margin-top: 2px;
+  color: currentColor;
+  font-size: 8px;
+  font-weight: 850;
+  opacity: 0.75;
+  text-transform: uppercase;
 }
 
 .lead-score.hot {
@@ -2763,7 +2774,8 @@ body[data-theme="stripe"] .real-source-box > button {
 
 .radar-question > input,
 .radar-mission-input > input,
-.radar-source-console input {
+.radar-source-console input,
+.radar-source-console select {
   width: 100%;
   min-height: 46px;
   border: 1px solid var(--line);
@@ -2778,6 +2790,10 @@ body[data-theme="stripe"] .real-source-box > button {
   display: grid;
   grid-template-columns: minmax(360px, 1.4fr) minmax(240px, 0.7fr);
   gap: 12px;
+}
+
+.radar-source-console.audience-console {
+  grid-template-columns: minmax(150px, 0.85fr) minmax(170px, 1fr) 110px;
 }
 
 .radar-source-console > div {
@@ -3148,6 +3164,26 @@ body[data-theme="stripe"] .real-source-box > button {
   -webkit-line-clamp: 2;
 }
 
+.radar-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.radar-tag-row span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  border: 1px solid rgba(46, 233, 240, 0.18);
+  border-radius: 999px;
+  background: rgba(46, 233, 240, 0.07);
+  color: #bff9ff;
+  padding: 0 8px;
+  font-size: 10px;
+  font-weight: 820;
+}
+
 .radar-row-meta {
   display: grid;
   gap: 6px;
@@ -3392,6 +3428,7 @@ body[data-theme="stripe"] .radar-message-preview textarea,
 body[data-theme="stripe"] .radar-question > input,
 body[data-theme="stripe"] .radar-mission-input > input,
 body[data-theme="stripe"] .radar-source-console input,
+body[data-theme="stripe"] .radar-source-console select,
 body[data-theme="stripe"] .radar-quick-sources label,
 body[data-theme="stripe"] .radar-geo-grid label {
   border-color: #d8deea;
@@ -3400,7 +3437,8 @@ body[data-theme="stripe"] .radar-geo-grid label {
 }
 
 body[data-theme="stripe"] .radar-row-kicker span,
-body[data-theme="stripe"] .radar-logic-strip span {
+body[data-theme="stripe"] .radar-logic-strip span,
+body[data-theme="stripe"] .radar-tag-row span {
   border-color: #d8deea;
   background: #f4f6fb;
   color: #56637a;

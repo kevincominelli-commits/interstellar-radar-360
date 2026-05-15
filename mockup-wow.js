@@ -858,6 +858,7 @@ function defaultWorkspace() {
     radarProspects: [],
     radar: {
       activeTab: "all",
+      activeView: "revealed",
       resultIds: [],
       lastSearch: null,
       contactLogs: [],
@@ -865,6 +866,11 @@ function defaultWorkspace() {
       dailyDate: "",
       assignments: {},
       searches: [],
+      leadPools: [],
+      leadPoolMembers: [],
+      leadSources: [],
+      leadReveals: [],
+      savedLeadIds: [],
       lastProviderStatus: [],
       lastFunnel: null,
       lastCreditEstimate: null,
@@ -1193,6 +1199,7 @@ let selectedLeadId = workspace.leads[0]?.id || "";
 let activeLeadTab = workspace.finder?.activeTab || "top";
 let selectedRadarId = workspace.radarProspects?.[0]?.lead_id || "";
 let activeRadarTab = workspace.radar?.activeTab || "all";
+let activeRadarView = workspace.radar?.activeView || "revealed";
 
 workspace.finder = { ...defaultWorkspace().finder, ...(workspace.finder || {}) };
 workspace.radar = { ...defaultWorkspace().radar, ...(workspace.radar || {}) };
@@ -1205,6 +1212,12 @@ workspace.radar.searches = Array.isArray(workspace.radar.searches) ? workspace.r
 workspace.radar.contactLogs = Array.isArray(workspace.radar.contactLogs) ? workspace.radar.contactLogs : [];
 workspace.radar.lastProviderStatus = Array.isArray(workspace.radar.lastProviderStatus) ? workspace.radar.lastProviderStatus : [];
 workspace.radar.assignments = workspace.radar.assignments || {};
+workspace.radar.leadPools = Array.isArray(workspace.radar.leadPools) ? workspace.radar.leadPools : [];
+workspace.radar.leadPoolMembers = Array.isArray(workspace.radar.leadPoolMembers) ? workspace.radar.leadPoolMembers : [];
+workspace.radar.leadSources = Array.isArray(workspace.radar.leadSources) ? workspace.radar.leadSources : [];
+workspace.radar.leadReveals = Array.isArray(workspace.radar.leadReveals) ? workspace.radar.leadReveals : [];
+workspace.radar.savedLeadIds = Array.isArray(workspace.radar.savedLeadIds) ? workspace.radar.savedLeadIds : [];
+workspace.radar.activeView = workspace.radar.activeView || "revealed";
 ["tasks", "appointments", "customers", "deals", "offers", "opportunities", "conversations", "complianceLogs", "optOuts", "billingEvents"].forEach((key) => {
   workspace[key] = Array.isArray(workspace[key]) ? workspace[key] : [];
 });
@@ -2904,6 +2917,12 @@ function cleanHashtag(value = "") {
   return String(value).replace(/^#/, "").toLowerCase().trim();
 }
 
+function calculateRadarInternalTarget(visibleLeads = 50, mode = "balanced") {
+  const count = Math.max(5, Math.min(250, Number(visibleLeads || 50)));
+  const multiplier = mode === "aggressive" ? 4 : mode === "economy" ? 2 : 3;
+  return Math.min(2500, Math.max(count, count * multiplier));
+}
+
 function normalizeRadarSource(value = "") {
   const source = String(value || "").trim();
   const lower = source.toLowerCase();
@@ -3058,6 +3077,10 @@ function detectRadarIntent(text = "", customPhrases = []) {
 
 function getRadarConfig(form = document.querySelector("#radarForm")) {
   const data = new FormData(form);
+  const requestedVisibleLeads = Math.max(
+    5,
+    Math.min(250, Number(document.querySelector("#radarQuickQuantity")?.value || data.get("limit") || 60))
+  );
   return {
     niche: String(data.get("niche") || "").trim(),
     sector: String(data.get("sector") || "").trim(),
@@ -3072,7 +3095,11 @@ function getRadarConfig(form = document.querySelector("#radarForm")) {
     sources: [...form.querySelectorAll('input[name="sources"]:checked')].map((input) => input.value),
     recencyMonths: Math.max(1, Math.min(60, Number(data.get("recencyMonths") || 12))),
     minScore: Math.max(0, Math.min(100, Number(data.get("minScore") || 0))),
-    limit: Math.max(5, Math.min(250, Number(data.get("limit") || 60))),
+    limit: requestedVisibleLeads,
+    requestedVisibleLeads,
+    internalTargetLeads: calculateRadarInternalTarget(requestedVisibleLeads, String(data.get("operationMode") || workspace.radar.operationMode || "balanced")),
+    radarMode: String(document.querySelector("#radarQuickMode")?.value || data.get("radarMode") || "auto"),
+    audienceType: String(document.querySelector("#radarQuickAudienceType")?.value || data.get("audienceType") || "mix"),
     workspaceSeed: String(data.get("workspaceSeed") || "internal-alpha").trim(),
     cooldownHours: Math.max(1, Math.min(168, Number(data.get("cooldownHours") || 24))),
     distributionMode: String(data.get("distributionMode") || "balanced"),
@@ -3130,7 +3157,8 @@ function syncQuickRadarFlow() {
   if (!form) return getRadarConfig();
   const goal =
     document.querySelector("#radarGoalInput")?.value?.trim() ||
-    "clienti interessati a trovare un programmatore, creare un sito, app, bot o automazioni AI";
+    "audience interessata a programmazione, app, siti, bot e automazioni AI";
+  const requestedVisible = Math.max(5, Math.min(250, Number(document.querySelector("#radarQuickQuantity")?.value || 50)));
   const geoMode = document.querySelector('input[name="radarQuickGeo"]:checked')?.value || "italy";
   const city = document.querySelector("#radarQuickCity")?.value?.trim() || "";
   const selectedSources = getQuickRadarSources();
@@ -3172,7 +3200,7 @@ function syncQuickRadarFlow() {
   setRadarField(form, "intentPhrases", profile.intent);
   setRadarField(form, "recencyMonths", "12");
   setRadarField(form, "minScore", "45");
-  setRadarField(form, "limit", "60");
+  setRadarField(form, "limit", String(requestedVisible));
   setRadarField(form, "workspaceSeed", goal.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 48) || "radar-clienti");
   setRadarField(form, "cooldownHours", "24");
   setRadarField(form, "distributionMode", "balanced");
@@ -3203,6 +3231,53 @@ function expandRadarKeywords(config = {}) {
   return [...expanded].filter(Boolean).slice(0, 80);
 }
 
+function radarIsSourceOnly(prospect = {}) {
+  const sourceType = String(prospect.source_type || "").toLowerCase();
+  return /audience_source|video_source|post_source|social_search|social_hashtag|ad_source|source_to_mine/.test(sourceType) && !/comment|follower|profile|business|directory|crm/.test(sourceType);
+}
+
+function radarAudienceTags(prospect = {}, config = {}) {
+  const text = radarText(prospect);
+  const tags = new Set();
+  [...(config.hashtags || []), ...(config.keywords || []), ...(config.competitors || [])].forEach((item) => {
+    const token = String(item || "").replace(/^#/, "").trim().toLowerCase();
+    if (token && text.includes(token)) tags.add(token);
+  });
+  const patterns = {
+    trading: /trading|forex|prop firm|mt5|metatrader|xauusd|copy trading|segnali/i,
+    crypto: /crypto|bitcoin|ethereum|blockchain/i,
+    "bot trading": /bot trading|expert advisor|mql5|ea\b/i,
+    programmazione: /programmatore|sviluppatore|software|app|sito|web developer/i,
+    automazioni: /automazione|ai|chatbot|workflow|api|no-code|nocode/i,
+    ecommerce: /ecommerce|shopify|woocommerce|store|negozio online/i,
+    fitness: /fitness|palestra|personal trainer|nutrizione|dimagrimento|bodybuilding/i,
+    estetica: /estetica|centro estetico|epilazione|laser|laminazione|viso|beauty/i,
+    creator: /creator|contenuti|reel|tiktok|youtube|influencer/i,
+    business: /business|azienda|startup|pmi|lead generation|clienti/i
+  };
+  Object.entries(patterns).forEach(([tag, pattern]) => {
+    if (pattern.test(text)) tags.add(tag);
+  });
+  const sourceType = String(prospect.source_type || "").toLowerCase();
+  if (/comment/.test(sourceType)) tags.add("commentatore attivo");
+  if (/follower/.test(sourceType)) tags.add("follower disponibile");
+  if (/profile/.test(sourceType)) tags.add("profilo pubblico");
+  if (/business|directory/.test(sourceType)) tags.add("possibile business");
+  return [...tags].slice(0, 12);
+}
+
+function radarAudienceSegment(prospect = {}, tags = []) {
+  const sourceType = String(prospect.source_type || "").toLowerCase();
+  const text = `${radarText(prospect)} ${tags.join(" ")}`;
+  if (/follower/.test(sourceType)) return "follower disponibili";
+  if (/comment/.test(sourceType)) return "commentatori attivi";
+  if (/profile|creator|channel|page/.test(sourceType) || /creator|influencer/i.test(text)) return "creator / pagine";
+  if (/telegram|reddit|forum|community/i.test(text)) return "community users";
+  if (/business|azienda|pmi|email|link in bio|contatti/i.test(text)) return "possibile business";
+  if (/principiante|come iniziare|non so da dove/i.test(text)) return "aspiranti / beginner";
+  return "audience compatibile";
+}
+
 function scoreRadarProspect(prospect, config = {}) {
   const text = radarText(prospect);
   const keywords = expandRadarKeywords(config);
@@ -3213,45 +3288,80 @@ function scoreRadarProspect(prospect, config = {}) {
   const interactions = Number(prospect.interactions_detected || 0);
   const reliability = Math.max(0, Math.min(100, Number(prospect.source_reliability || 60)));
   const hasBusinessContact = isBusinessEmail(prospect.email_business_public) || Boolean(prospect.contact_form_url);
+  const sourceType = String(prospect.source_type || "").toLowerCase();
+  const tags = radarAudienceTags(prospect, config);
   const locationOk =
     (!config.city || text.includes(config.city.toLowerCase())) &&
     (!config.country || text.includes(config.country.toLowerCase()));
 
-  let score = 18;
-  score += Math.min(28, keywordMatches.length * 5 + hashtags.length * 4);
-  score += intent.strength;
-  if (recency <= 1) score += 16;
-  else if (recency <= 3) score += 12;
-  else if (recency <= 6) score += 8;
-  else if (recency <= 12) score += 4;
-  if (interactions >= 3) score += 5;
-  if (interactions >= 10) score += 5;
-  if (hasBusinessContact) score += 10;
-  if (locationOk && (config.city || config.country)) score += 8;
-  score += Math.round((reliability - 50) / 8);
+  let relevanceScore = 18 + Math.min(52, keywordMatches.length * 8 + hashtags.length * 5 + tags.length * 4);
+  if (/comment|follower|profile|business/.test(sourceType)) relevanceScore += 8;
+  if (locationOk && (config.city || config.country)) relevanceScore += 8;
+
+  let engagementScore = 20;
+  if (/comment/.test(sourceType)) engagementScore += 24;
+  if (/follower/.test(sourceType)) engagementScore += 12;
+  if (interactions >= 1) engagementScore += 8;
+  if (interactions >= 5) engagementScore += 10;
+  if (interactions >= 20) engagementScore += 8;
+  if (recency <= 1) engagementScore += 22;
+  else if (recency <= 3) engagementScore += 16;
+  else if (recency <= 6) engagementScore += 10;
+  else if (recency <= 12) engagementScore += 6;
+
+  let qualityScore = 35 + Math.round((reliability - 50) / 3);
+  if (prospect.username_public || prospect.public_name || prospect.business_name) qualityScore += 12;
+  if (prospect.bio_public || prospect.relevant_text) qualityScore += 10;
+  if (prospect.profile_link || prospect.website || prospect.source_url) qualityScore += 8;
+  if (/private|privato/i.test(text)) qualityScore -= 18;
+
+  let commercialFitScore = 25;
+  if (hasBusinessContact) commercialFitScore += 22;
+  if (/business|company|creator|profile|bio|link|website|telegram|channel/.test(sourceType)) commercialFitScore += 12;
+  if (/creator|business|azienda|startup|ecommerce|coach|trader|community|link in bio|email/i.test(text)) commercialFitScore += 12;
+  if (intent.strength >= 12) commercialFitScore += 8;
 
   const fakeSignals = /free money|guaranteed|100%|follow4follow|promo|spam|bot|casino|airdrop|pump/i.test(text);
-  if (fakeSignals) score -= 22;
-  if (!prospect.relevant_text && !prospect.bio_public && !prospect.business_name) score -= 18;
-  if (config.businessOnly && !prospect.business_name && !hasBusinessContact) score -= 30;
+  if (fakeSignals) {
+    qualityScore -= 28;
+    commercialFitScore -= 18;
+  }
+  if (!prospect.relevant_text && !prospect.bio_public && !prospect.business_name && !prospect.username_public) qualityScore -= 18;
+  if (config.businessOnly && !prospect.business_name && !hasBusinessContact) commercialFitScore -= 30;
 
-  const finalScore = Math.max(0, Math.min(100, Math.round(score)));
-  const temperature = finalScore >= 70 ? "hot" : finalScore >= 40 ? "warm" : "cold";
+  relevanceScore = Math.max(0, Math.min(100, Math.round(relevanceScore)));
+  engagementScore = Math.max(0, Math.min(100, Math.round(engagementScore)));
+  qualityScore = Math.max(0, Math.min(100, Math.round(qualityScore)));
+  commercialFitScore = Math.max(0, Math.min(100, Math.round(commercialFitScore)));
+  const finalScore = Math.max(
+    0,
+    Math.min(100, Math.round(relevanceScore * 0.4 + engagementScore * 0.25 + qualityScore * 0.2 + commercialFitScore * 0.15))
+  );
+  const temperature = finalScore >= 72 ? "hot" : finalScore >= 45 ? "warm" : "cold";
   const reasons = [];
-  if (intent.hits.length) reasons.push(`intent ${intent.hits.slice(0, 3).join(", ")}`);
-  if (keywordMatches.length) reasons.push(`${keywordMatches.length} match target`);
-  if (recency <= 12) reasons.push(`segnale recente (${Math.round(recency * 30)}g)`);
+  if (keywordMatches.length) reasons.push(`${keywordMatches.length} match nicchia`);
+  if (tags.length) reasons.push(`tag: ${tags.slice(0, 4).join(", ")}`);
+  if (/comment/.test(sourceType)) reasons.push("ha interagito/commentato su una fonte rilevante");
+  if (/follower/.test(sourceType)) reasons.push("follower pubblico disponibile di una fonte rilevante");
+  if (recency <= 12) reasons.push(`attività recente (${Math.round(recency * 30)}g)`);
   if (hasBusinessContact) reasons.push("contatto business pubblico");
   if (locationOk && (config.city || config.country)) reasons.push("area coerente");
-  if (!reasons.length) reasons.push("pochi segnali forti rilevati");
+  if (!reasons.length) reasons.push("compatibilità audience da verificare");
 
   return {
     score_ai: finalScore,
     temperature,
-    score_reason: `Lead ${temperature} perché: ${reasons.join(", ")}.`,
+    relevance_score: relevanceScore,
+    engagement_score: engagementScore,
+    quality_score: qualityScore,
+    commercial_fit_score: commercialFitScore,
+    total_score: finalScore,
+    audience_segment: radarAudienceSegment(prospect, tags),
+    tags,
+    score_reason: `Prospect compatibile: ${reasons.join(", ")}.`,
     keyword_match: keywordMatches.join(", "),
     hashtag_match: hashtags.join(", "),
-    detected_intent: intent.label,
+    detected_intent: intent.hits.length ? intent.label : radarAudienceSegment(prospect, tags),
     intent_strength: intent.strength
   };
 }
@@ -3544,6 +3654,7 @@ function allRadarProspects() {
   const known = new Set();
   return merged
     .filter((prospect) => !radarIsSellerOrAdNoise(prospect))
+    .filter((prospect) => !radarIsSourceOnly(prospect))
     .filter((prospect) => {
       const key = [
         prospect.platform,
@@ -3660,6 +3771,26 @@ function radarSemanticFit(prospect = {}, config = {}) {
   return keywordHits >= 1 || intent.strength >= 14 || locationHit || prospect.contact_mode === "automated_possible";
 }
 
+function radarAudienceFit(prospect = {}, config = {}) {
+  if (radarIsSourceOnly(prospect)) return false;
+  const text = radarText(prospect);
+  const keywords = expandRadarKeywords(config);
+  const sourceType = String(prospect.source_type || "").toLowerCase();
+  const keywordHit = !keywords.length || keywords.some((keyword) => keyword && text.includes(keyword.toLowerCase()));
+  const platformHit = !config.sources?.length || config.sources.includes(prospect.platform);
+  const sourceHit =
+    /comment|follower|profile|creator|business|directory|community|crm|youtube|tiktok|instagram|telegram|reddit|linkedin/i.test(sourceType) ||
+    Boolean(prospect.profile_link || prospect.username_public || prospect.business_name || prospect.email_business_public);
+  const urlHit =
+    config.monitorUrls?.length &&
+    config.monitorUrls.some((url) =>
+      String(prospect.source_url || "").includes(url) ||
+      String(prospect.website || "").includes(url) ||
+      String(prospect.profile_link || "").includes(url)
+    );
+  return platformHit && (keywordHit || sourceHit || urlHit || isBusinessEmail(prospect.email_business_public));
+}
+
 function createRadarScoredProspect(prospect, config = {}) {
   const capability = getRadarCapability(prospect);
   const scored = scoreRadarProspect({ ...prospect, ...capability }, config);
@@ -3673,12 +3804,17 @@ function createRadarScoredProspect(prospect, config = {}) {
 
 function estimateRadarCreditsFromFunnel(funnel = {}, config = {}) {
   const profile = radarModeProfile(config);
+  const visibleLeads = Math.min(
+    Number(config.requestedVisibleLeads || config.limit || funnel.finalLeads || 0),
+    Number(funnel.finalLeads || 0)
+  );
+  const modeMultiplier = config.radarMode === "pool" ? 0.35 : 1;
+  const total = visibleLeads ? Math.max(1, Math.ceil(visibleLeads * 0.08 * profile.creditMultiplier * modeMultiplier)) : 0;
   const phaseCredits = {
-    semantic: Math.ceil((funnel.afterSemantic || 0) * 0.03 * profile.creditMultiplier),
-    aiBase: Math.ceil((funnel.afterAiBase || 0) * 0.08 * profile.creditMultiplier),
-    aiAdvanced: Math.ceil((funnel.afterAiAdvanced || 0) * 0.36 * profile.creditMultiplier)
+    reveal: total,
+    pool: config.radarMode === "pool" ? total : 0,
+    discovery: config.radarMode === "pool" ? 0 : total
   };
-  const total = Object.values(phaseCredits).reduce((sum, value) => sum + value, 0);
   return {
     mode: profile.label,
     total,
@@ -3693,14 +3829,15 @@ function buildRadarPipeline(config = getRadarConfig(), candidateIds) {
   const sourceProspects = candidateSet ? allRadarProspects().filter((prospect) => candidateSet.has(prospect.lead_id)) : allRadarProspects();
   const raw = sourceProspects.map((prospect) => createRadarScoredProspect(prospect, config));
   const cleaned = raw.filter((prospect) => radarHasUsefulText(prospect) && !radarIsSellerOrAdNoise(prospect) && (!config.excludeBots || !radarNoiseDetected(prospect)));
-  const preFiltered = cleaned.filter((prospect) => radarHasBuyingSignal(prospect, config));
-  const semantic = preFiltered.filter((prospect) => radarSemanticFit(prospect, config));
+  const preFiltered = cleaned.filter((prospect) => radarAudienceFit(prospect, config));
+  const semantic = preFiltered.filter((prospect) => radarSemanticFit(prospect, config) || Number(prospect.total_score || prospect.score_ai || 0) >= 35);
   const aiBase = semantic.filter(
-    (prospect) => prospect.score_ai >= Math.max(12, Number(config.minScore || 0) - 25) || Number(prospect.intent_strength || 0) >= 18
+    (prospect) => prospect.score_ai >= Math.max(12, Number(config.minScore || 0) - 20) || Number(prospect.relevance_score || 0) >= 35
   );
-  const advancedLimit = Math.max(Number(config.limit || 60), Math.ceil(Number(config.limit || 60) * profile.advancedMultiplier));
+  const requestedVisible = Number(config.requestedVisibleLeads || config.limit || 60);
+  const advancedLimit = Math.max(requestedVisible, Math.ceil(requestedVisible * profile.advancedMultiplier));
   const aiAdvanced = [...aiBase]
-    .sort((a, b) => b.score_ai - a.score_ai || Number(b.intent_strength || 0) - Number(a.intent_strength || 0))
+    .sort((a, b) => b.score_ai - a.score_ai || Number(b.engagement_score || 0) - Number(a.engagement_score || 0))
     .slice(0, advancedLimit);
 
   const finalCandidates = aiAdvanced
@@ -3715,7 +3852,7 @@ function buildRadarPipeline(config = getRadarConfig(), candidateIds) {
       const bRecency = monthsSince(b.last_interaction || b.collected_at);
       return b.distribution_rank - a.distribution_rank || b.score_ai - a.score_ai || aRecency - bRecency;
     })
-    .slice(0, config.limit);
+    .slice(0, requestedVisible);
 
   const funnel = {
     rawCollected: raw.length,
@@ -3778,6 +3915,7 @@ function recordRadarSearchUsage(config, results, funnel, estimate) {
   workspace.radar.lastCreditEstimate = estimate;
   workspace.radar.lastSearchId = searchId;
   workspace.opportunities = buildOpportunityClusters(results, config);
+  return searchId;
 }
 
 function makeOpportunityCluster(id, title, prospects, actionToday, messageSeed = "") {
@@ -3873,8 +4011,8 @@ function currentOpportunityClusters() {
 function passesRadarConfig(prospect, config, scored) {
   const sourceOk = !config.sources.length || config.sources.includes(prospect.platform);
   const languageOk = config.language === "any" || prospect.estimated_language === config.language || (config.language === "it" && prospectLooksItalian(prospect));
-  const countryOk = !config.country || radarText(prospect).includes(config.country.toLowerCase());
-  const cityOk = !config.city || radarText(prospect).includes(config.city.toLowerCase());
+  const countryOk = !config.country || prospect.country === config.country || radarText(prospect).includes(config.country.toLowerCase()) || !prospect.country;
+  const cityOk = !config.city || prospect.city === config.city || radarText(prospect).includes(config.city.toLowerCase()) || !prospect.city;
   const recencyOk = monthsSince(prospect.last_interaction || prospect.collected_at) <= config.recencyMonths;
   const botOk =
     !config.excludeBots ||
@@ -3885,7 +4023,8 @@ function passesRadarConfig(prospect, config, scored) {
   const keywordOk = !keywords.length || keywords.some((keyword) => text.includes(keyword.toLowerCase()));
   const urlOk =
     !config.monitorUrls.length ||
-    config.monitorUrls.some((url) => prospect.source_url.includes(url) || prospect.website.includes(url));
+    config.monitorUrls.some((url) => String(prospect.source_url || "").includes(url) || String(prospect.website || "").includes(url));
+  const audienceOk = radarAudienceFit(prospect, config);
   return (
     sourceOk &&
     languageOk &&
@@ -3894,7 +4033,7 @@ function passesRadarConfig(prospect, config, scored) {
     recencyOk &&
     botOk &&
     businessOk &&
-    (keywordOk || urlOk || scored.intent_strength >= 18) &&
+    (keywordOk || urlOk || audienceOk) &&
     scored.score_ai >= config.minScore
   );
 }
@@ -3932,7 +4071,20 @@ function radarDistributionRank(prospect, config = {}) {
 function executeRadarSearch(config = getRadarConfig(), candidateIds) {
   if (!canUsePlanFeature("radar_search", "#radarFeedback")) return;
   const now = Date.now();
-  const { results, funnel, estimate } = buildRadarPipeline(config, candidateIds);
+  const pool = ensureRadarPool(config);
+  syncRadarPoolCounts(pool.id);
+  const requestedVisible = Number(config.requestedVisibleLeads || config.limit || 50);
+  const selectionIds =
+    Array.isArray(candidateIds) && candidateIds.length
+      ? candidateIds.slice(0, requestedVisible)
+      : selectRadarPoolLeadIds(pool, config, requestedVisible);
+  const pipelineConfig = {
+    ...config,
+    limit: requestedVisible,
+    requestedVisibleLeads: requestedVisible,
+    radarMode: selectionIds.length >= requestedVisible ? "pool" : config.radarMode
+  };
+  const { results, funnel, estimate } = buildRadarPipeline(pipelineConfig, selectionIds);
   if (estimate.total > Number(workspace.credits.balance || 0)) {
     workspace.radar.lastFunnel = funnel;
     workspace.radar.lastCreditEstimate = estimate;
@@ -3946,23 +4098,25 @@ function executeRadarSearch(config = getRadarConfig(), candidateIds) {
   }
 
   workspace.radar.resultIds = results.map((prospect) => prospect.lead_id);
-  workspace.radar.lastSearch = config;
+  workspace.radar.lastSearch = pipelineConfig;
   workspace.radar.activeTab = activeRadarTab;
-  workspace.radar.operationMode = config.operationMode || "balanced";
-  workspace.credits.mode = config.operationMode || workspace.credits.mode || "balanced";
+  workspace.radar.operationMode = pipelineConfig.operationMode || "balanced";
+  workspace.credits.mode = pipelineConfig.operationMode || workspace.credits.mode || "balanced";
   workspace.radar.assignments = {
     ...(workspace.radar.assignments || {}),
-    ...Object.fromEntries(results.map((prospect) => [prospect.lead_id, now + config.cooldownHours * 60 * 60 * 1000]))
+    ...Object.fromEntries(results.map((prospect) => [prospect.lead_id, now + pipelineConfig.cooldownHours * 60 * 60 * 1000]))
   };
-  recordRadarSearchUsage(config, results, funnel, estimate);
+  const searchId = recordRadarSearchUsage(pipelineConfig, results, funnel, estimate);
+  registerRadarReveals(pool, results, pipelineConfig, searchId);
+  syncRadarPoolCounts(pool.id);
   selectedRadarId = results[0]?.lead_id || selectedRadarId;
   saveWorkspace();
   renderAll();
   setFeedback(
     "#radarFeedback",
     results.length
-      ? `${results.length} prospect trovati. Imbuto: ${funnel.rawCollected} raw → ${funnel.afterPreFilter} candidati → ${funnel.finalLeads} finali. Crediti usati: ${estimate.total}.`
-      : `Nessun prospect compatibile. Imbuto: ${funnel.rawCollected} raw → ${funnel.afterPreFilter} candidati → 0 finali. Allarga keyword/fonti o importa segnali reali.`
+      ? `${results.length} prospect rivelati per questa audience. Crediti usati: ${estimate.total}.`
+      : `Nessun prospect rivelabile con questi filtri. Allarga nicchia/fonti o avvia discovery live per alimentare la pool.`
   );
 }
 
@@ -3973,6 +4127,8 @@ function radarBelongsToTab(prospect, tab) {
   if (tab === "social") return radarSocialPlatforms.has(prospect.platform);
   if (tab === "web") return radarSourceAliases.web.includes(prospect.platform);
   if (tab === "forum") return radarSourceAliases.forum.includes(prospect.platform) || /forum|thread/i.test(prospect.source_type);
+  if (tab === "commenters") return /comment/i.test(prospect.source_type);
+  if (tab === "followers") return /follower/i.test(prospect.source_type);
   if (tab === "local") return Boolean(prospect.city) || radarSourceAliases.local.includes(prospect.platform);
   if (tab === "automated") return prospect.contact_mode === "automated_possible";
   if (tab === "manual") return prospect.contact_mode === "manual_assist";
@@ -4032,7 +4188,7 @@ function syncRadarSourceFilter() {
   const discovered = allRadarProspects().map((prospect) => prospect.platform).filter(Boolean);
   const sources = [...new Set([...allRadarSourceValues, ...configured, ...discovered].filter(Boolean))];
   select.innerHTML = `<option value="all">Tutte fonti</option>${sources
-    .map((source) => `<option value="${escapeHtml(source)}">${escapeHtml(source)} (${counts.get(source) || 0} finali)</option>`)
+    .map((source) => `<option value="${escapeHtml(source)}">${escapeHtml(source)} (${counts.get(source) || 0} rivelati)</option>`)
     .join("")}`;
   select.value = sources.includes(current) ? current : "all";
 }
@@ -4048,21 +4204,21 @@ function radarEmptyGuideMarkup() {
   );
   const sourceNote =
     selectedSource !== "all"
-      ? `<p><b>${escapeHtml(selectedSource)}</b> è attiva, ma ora ha 0 prospect finali con questi filtri. Se nel riepilogo fonti vedi segnali trovati, significa che sono stati scartati per qualità, lingua, data, intento debole o perché erano contenuti di chi vende invece di persone interessate.</p>`
+      ? `<p><b>${escapeHtml(selectedSource)}</b> è attiva, ma ora ha 0 prospect rivelabili con questi filtri. Il Radar conserva le fonti utili e scarta contenuti venditori, profili deboli e dati fuori target.</p>`
       : "";
   const modeNote =
     selectedMode !== "all"
       ? `<p>Il filtro contatto è su <b>${selectedMode === "manual_assist" ? "Manual assist" : "Automated possible"}</b>. Passa a <b>Tutti contatti</b> se vuoi vedere anche gli altri canali.</p>`
       : "";
   return `<div class="radar-empty-guide">
-    <strong>${hasRun ? "0 prospect finali in questa vista" : "Nessun prospect ancora"}</strong>
+    <strong>${hasRun ? "0 prospect rivelabili in questa vista" : "Nessuna audience ancora"}</strong>
     ${sourceNote}
     ${modeNote}
-    <p>Il Radar non deve riempirti la lista con spazzatura. Deve trovare segnali reali, filtrarli e mostrarti solo quelli con motivo concreto.</p>
+    <p>Il Radar non cerca “clienti pronti”: crea una pool di utenti, pagine e audience compatibili con la nicchia, poi rivela solo i prospect richiesti.</p>
     <ol>
-      <li>Scegli cosa vuoi vendere nella ricerca guidata.</li>
-      <li>Spunta dove cercare: social, YouTube, forum, web e directory.</li>
-      <li>Premi <b>Avvia Radar</b>. Se una fonte resta a 0 finali, servono dati/API migliori o URL più specifici da analizzare.</li>
+      <li>Scrivi la nicchia o audience che vuoi raggiungere.</li>
+      <li>Scegli dove cercare: Instagram, YouTube, TikTok, forum, web o fonti specifiche.</li>
+      <li>Premi <b>Avvia Radar</b>: se la pool è vuota, la piattaforma scopre fonti e la alimenta.</li>
     </ol>
   </div>`;
 }
@@ -4087,39 +4243,40 @@ function providerDisplayName(name = "") {
 function renderRadarStats() {
   const stats = document.querySelector("#radarStats");
   const count = document.querySelector("#radarProspectCount");
-  if (count) count.textContent = `${workspace.radarProspects.length} prospect`;
+  const revealedCount = workspace.radar.resultIds?.length || 0;
+  if (count) count.textContent = `${revealedCount} rivelati`;
   if (!stats) return;
   const all = allRadarProspects();
   const results = (workspace.radar.resultIds || []).map((id) => getRadarProspectById(id)).filter(Boolean);
   const base = results.length ? results : all;
-  const hot = base.filter((prospect) => prospect.temperature === "hot").length;
-  const automated = base.filter((prospect) => prospect.contact_mode === "automated_possible").length;
-  const manual = base.filter((prospect) => prospect.contact_mode === "manual_assist").length;
-  const knownIds = new Set(all.map((prospect) => prospect.lead_id));
-  const cooldown = Object.entries(workspace.radar.assignments || {}).filter(
-    ([id, until]) => knownIds.has(id) && Number(until) > Date.now()
-  ).length;
+  const saved = workspace.radar.savedLeadIds?.length || 0;
   const avg = base.length ? Math.round(base.reduce((sum, prospect) => sum + Number(prospect.score_ai || 0), 0) / base.length) : 0;
   const funnel = workspace.radar.lastFunnel || {};
   const estimate = workspace.radar.lastCreditEstimate || {};
   const providerStatus = workspace.radar.lastProviderStatus || [];
-  const statCards = [
-    ["Database", all.length],
-    ["Risultati", results.length || all.length],
-    ["Hot", hot],
-    ["Manual", manual],
-    ["Automated", automated],
-    ["Cooldown", cooldown],
+  const requested = Number(workspace.radar.lastSearch?.requestedVisibleLeads || workspace.radar.lastSearch?.limit || 0);
+  const userCards = [
+    ["Lead richiesti", requested || "-"],
+    ["Lead rivelati", results.length],
+    ["Crediti usati", estimate.total ?? 0],
     ["Score medio", avg],
-    ["Raw", funnel.rawCollected ?? all.length],
-    ["Pre-filter", funnel.afterPreFilter ?? 0],
-    ["AI advanced", funnel.afterAiAdvanced ?? 0],
+    ["Salvati CRM", saved],
+    ["Modalità", radarModeLabel(workspace.radar.lastSearch?.radarMode || "auto")]
+  ];
+  const adminCards = [
+    ["Pool totali", workspace.radar.leadPools?.length || 0],
+    ["Lead database", all.length],
+    ["Fonti", workspace.radar.leadSources?.length || 0],
+    ["Raw interno", funnel.rawCollected ?? 0],
+    ["Pool membri", workspace.radar.leadPoolMembers?.length || 0],
+    ["Reveal log", workspace.radar.leadReveals?.length || 0],
     ["Crediti rimasti", workspace.credits.balance ?? 0],
     ["Costo ricerca", estimate.total ?? 0]
-  ]
+  ];
+  const statCards = (activeRadarView === "admin" ? adminCards : userCards)
     .map(([label, value]) => `<div><span>${label}</span><strong>${value}</strong></div>`)
     .join("");
-  const providerStrip = providerStatus.length
+  const providerStrip = activeRadarView === "admin" && providerStatus.length
     ? `
       <div class="radar-provider-strip">
         ${providerStatus
@@ -4135,6 +4292,160 @@ function renderRadarStats() {
     `
     : "";
   stats.innerHTML = `${statCards}${providerStrip}`;
+}
+
+function radarModeLabel(mode = "auto") {
+  const labels = {
+    auto: "Auto Radar",
+    source: "Fonte specifica",
+    competitor: "Competitor",
+    pool: "Pool Search"
+  };
+  return labels[mode] || "Auto Radar";
+}
+
+function radarTagsMarkup(prospect = {}) {
+  const tags = prospect.tags?.length ? prospect.tags : radarAudienceTags(prospect, workspace.radar.lastSearch || {});
+  if (!tags.length) return "";
+  return `<div class="radar-tag-row">${tags
+    .slice(0, 5)
+    .map((tag) => `<span>${escapeHtml(tag)}</span>`)
+    .join("")}</div>`;
+}
+
+function radarRowsMarkup(results = []) {
+  if (!results.length) return radarEmptyGuideMarkup();
+  return results
+    .map((prospect) => {
+      const profileLink = prospect.profile_link || prospect.source_url || prospect.website;
+      const scoreLabel = prospect.temperature === "hot" ? "top fit" : prospect.temperature === "warm" ? "buono" : "da nutrire";
+      return `
+        <div class="radar-row ${prospect.lead_id === selectedRadarId ? "selected" : ""}" data-radar-id="${prospect.lead_id}">
+          <div class="radar-row-main">
+            <div class="radar-row-kicker">
+              <span>${escapeHtml(radarSignalTypeLabel(prospect))}</span>
+              <span>${escapeHtml(prospect.platform)}</span>
+              <span>${escapeHtml(prospect.audience_segment || prospect.detected_intent || "audience")}</span>
+            </div>
+            <strong>${escapeHtml(prospect.business_name || prospect.public_name || prospect.username_public || "Prospect pubblico")}</strong>
+            <p>${escapeHtml(prospect.city || prospect.country || "area n/d")} · ${escapeHtml(prospect.source_page || prospect.provider_source || "fonte pubblica")}</p>
+            <p>${escapeHtml(prospect.relevant_text || prospect.bio_public || "Profilo pubblico compatibile con la nicchia.")}</p>
+            ${radarTagsMarkup(prospect)}
+          </div>
+          <span class="lead-score ${prospect.temperature}">${prospect.score_ai}<small>${escapeHtml(scoreLabel)}</small></span>
+          <div class="radar-row-meta">
+            <span class="mode-pill ${prospect.contact_mode}">${prospect.contact_mode === "manual_assist" ? "Manuale" : "Business"}</span>
+            <span>${daysSince(prospect.last_interaction) >= 999 ? "data n/d" : `${daysSince(prospect.last_interaction)}g fa`}</span>
+            <span>${escapeHtml(prospect.source_reliability || 60)}% fonte</span>
+          </div>
+          <div class="lead-actions">
+            <button type="button" data-radar-select="${prospect.lead_id}">Dettagli</button>
+            <button type="button" data-radar-save="${prospect.lead_id}">Salva CRM</button>
+            <button type="button" data-radar-enrich="${prospect.lead_id}">Arricchisci</button>
+            <button type="button" class="ghost-button" data-radar-hide="${prospect.lead_id}">Nascondi</button>
+            ${profileLink ? `<a href="${escapeHtml(profileLink)}" target="_blank" rel="noopener">Apri</a>` : ""}
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function renderRadarPoolsView() {
+  const pools = [...(workspace.radar.leadPools || [])].sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+  if (!pools.length) return `<div class="radar-empty-guide"><strong>Nessuna pool ancora</strong><p>Avvia Auto Radar o importa una fonte: la piattaforma creerà una pool per nicchia, piattaforma e paese.</p></div>`;
+  return pools
+    .map(
+      (pool) => `
+        <div class="radar-row">
+          <div class="radar-row-main">
+            <div class="radar-row-kicker">
+              <span>${escapeHtml(pool.platform || "Multi")}</span>
+              <span>${escapeHtml(pool.country || "Global")}</span>
+              <span>${escapeHtml(pool.source_type || "mix")}</span>
+            </div>
+            <strong>${escapeHtml(pool.name)}</strong>
+            <p>Segmento: ${escapeHtml(pool.niche || "audience")} · lingua ${escapeHtml(pool.language || "any")} · stato ${escapeHtml(pool.status || "active")}</p>
+          </div>
+          <div class="radar-row-meta">
+            <span>${pool.available_leads_count || 0} disponibili</span>
+            <span>${pool.revealed_leads_count || 0} rivelati</span>
+            <span>${pool.last_scraped_at ? formatDate(pool.last_scraped_at) : "mai aggiornata"}</span>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function renderRadarSourcesView() {
+  const sources = [...(workspace.radar.leadSources || [])].slice(0, 120);
+  if (!sources.length) return `<div class="radar-empty-guide"><strong>Nessuna fonte salvata</strong><p>Serper scopre pagine, creator, canali e community. Apify estrae audience pubbliche da quelle fonti quando configurato.</p></div>`;
+  return sources
+    .map(
+      (source) => `
+        <div class="radar-row">
+          <div class="radar-row-main">
+            <div class="radar-row-kicker">
+              <span>${escapeHtml(source.platform || "Fonte")}</span>
+              <span>${escapeHtml(source.source_type || "source")}</span>
+              <span>${escapeHtml(source.status || "ready")}</span>
+            </div>
+            <strong>${escapeHtml(source.source_value || source.source_url || "Fonte pubblica")}</strong>
+            <p>${escapeHtml(source.niche || "audience")} · ${escapeHtml(source.country || "Global")} · score fonte ${Number(source.source_score || 0)}</p>
+          </div>
+          <div class="lead-actions">
+            ${source.source_url ? `<a href="${escapeHtml(source.source_url)}" target="_blank" rel="noopener">Apri fonte</a>` : ""}
+          </div>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function renderRadarSavedView() {
+  const savedIds = new Set(workspace.radar.savedLeadIds || []);
+  const saved = allRadarProspects().filter((prospect) => savedIds.has(prospect.lead_id));
+  return saved.length
+    ? radarRowsMarkup(saved.map((prospect) => createRadarScoredProspect(prospect, workspace.radar.lastSearch || {})))
+    : `<div class="radar-empty-guide"><strong>Nessun lead salvato</strong><p>Quando un prospect ti interessa, premi “Salva CRM”. Qui vedrai solo quelli scelti da te.</p></div>`;
+}
+
+function renderRadarHistoryView() {
+  const searches = workspace.radar.searches || [];
+  if (!searches.length) return `<div class="radar-empty-guide"><strong>Nessuna ricerca nello storico</strong><p>Le prossime run del Radar finiranno qui con lead rivelati, crediti e stato.</p></div>`;
+  return searches
+    .slice(0, 80)
+    .map(
+      (search) => `
+        <div class="radar-row">
+          <div class="radar-row-main">
+            <div class="radar-row-kicker">
+              <span>${escapeHtml(search.status || "completed")}</span>
+              <span>${escapeHtml(search.mode || "Radar")}</span>
+              <span>${formatDate(search.created_at)}</span>
+            </div>
+            <strong>${escapeHtml(search.query || "Audience search")}</strong>
+            <p>${escapeHtml(search.country || "Global")} ${search.city ? `· ${escapeHtml(search.city)}` : ""}</p>
+          </div>
+          <div class="radar-row-meta">
+            <span>${search.result_ids?.length || 0} rivelati</span>
+            <span>${search.credits_spent || 0} crediti</span>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function renderRadarAdminView() {
+  return `
+    <div class="radar-empty-guide">
+      <strong>Admin Radar</strong>
+      <p>Vista interna: pool, overfetch, provider, costi e qualità fonti. Questi dati non sono mostrati all'utente finale.</p>
+    </div>
+    ${renderRadarPoolsView()}
+  `;
 }
 
 function renderRadarMatrix() {
@@ -4191,7 +4502,7 @@ function renderRadarSafetyPanel() {
         .map((item) => `<span>${escapeHtml(item)}</span>`)
         .join("")}
     </div>
-    ${funnel ? `
+    ${activeRadarView === "admin" && funnel ? `
       <div class="radar-funnel-summary">
         <strong>Imbuto ultima ricerca</strong>
         ${Object.entries(radarPhaseLabels)
@@ -4200,7 +4511,7 @@ function renderRadarSafetyPanel() {
         <p>Crediti: ${estimate?.total ?? 0} · costo/lead: ${estimate?.costPerFinalLead ?? 0} · modo: ${escapeHtml(estimate?.mode || "Balanced")}</p>
       </div>
     ` : ""}
-    ${opportunities.length ? `
+    ${activeRadarView === "admin" && opportunities.length ? `
       <div class="radar-funnel-summary">
         <strong>Opportunity Radar</strong>
         ${opportunities
@@ -4216,6 +4527,20 @@ function renderRadarSafetyPanel() {
   `;
 }
 
+function buildRadarCrmNote(prospect = {}) {
+  const tags = prospect.tags?.length ? prospect.tags : radarAudienceTags(prospect, workspace.radar.lastSearch || {});
+  return [
+    `Prospect audience: ${prospect.public_name || prospect.username_public || prospect.business_name || "profilo pubblico"}`,
+    `Segmento: ${prospect.audience_segment || prospect.detected_intent || "audience compatibile"}`,
+    `Fonte: ${prospect.platform || "n/d"} · ${prospect.source_page || prospect.source_url || "fonte pubblica"}`,
+    `Perché interessa: ${prospect.score_reason || "compatibile con la nicchia cercata"}`,
+    tags.length ? `Tag: ${tags.join(", ")}` : "",
+    prospect.relevant_text ? `Testo/bio rilevante: ${prospect.relevant_text}` : ""
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 function renderRadarDetail() {
   const detail = document.querySelector("#radarDetail");
   if (!detail) return;
@@ -4229,9 +4554,9 @@ function renderRadarDetail() {
     <div class="detail-grid">
       <div><span>Nome</span><strong>${escapeHtml(prospect.public_name || prospect.username_public || prospect.business_name || "n/d")}</strong></div>
       <div><span>Fonte</span><strong>${escapeHtml(prospect.platform)} · ${escapeHtml(prospect.source_type)}</strong></div>
-      <div><span>Score AI</span><strong>${prospect.score_ai}/100 · ${escapeHtml(prospect.temperature)}</strong></div>
-      <div><span>Intent</span><strong>${escapeHtml(prospect.detected_intent || "n/d")}</strong></div>
-      <div><span>Contact mode</span><strong>${prospect.contact_mode === "manual_assist" ? "Manual assist" : "Automated possible"}</strong></div>
+      <div><span>Fit audience</span><strong>${prospect.score_ai}/100 · ${escapeHtml(prospect.temperature === "hot" ? "top fit" : prospect.temperature === "warm" ? "buono" : "da nutrire")}</strong></div>
+      <div><span>Segmento</span><strong>${escapeHtml(prospect.audience_segment || prospect.detected_intent || "n/d")}</strong></div>
+      <div><span>Contatto futuro</span><strong>${prospect.contact_mode === "manual_assist" ? "Manuale assistito" : "Business contact"}</strong></div>
       <div><span>Stato</span><strong>${escapeHtml(prospect.contact_state || "new")}</strong></div>
       <div><span>Città</span><strong>${escapeHtml(prospect.city || "n/d")}</strong></div>
       <div><span>Ultimo segnale</span><strong>${daysSince(prospect.last_interaction) >= 999 ? "n/d" : `${daysSince(prospect.last_interaction)}g fa`}</strong></div>
@@ -4248,16 +4573,12 @@ function renderRadarDetail() {
       <div><span>Provider</span><strong>${escapeHtml(prospect.provider_source || "n/d")}</strong></div>
     </div>
     <div class="radar-message-preview">
-      <span>Messaggio suggerito</span>
-      <textarea readonly>${escapeHtml(prospect.suggested_message || buildRadarMessage(prospect))}</textarea>
+      <span>Nota per CRM</span>
+      <textarea readonly>${escapeHtml(buildRadarCrmNote(prospect))}</textarea>
       <div class="detail-actions">
-        <button type="button" data-radar-contact="${prospect.lead_id}">Contatta</button>
-        <button type="button" data-radar-content="${prospect.lead_id}">AI Content</button>
-        <button type="button" data-radar-crm="${prospect.lead_id}">CRM</button>
-        <button type="button" data-radar-postpone="${prospect.lead_id}">Posticipa</button>
-        <button type="button" data-radar-appointment="${prospect.lead_id}">Proponi appuntamento</button>
+        <button type="button" data-radar-save="${prospect.lead_id}">Salva CRM</button>
         <button type="button" class="ghost-button" data-radar-archive="${prospect.lead_id}">Archivia</button>
-        <button type="button" data-copy-radar-message="${prospect.lead_id}">Copia messaggio</button>
+        <button type="button" data-copy-radar-message="${prospect.lead_id}">Copia nota</button>
       </div>
     </div>
   `;
@@ -4265,12 +4586,14 @@ function renderRadarDetail() {
 
 function radarSignalTypeLabel(prospect = {}) {
   const sourceType = String(prospect.source_type || "").toLowerCase();
-  if (/comment/.test(sourceType)) return "Commento reale";
-  if (/marketplace|buyer_request/.test(sourceType)) return "Richiesta diretta";
+  if (/comment/.test(sourceType)) return "Commentatore attivo";
+  if (/follower/.test(sourceType)) return "Follower disponibile";
+  if (/profile|creator|channel|page/.test(sourceType)) return "Profilo / creator";
+  if (/marketplace|buyer_request/.test(sourceType)) return "Segnale diretto";
   if (/business|contact|directory/.test(sourceType)) return "Contatto business";
-  if (/forum|thread|q_and_a/.test(sourceType)) return "Discussione";
+  if (/forum|thread|q_and_a|community/.test(sourceType)) return "Community user";
   if (/audience/.test(sourceType)) return "Fonte da minare";
-  return "Segnale pubblico";
+  return "Prospect pubblico";
 }
 
 function renderRadar() {
@@ -4284,43 +4607,19 @@ function renderRadar() {
   document.querySelectorAll("[data-radar-tab]").forEach((button) => {
     button.classList.toggle("active", button.dataset.radarTab === activeRadarTab);
   });
+  document.querySelectorAll("[data-radar-view]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.radarView === activeRadarView);
+  });
 
   const results = filteredRadarProspects();
   const list = document.querySelector("#radarResults");
   if (list) {
-    list.innerHTML = results.length
-      ? results
-          .map((prospect) => {
-            const profileLink = prospect.profile_link || prospect.source_url || prospect.website;
-            return `
-              <div class="radar-row ${prospect.lead_id === selectedRadarId ? "selected" : ""}" data-radar-id="${prospect.lead_id}">
-                <div class="radar-row-main">
-                  <div class="radar-row-kicker">
-                    <span>${escapeHtml(radarSignalTypeLabel(prospect))}</span>
-                    <span>${escapeHtml(prospect.platform)}</span>
-                    <span>${escapeHtml(prospect.detected_intent || "intent n/d")}</span>
-                  </div>
-                  <strong>${escapeHtml(prospect.business_name || prospect.public_name || prospect.username_public || "Prospect pubblico")}</strong>
-                  <p>${escapeHtml(prospect.city || prospect.country || "area n/d")} · ${escapeHtml(prospect.source_page || prospect.provider_source || "fonte pubblica")}</p>
-                  <p>${escapeHtml(prospect.relevant_text || prospect.bio_public || "Testo pubblico non disponibile")}</p>
-                </div>
-                <span class="lead-score ${prospect.temperature}">${prospect.score_ai}</span>
-                <div class="radar-row-meta">
-                  <span class="mode-pill ${prospect.contact_mode}">${prospect.contact_mode === "manual_assist" ? "Manual" : "Auto possible"}</span>
-                  <span>${daysSince(prospect.last_interaction) >= 999 ? "data n/d" : `${daysSince(prospect.last_interaction)}g fa`}</span>
-                  <span>${Number(workspace.radar.assignments?.[prospect.lead_id] || 0) > Date.now() ? "cooldown" : "libero"}</span>
-                  <span>${escapeHtml(prospect.source_reliability || 60)}% fonte</span>
-                </div>
-                <div class="lead-actions">
-                  <button type="button" data-radar-select="${prospect.lead_id}">Dettagli</button>
-                  <button type="button" data-radar-contact="${prospect.lead_id}">Contatta</button>
-                  ${profileLink ? `<a href="${escapeHtml(profileLink)}" target="_blank" rel="noopener">Apri</a>` : ""}
-                </div>
-              </div>
-            `;
-          })
-          .join("")
-      : radarEmptyGuideMarkup();
+    if (activeRadarView === "pools") list.innerHTML = renderRadarPoolsView();
+    else if (activeRadarView === "sources") list.innerHTML = renderRadarSourcesView();
+    else if (activeRadarView === "saved") list.innerHTML = renderRadarSavedView();
+    else if (activeRadarView === "history") list.innerHTML = renderRadarHistoryView();
+    else if (activeRadarView === "admin") list.innerHTML = renderRadarAdminView();
+    else list.innerHTML = radarRowsMarkup(results);
   }
 
   renderRadarDetail();
@@ -4877,26 +5176,271 @@ function importRadarSignalsFromText(text) {
       });
     });
 
-  const fresh = addRadarProspects(prospects);
+  const fresh = addRadarProspects(prospects, getRadarConfig());
   return fresh.length;
 }
 
 function radarProspectIdentity(prospect = {}) {
-  return [prospect.platform, prospect.username_public, prospect.business_name, prospect.source_url, String(prospect.relevant_text || "").slice(0, 60)]
+  const username = String(prospect.username_public || prospect.username || "").toLowerCase().replace(/^@/, "").replace(/\/$/, "");
+  const profile = String(prospect.profile_link || prospect.profile_url || prospect.source_url || "")
+    .toLowerCase()
+    .replace(/[?#].*$/, "")
+    .replace(/\/$/, "");
+  return [prospect.platform, username, profile, prospect.business_name, String(prospect.relevant_text || "").slice(0, 60)]
     .join("|")
     .toLowerCase();
 }
 
-function addRadarProspects(prospects = []) {
-  const normalizedProspects = prospects.map((prospect) => normalizeRadarProspect(prospect)).filter((prospect) => !radarIsSellerOrAdNoise(prospect));
-  const knownKeys = new Set(workspace.radarProspects.map(radarProspectIdentity));
-  const fresh = normalizedProspects.filter((prospect) => {
-    const key = radarProspectIdentity(prospect);
-    if (knownKeys.has(key)) return false;
-    knownKeys.add(key);
-    return true;
+function normalizeRadarFingerprintPart(value = "") {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function radarSearchFingerprint(config = {}) {
+  const platforms = (config.sources?.length ? config.sources : allRadarSourceValues)
+    .filter((source) => source !== "CRM/Import")
+    .sort()
+    .join(".");
+  return [
+    normalizeRadarFingerprintPart(config.niche || config.q || "audience"),
+    normalizeRadarFingerprintPart(platforms || "mixed"),
+    normalizeRadarFingerprintPart(config.country || "any"),
+    normalizeRadarFingerprintPart(config.language || "any"),
+    normalizeRadarFingerprintPart(config.audienceType || "mix")
+  ].join("|");
+}
+
+function radarWorkspaceId() {
+  return workspace.settings?.workspace || "interstellar-internal";
+}
+
+function ensureRadarPool(config = {}) {
+  const fingerprint = radarSearchFingerprint(config);
+  let pool = workspace.radar.leadPools.find((item) => item.search_fingerprint === fingerprint);
+  if (pool) return pool;
+  const platformLabel = config.sources?.length === 1 ? config.sources[0] : config.sources?.length ? "Multi-platform" : "Tutte fonti";
+  pool = {
+    id: uid("pool"),
+    name: `${config.niche || "Audience"} · ${platformLabel} · ${config.country || "Global"}`,
+    niche: config.niche || "",
+    platform: platformLabel,
+    country: config.country || "",
+    language: config.language || "any",
+    source_type: config.audienceType || "mix",
+    search_fingerprint: fingerprint,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    total_leads_count: 0,
+    available_leads_count: 0,
+    revealed_leads_count: 0,
+    last_scraped_at: "",
+    status: "active"
+  };
+  workspace.radar.leadPools.unshift(pool);
+  return pool;
+}
+
+function radarSourceKey(source = {}) {
+  return [source.platform, source.source_type, source.source_url || source.source_value].join("|").toLowerCase();
+}
+
+function upsertRadarSourceFromProspect(prospect = {}, config = {}, discoveredBy = "radar") {
+  const sourceUrl = prospect.source_url || prospect.website || prospect.profile_link;
+  if (!sourceUrl && !prospect.source_page) return null;
+  const source = {
+    id: "",
+    platform: prospect.platform,
+    source_type: prospect.source_type || "audience_source",
+    source_value: prospect.source_item || prospect.public_name || prospect.business_name || sourceUrl || "",
+    source_url: sourceUrl,
+    niche: config.niche || "",
+    country: config.country || "",
+    language: config.language || "any",
+    discovered_by: discoveredBy,
+    discovered_at: new Date().toISOString(),
+    last_scraped_at: radarIsSourceOnly(prospect) ? "" : new Date().toISOString(),
+    source_score: prospect.source_reliability || prospect.score_ai || 60,
+    status: radarIsSourceOnly(prospect) ? "ready_to_mine" : "used"
+  };
+  const key = radarSourceKey(source);
+  const existing = workspace.radar.leadSources.find((item) => radarSourceKey(item) === key);
+  if (existing) {
+    Object.assign(existing, {
+      ...existing,
+      ...source,
+      id: existing.id,
+      last_scraped_at: source.last_scraped_at || existing.last_scraped_at,
+      source_score: Math.max(Number(existing.source_score || 0), Number(source.source_score || 0)),
+      status: source.status === "used" ? "used" : existing.status
+    });
+    return existing;
+  }
+  source.id = uid("source");
+  workspace.radar.leadSources.unshift(source);
+  return source;
+}
+
+function upsertRadarProspect(prospect) {
+  const key = radarProspectIdentity(prospect);
+  const existing = workspace.radarProspects.find((stored) => radarProspectIdentity(stored) === key);
+  if (existing) {
+    Object.assign(existing, {
+      ...existing,
+      ...prospect,
+      lead_id: existing.lead_id,
+      tags: [...new Set([...(existing.tags || []), ...(prospect.tags || [])])],
+      updated_at: new Date().toISOString()
+    });
+    return { prospect: existing, fresh: false };
+  }
+  workspace.radarProspects.unshift(prospect);
+  return { prospect, fresh: true };
+}
+
+function radarPoolMemberKey(poolId, leadId) {
+  return `${poolId}|${leadId}`;
+}
+
+function upsertRadarPoolMember(pool, prospect, source, config = {}) {
+  const scored = scoreRadarProspect(prospect, config);
+  const key = radarPoolMemberKey(pool.id, prospect.lead_id);
+  const existing = workspace.radar.leadPoolMembers.find((member) => radarPoolMemberKey(member.pool_id, member.lead_id) === key);
+  const memberPatch = {
+    pool_id: pool.id,
+    lead_id: prospect.lead_id,
+    source_id: source?.id || "",
+    source_type: prospect.source_type,
+    source_value: source?.source_value || prospect.source_page || prospect.source_item || "",
+    relevance_score: scored.relevance_score,
+    engagement_score: scored.engagement_score,
+    quality_score: scored.quality_score,
+    commercial_fit_score: scored.commercial_fit_score,
+    total_score: scored.total_score,
+    tags: scored.tags || [],
+    reasons: [scored.score_reason],
+    extracted_at: prospect.collected_at || new Date().toISOString(),
+    last_scored_at: new Date().toISOString()
+  };
+  if (existing) {
+    Object.assign(existing, {
+      ...existing,
+      ...memberPatch,
+      id: existing.id,
+      tags: [...new Set([...(existing.tags || []), ...(memberPatch.tags || [])])],
+      reasons: [...new Set([...(existing.reasons || []), ...(memberPatch.reasons || [])])].slice(0, 8)
+    });
+    return existing;
+  }
+  const member = { id: uid("member"), ...memberPatch };
+  workspace.radar.leadPoolMembers.unshift(member);
+  return member;
+}
+
+function syncRadarPoolCounts(poolId = "") {
+  const now = Date.now();
+  const pools = poolId ? workspace.radar.leadPools.filter((pool) => pool.id === poolId) : workspace.radar.leadPools;
+  pools.forEach((pool) => {
+    const members = workspace.radar.leadPoolMembers.filter((member) => member.pool_id === pool.id);
+    const revealedIds = new Set(workspace.radar.leadReveals.filter((reveal) => reveal.pool_id === pool.id).map((reveal) => reveal.lead_id));
+    const coolingIds = new Set(
+      workspace.radar.leadReveals
+        .filter((reveal) => reveal.pool_id === pool.id && Number(reveal.cooldown_until || 0) > now)
+        .map((reveal) => reveal.lead_id)
+    );
+    pool.total_leads_count = members.length;
+    pool.revealed_leads_count = revealedIds.size;
+    pool.available_leads_count = members.filter((member) => !revealedIds.has(member.lead_id) && !coolingIds.has(member.lead_id)).length;
+    pool.updated_at = new Date().toISOString();
   });
-  workspace.radarProspects.unshift(...fresh);
+}
+
+function availableRadarPoolMembers(pool, config = {}) {
+  const now = Date.now();
+  const workspaceId = radarWorkspaceId();
+  const minScore = Math.max(0, Number(config.minScore || 0));
+  return workspace.radar.leadPoolMembers
+    .filter((member) => member.pool_id === pool.id && Number(member.total_score || 0) >= minScore)
+    .filter((member) => {
+      const sameWorkspaceReveal = workspace.radar.leadReveals.some((reveal) => reveal.workspace_id === workspaceId && reveal.lead_id === member.lead_id);
+      if (sameWorkspaceReveal) return false;
+      const globalCooldown = workspace.radar.leadReveals.some(
+        (reveal) => reveal.lead_id === member.lead_id && Number(reveal.cooldown_until || 0) > now
+      );
+      return !globalCooldown;
+    });
+}
+
+function radarSelectionWeight(member, prospect, config = {}, usedSources = new Set()) {
+  const recency = Math.max(0, 100 - daysSince(prospect.last_interaction || prospect.collected_at) * 2);
+  const revealCount = workspace.radar.leadReveals.filter((reveal) => reveal.lead_id === member.lead_id).length;
+  const underexposed = Math.max(0, 100 - revealCount * 25);
+  const sourceKey = member.source_id || member.source_value || prospect.source_page || prospect.platform;
+  const diversity = usedSources.has(sourceKey) ? 35 : 100;
+  const random = hashString(`${config.workspaceSeed || ""}:${member.lead_id}:${Date.now().toString().slice(0, -4)}`) % 100;
+  return Number(member.total_score || prospect.score_ai || 0) * 0.45 + recency * 0.15 + underexposed * 0.2 + diversity * 0.1 + random * 0.1;
+}
+
+function selectRadarPoolLeadIds(pool, config = {}, requested = config.limit || 50) {
+  const members = availableRadarPoolMembers(pool, config);
+  const selected = [];
+  const usedSources = new Set();
+  const candidates = [...members];
+  while (selected.length < requested && candidates.length) {
+    candidates.sort((a, b) => {
+      const prospectA = getRadarProspectById(a.lead_id) || {};
+      const prospectB = getRadarProspectById(b.lead_id) || {};
+      return radarSelectionWeight(b, prospectB, config, usedSources) - radarSelectionWeight(a, prospectA, config, usedSources);
+    });
+    const member = candidates.shift();
+    if (!member) break;
+    selected.push(member.lead_id);
+    usedSources.add(member.source_id || member.source_value || getRadarProspectById(member.lead_id)?.source_page || "");
+  }
+  return selected;
+}
+
+function registerRadarReveals(pool, results = [], config = {}, searchId = uid("radarsearch")) {
+  const workspaceId = radarWorkspaceId();
+  const now = new Date();
+  const cooldownDays = config.operationMode === "aggressive" ? 30 : config.operationMode === "balanced" ? 14 : 7;
+  const cooldownUntil = now.getTime() + cooldownDays * 86400000;
+  results.forEach((prospect) => {
+    const already = workspace.radar.leadReveals.some((reveal) => reveal.workspace_id === workspaceId && reveal.lead_id === prospect.lead_id);
+    if (already) return;
+    workspace.radar.leadReveals.unshift({
+      id: uid("reveal"),
+      workspace_id: workspaceId,
+      user_id: "local-user",
+      pool_id: pool.id,
+      lead_id: prospect.lead_id,
+      revealed_at: now.toISOString(),
+      cooldown_until: cooldownUntil,
+      reveal_context: `${config.niche || ""} · ${config.audienceType || "mix"}`,
+      search_id: searchId,
+      credits_charged: 1
+    });
+  });
+  workspace.radar.leadReveals = workspace.radar.leadReveals.slice(0, 5000);
+}
+
+function addRadarProspects(prospects = [], config = getRadarConfig()) {
+  const pool = ensureRadarPool(config);
+  const normalizedProspects = prospects.map((prospect) => normalizeRadarProspect(prospect)).filter((prospect) => !radarIsSellerOrAdNoise(prospect));
+  const fresh = [];
+  normalizedProspects.forEach((prospect) => {
+    const source = upsertRadarSourceFromProspect(prospect, config, prospect.provider_source || "radar");
+    if (radarIsSourceOnly(prospect)) return;
+    const result = upsertRadarProspect(prospect);
+    upsertRadarPoolMember(pool, result.prospect, source, config);
+    if (result.fresh) fresh.push(result.prospect);
+  });
+  pool.last_scraped_at = new Date().toISOString();
+  syncRadarPoolCounts(pool.id);
   if (fresh.length) workspace.opportunities = [];
   selectedRadarId = fresh[0]?.lead_id || selectedRadarId;
   saveWorkspace();
@@ -4959,13 +5503,13 @@ function radarSearchQuery(kind) {
   const country = config.country || "Italia";
   const city = config.city ? ` ${config.city}` : "";
   const queries = {
-    programmingRequests: `"cerco sviluppatore" OR "mi serve un sito" OR "voglio creare un'app" OR "preventivo sito" ${country}${city}`,
-    hotPagesRequests: `site:facebook.com/groups ("cerco sviluppatore" OR "cerco programmatore" OR "buongiorno cerco") ("app" OR "sito" OR "gestionale" OR "bot") ${country}${city}`,
-    marketplaceRequests: `(site:techlance.it OR site:addlance.com OR site:freelancer.co.it) ("cerco sviluppatore" OR "cerco programmatore" OR "budget") ${country}${city}`,
-    forumRequests: `("cerco sviluppatore" OR "cerco programmatore") (forum OR reddit OR community) ${country}${city}`,
-    businessWeb: `("sito in costruzione" OR "pagina contatti" OR "richiedi preventivo") "azienda" ${country}${city}`,
-    italianForumRequests: `("cerco programmatore" OR "cerco freelance" OR "preventivo app" OR "software gestionale") ("forum italiano" OR forum OR community OR reddit) ${country}${city}`,
-    blogRequests: `("cerco sviluppatore" OR "voglio automatizzare" OR "software su misura" OR "chatbot azienda" OR "rifare sito") ${country}${city}`
+    programmingRequests: `site:instagram.com OR site:tiktok.com OR site:youtube.com/watch "programmazione" "app" "automazioni AI" ${country}${city}`,
+    hotPagesRequests: `site:facebook.com/groups OR site:linkedin.com/posts "startup" "sviluppo app" "software" ${country}${city}`,
+    marketplaceRequests: `(site:techlance.it OR site:addlance.com OR site:freelancer.co.it) "app" "sito" "software" ${country}${city}`,
+    forumRequests: `("programmazione" OR "sviluppo app" OR "automazioni") (forum OR reddit OR community) ${country}${city}`,
+    businessWeb: `("software house" OR "web agency" OR "startup" OR "ecommerce") ${country}${city}`,
+    italianForumRequests: `("programmazione" OR "software gestionale" OR "startup") ("forum italiano" OR forum OR community OR reddit) ${country}${city}`,
+    blogRequests: `("automazioni AI" OR "software su misura" OR "app business" OR "creator AI") ${country}${city}`
   };
   return queries[kind] || queries.programmingRequests;
 }
@@ -5008,6 +5552,21 @@ async function runLiveOpenWebSearch() {
   const button = document.querySelector("#runLiveOpenWebSearch");
   const config = syncQuickRadarFlow();
   if (!canUsePlanFeature("live_search", "#radarFeedback")) return;
+  const pool = ensureRadarPool(config);
+  syncRadarPoolCounts(pool.id);
+  const requestedVisible = Number(config.requestedVisibleLeads || config.limit || 50);
+  const poolIds = selectRadarPoolLeadIds(pool, config, requestedVisible);
+  if (poolIds.length >= requestedVisible || config.radarMode === "pool") {
+    activeRadarTab = "all";
+    executeRadarSearch({ ...config, radarMode: "pool" }, poolIds);
+    setFeedback(
+      "#radarFeedback",
+      poolIds.length
+        ? `${Math.min(poolIds.length, requestedVisible)} prospect rivelati dalla pool esistente. Nessun provider chiamato.`
+        : "Pool vuota per questa audience: passa ad Auto Radar o aggiungi una fonte specifica per alimentarla."
+    );
+    return;
+  }
   const params = new URLSearchParams({
     niche: config.niche,
     country: config.country,
@@ -5019,14 +5578,17 @@ async function runLiveOpenWebSearch() {
     sources: config.sources.join(","),
     monitorUrls: config.monitorUrls.join(","),
     recencyMonths: String(config.recencyMonths || 12),
-    limit: String(config.limit || 30)
+    audienceType: config.audienceType || "mix",
+    radarMode: config.radarMode || "auto",
+    visibleLimit: String(requestedVisible),
+    limit: String(config.internalTargetLeads || config.limit || 30)
   });
   const previousText = button?.textContent || "";
   if (button) {
     button.disabled = true;
     button.textContent = "Cerco fonti live...";
   }
-  setFeedback("#radarFeedback", "Ricerca live in corso su fonti pubbliche italiane. Escludo provider inglesi e non invio messaggi.");
+  setFeedback("#radarFeedback", "Discovery live in corso: prima trovo fonti rilevanti, poi estraggo audience pubbliche e rivelo solo i prospect richiesti.");
   try {
     const response = await fetch(`${radarApiBaseUrl()}/api/radar-search?${params.toString()}`);
     const payload = await response.json().catch(() => ({}));
@@ -5038,10 +5600,12 @@ async function runLiveOpenWebSearch() {
       fallback_relaxed: Boolean(payload.fallback_relaxed)
     });
     workspace.radar.lastProviderStatus = payload.provider_status || [];
-    const fresh = addRadarProspects(payload.prospects || []);
-    const liveResultIds = radarIdsForImportedProspects(payload.prospects || []);
+    const fresh = addRadarProspects(payload.prospects || [], config);
+    const updatedPool = ensureRadarPool(config);
+    syncRadarPoolCounts(updatedPool.id);
+    const liveResultIds = selectRadarPoolLeadIds(updatedPool, config, requestedVisible);
     activeRadarTab = "all";
-    executeRadarSearch(getRadarConfig(), liveResultIds);
+    executeRadarSearch(config, liveResultIds);
     const visibleLiveCount = workspace.radar.resultIds?.length || liveResultIds.length || 0;
     const providerSummary = (payload.provider_status || [])
       .filter((provider) => provider.status === "fulfilled")
@@ -5055,8 +5619,8 @@ async function runLiveOpenWebSearch() {
     setFeedback(
       "#radarFeedback",
       visibleLiveCount
-        ? `${visibleLiveCount} risultati live analizzati${fresh.length ? `, ${fresh.length} nuovi nel database` : ""}${payload.fallback_relaxed ? " con filtro allargato" : ""}. Modalità Italia attiva. Fonti: ${providerSummary || payload.providers?.join(", ") || "fonti pubbliche"}.${providerNote}`
-        : `Ricerca live completata in modalità Italia, ma nessun nuovo prospect buono diverso da quelli già salvati. Fonti controllate: ${providerSummary || "nessuna fonte utile"}.${providerNote}`
+        ? `${visibleLiveCount} prospect rivelati${fresh.length ? `, nuova audience salvata nella pool` : ""}${payload.fallback_relaxed ? " con filtro allargato" : ""}. Fonti: ${providerSummary || payload.providers?.join(", ") || "fonti pubbliche"}.${providerNote}`
+        : `Discovery completata, ma non ci sono prospect rivelabili con questi filtri. Prova una fonte specifica o una nicchia più ampia.${providerNote}`
     );
   } catch (error) {
     setFeedback(
@@ -5074,13 +5638,13 @@ async function runLiveOpenWebSearch() {
 Object.assign(helpContent, {
   radarOverview: {
     title: "AI Social & Web Radar 360",
-    intro: "Serve a trasformare segnali pubblici in prospect ordinati per qualità, senza fare DM automatici sui social.",
-    steps: ["Scegli un obiettivo dalla Modalità semplice.", "Premi Configura automatico.", "Importa segnali reali o collega fonti.", "Lancia il radar.", "Usa Contatta in base al contact mode."],
-    example: "Per programmazione cerca richieste tipo cerco sviluppatore, mi serve un sito, voglio automatizzare, poi separa social manuali da email/form business."
+    intro: "Serve a costruire una pool di audience targetizzate: fonti, commentatori, follower disponibili e profili pubblici coerenti.",
+    steps: ["Scrivi la nicchia.", "Scegli piattaforme e paese.", "Il Radar controlla prima la pool.", "Se serve, scopre fonti e alimenta il database.", "Mostra solo i prospect rivelati."],
+    example: "Per programmazione cerca audience attive intorno a creator, video, community e pagine che parlano di app, siti, AI e automazioni."
   },
   radarNiche: {
     title: "Nicchia",
-    intro: "Il tema centrale dei clienti che vuoi trovare.",
+    intro: "Il tema centrale dell'audience o dei prospect compatibili che vuoi trovare.",
     steps: ["Scrivi parole naturali.", "Non serve una singola keyword perfetta.", "Il radar espande il target con termini correlati."],
     example: "sviluppo software, automazioni AI, siti web, app, bot"
   },
@@ -5200,9 +5764,9 @@ Object.assign(helpContent, {
   },
   radarRun: {
     title: "Lancia Radar 360",
-    intro: "Esegue scoring e filtri sui segnali disponibili.",
-    steps: ["Prima importa dati o collega fonti.", "Poi premi il pulsante.", "I risultati finiscono nei tab."],
-    example: "Dopo import CSV, premi Lancia Radar 360"
+    intro: "Controlla prima la pool interna. Se non basta, usa provider live per scoprire fonti e audience pubbliche.",
+    steps: ["Imposta nicchia, piattaforme e quantità.", "Il sistema evita scraping inutile se la pool ha già dati.", "I risultati mostrati sono solo i prospect rivelati."],
+    example: "Trading + Instagram + Italia + 50 prospect"
   },
   radarImport: {
     title: "Import segnali reali",
@@ -5300,7 +5864,7 @@ document.querySelector("#radarPresetSelect")?.addEventListener("change", (event)
 
 document.querySelector("#applyRadarPreset")?.addEventListener("click", () => {
   syncQuickRadarFlow();
-  setFeedback("#radarFeedback", "Ricerca preparata. Ora premi Cerca clienti oppure importa fonti reali e analizzale.");
+  setFeedback("#radarFeedback", "Ricerca preparata. Ora premi Avvia Radar oppure inserisci una fonte specifica per alimentare la pool.");
 });
 
 document.querySelector("#runRadarPreset")?.addEventListener("click", () => {
@@ -5312,11 +5876,11 @@ document.querySelector("#runLiveOpenWebSearch")?.addEventListener("click", () =>
   runLiveOpenWebSearch();
 });
 
-[document.querySelector("#radarGoalInput"), document.querySelector("#radarQuickCity")]
+[document.querySelector("#radarGoalInput"), document.querySelector("#radarQuickCity"), document.querySelector("#radarQuickQuantity")]
   .filter(Boolean)
   .forEach((input) => input.addEventListener("input", syncQuickRadarFlow));
 
-document.querySelectorAll("[data-quick-source], input[name='radarQuickGeo']").forEach((input) => {
+document.querySelectorAll("[data-quick-source], input[name='radarQuickGeo'], #radarQuickMode, #radarQuickAudienceType").forEach((input) => {
   input.addEventListener("change", syncQuickRadarFlow);
 });
 
@@ -5346,6 +5910,11 @@ document.querySelector("#clearRadarDatabase")?.addEventListener("click", () => {
   workspace.radar.contactLogs = [];
   workspace.radar.assignments = {};
   workspace.radar.searches = [];
+  workspace.radar.leadPools = [];
+  workspace.radar.leadPoolMembers = [];
+  workspace.radar.leadSources = [];
+  workspace.radar.leadReveals = [];
+  workspace.radar.savedLeadIds = [];
   workspace.radar.lastFunnel = null;
   workspace.radar.lastCreditEstimate = null;
   workspace.opportunities = [];
@@ -5378,6 +5947,15 @@ document.addEventListener("change", (event) => {
 });
 
 document.addEventListener("click", (event) => {
+  const radarView = event.target?.dataset?.radarView;
+  if (radarView) {
+    activeRadarView = radarView;
+    workspace.radar.activeView = radarView;
+    saveWorkspace();
+    renderRadar();
+    return;
+  }
+
   const radarTab = event.target?.dataset?.radarTab;
   if (radarTab) {
     activeRadarTab = radarTab;
@@ -5412,6 +5990,40 @@ document.addEventListener("click", (event) => {
     return;
   }
 
+  const radarSaveId = event.target?.dataset?.radarSave;
+  if (radarSaveId) {
+    const prospect = getRadarProspectById(radarSaveId);
+    if (prospect) {
+      ensureLeadFromRadarProspect(prospect);
+      workspace.radar.savedLeadIds = [...new Set([...(workspace.radar.savedLeadIds || []), prospect.lead_id])];
+      updateStoredRadarProspect(prospect.lead_id, { contact_state: "saved_to_crm" });
+      saveWorkspace();
+      renderAll();
+      setFeedback("#radarFeedback", "Prospect salvato nel CRM. Nessun contatto automatico avviato.");
+    }
+    return;
+  }
+
+  const radarHideId = event.target?.dataset?.radarHide;
+  if (radarHideId) {
+    workspace.radar.resultIds = (workspace.radar.resultIds || []).filter((id) => id !== radarHideId);
+    if (selectedRadarId === radarHideId) selectedRadarId = workspace.radar.resultIds[0] || "";
+    updateStoredRadarProspect(radarHideId, { contact_state: "hidden" });
+    saveWorkspace();
+    renderAll();
+    setFeedback("#radarFeedback", "Prospect nascosto da questa ricerca. Resta tracciato nel database interno.");
+    return;
+  }
+
+  const radarEnrichId = event.target?.dataset?.radarEnrich;
+  if (radarEnrichId) {
+    updateStoredRadarProspect(radarEnrichId, { contact_state: "enrichment_requested" });
+    saveWorkspace();
+    renderAll();
+    setFeedback("#radarFeedback", "Arricchimento segnato. Nel motore completo userà provider/API dedicati senza cambiare la lista rivelata.");
+    return;
+  }
+
   const radarPostponeId = event.target?.dataset?.radarPostpone;
   if (radarPostponeId) {
     postponeRadarProspect(radarPostponeId);
@@ -5434,8 +6046,8 @@ document.addEventListener("click", (event) => {
   if (copyRadarMessageId) {
     const prospect = getRadarProspectById(copyRadarMessageId);
     if (prospect) {
-      copyText(prospect.suggested_message || buildRadarMessage(prospect)).then((copied) => {
-        setFeedback("#radarFeedback", copied ? "Messaggio copiato negli appunti." : "Permesso appunti negato.");
+      copyText(buildRadarCrmNote(prospect)).then((copied) => {
+        setFeedback("#radarFeedback", copied ? "Nota prospect copiata negli appunti." : "Permesso appunti negato.");
       });
     }
     return;

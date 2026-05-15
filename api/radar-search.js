@@ -173,7 +173,16 @@ function hasTradingSignal(text = "") {
 }
 
 function isUsefulProspectForSearch(prospect = {}, config = {}) {
-  if (isAudienceMiningSource(prospect)) return false;
+  const sourceType = String(prospect.source_type || "");
+  if (isAudienceMiningSource(prospect) || /source_to_mine/i.test(sourceType)) return true;
+  if (/comment|follower|profile|channel|group|community/i.test(sourceType)) {
+    const text = `${prospect.source_item || ""} ${prospect.relevant_text || ""} ${prospect.bio_public || ""} ${sourceType}`;
+    if (/garantito|100%|soldi facili|pump|casino|bonus|airdrop|follow4follow/i.test(text)) return false;
+    if (isItalianMode(config) && prospect.estimated_language === "en" && !looksItalian(text)) {
+      return /italia|italy|italiano|roma|milano|napoli|torino|bologna/i.test(`${prospect.source_url || ""} ${prospect.source_page || ""}`);
+    }
+    return true;
+  }
   if (isTradingSearch(config)) {
     const text = `${prospect.source_item || ""} ${prospect.relevant_text || ""} ${prospect.bio_public || ""} ${prospect.source_type || ""}`;
     if (/garantito|100%|soldi facili|diventa ricco|pump|casino|bonus/i.test(text)) return false;
@@ -440,7 +449,10 @@ function getQuery(req) {
     .filter((item) => /^https?:\/\//i.test(item))
     .slice(0, 12);
   const recencyMonths = Math.max(1, Math.min(60, Number(params.get("recencyMonths") || DEFAULT_RECENCY_MONTHS)));
-  const limit = Math.max(5, Math.min(80, Number(params.get("limit") || DEFAULT_LIMIT)));
+  const visibleLimit = Math.max(5, Math.min(250, Number(params.get("visibleLimit") || params.get("requestedVisibleLeads") || DEFAULT_LIMIT)));
+  const limit = Math.max(5, Math.min(250, Number(params.get("limit") || DEFAULT_LIMIT)));
+  const audienceType = params.get("audienceType") || "mix";
+  const radarMode = params.get("radarMode") || "auto";
   const base = [niche, keywords, country, city].filter(Boolean).join(" ");
   return {
     q: compact(base, 180),
@@ -454,7 +466,10 @@ function getQuery(req) {
     sources,
     monitorUrls,
     recencyMonths,
-    limit
+    limit,
+    visibleLimit,
+    audienceType,
+    radarMode
   };
 }
 
@@ -526,39 +541,43 @@ function liveQueries(config) {
   return [...new Set([config.q, ...custom, ...signals.map((signal) => `${signal}${country}${city}`)])].filter(Boolean).slice(0, isItalianMode(config) ? 18 : 16);
 }
 
-function serperQueries(config) {
+function audienceSeedTerms(config = {}) {
+  const raw = apifySplitList(`${config.niche || ""}, ${config.keywords || ""}, ${config.hashtags || ""}`)
+    .map((item) => item.replace(/^#/, "").trim())
+    .filter((item) => item.length >= 3);
+  const programming = isProgrammingSearch(config)
+    ? ["programmazione", "sviluppo app", "siti web", "automazioni AI", "software gestionale", "ecommerce", "startup Italia", "no-code"]
+    : [];
+  const trading = isTradingSearch(config)
+    ? ["trading", "forex", "prop firm", "bot trading", "MT5", "crypto", "copy trading", "trading principianti"]
+    : [];
+  return [...new Set([...raw, ...programming, ...trading])].slice(0, 8);
+}
+
+function sourceDiscoveryQueries(config) {
   const country = config.country || "Italia";
   const city = config.city ? ` ${config.city}` : "";
-  if (isItalianMode(config) && isTradingSearch(config)) {
-    return [
-      `site:youtube.com/watch ("come iniziare trading" OR "prop firm" OR "forex" OR "bot trading") ${country}${city}`,
-      `site:finanzaonline.com/forum ("come iniziare" OR "consigli" OR "cerco" OR "broker") ("trading" OR "forex" OR "crypto" OR "prop firm")`,
-      `site:investireoggi.it/forums ("trading" OR "forex" OR "broker" OR "crypto") ("consigli" OR "iniziare" OR "opinioni")`,
-      `site:mql5.com/it/forum ("MT5" OR "expert advisor" OR "bot trading" OR "forex") ("cerco" OR "aiuto" OR "come")`,
-      `site:reddit.com/r/ItaliaPersonalFinance ("trading" OR "broker" OR "crypto" OR "forex") ("consigli" OR "iniziare" OR "opinioni") -inurl:?tl=`,
-      `site:facebook.com/groups ("trading" OR "forex" OR "prop firm" OR "crypto") ("come iniziare" OR "consigli" OR "cerco" OR "info")`,
-      `site:linkedin.com/posts ("trading" OR "prop firm" OR "forex" OR "crypto") ("cerco" OR "consigli" OR "iniziare")`,
-      `("come iniziare trading" OR "quale broker" OR "prop firm consigli" OR "bot trading MT5") ${country}${city} -guida -news`
-    ];
-  }
-  if (isItalianMode(config) && isProgrammingSearch(config)) {
-    return [
-      `("cerco sviluppatore" OR "cerco programmatore" OR "cerco freelance") ("budget" OR "progetto" OR "app" OR "sito" OR "gestionale") ${country}${city} -guida -tutorial -come`,
-      `("buongiorno cerco" OR "ciao cerco" OR "sto cercando") ("sviluppatore" OR "programmatore" OR "freelance") ${country}${city}`,
-      `("solo a chi parla italiano" OR "parla italiano") ("cerco sviluppatore" OR "cerco programmatore")`,
-      `site:facebook.com/groups ("cerco sviluppatore" OR "cerco programmatore" OR "buongiorno cerco") ("app" OR "sito" OR "gestionale" OR "bot")`,
-      `site:facebook.com/groups ("cerco sviluppatore" OR "cerco programmatore") ("budget" OR "startup" OR "ecommerce" OR "piattaforma")`,
-      `site:linkedin.com/posts ("cerco sviluppatore" OR "cerco programmatore" OR "sto cercando sviluppatore") ${country}${city}`,
-      `site:inforge.net/forum ("cerco sviluppatore" OR "cerco programmatore" OR "cerco coder" OR "cerco developer")`,
-      `site:forum.html.it ("cerco sviluppatore" OR "cerco programmatore" OR "mi serve un sito" OR "preventivo")`,
-      `site:reddit.com/r/ItalyInformatica ("cerco" OR "serve" OR "preventivo") (sito OR app OR software OR gestionale) -inurl:?tl=`,
-      `site:techlance.it ("cerco sviluppatore" OR "cerco programmatore" OR "budget")`,
-      `site:freelancer.co.it/job-search ("cerco programmatore" OR "cerco sviluppatore" OR "buongiorno cerco")`,
-      `site:addlance.com ("cerco programmatore" OR "cerco sviluppatore" OR "richiedi un preventivo simile")`,
-      `site:malt.it ("cerco sviluppatore" OR "cerco programmatore" OR "progetto")`
-    ];
-  }
-  return liveQueries(config).slice(0, SERPER_MAX_QUERIES);
+  const terms = audienceSeedTerms(config);
+  const primary = terms[0] || config.niche || "business";
+  const sourceQueries = [];
+  terms.slice(0, 4).forEach((term) => {
+    sourceQueries.push(`site:instagram.com ${term} ${country}${city} creator community`);
+    sourceQueries.push(`site:tiktok.com ${term} ${country}${city}`);
+    sourceQueries.push(`site:youtube.com/watch ${term} ${country}${city}`);
+  });
+  sourceQueries.push(`site:facebook.com/groups ${primary} ${country}${city}`);
+  sourceQueries.push(`site:linkedin.com/posts ${primary} ${country}${city}`);
+  sourceQueries.push(`site:reddit.com/r/ ${primary} ${country}${city} -inurl:?tl=`);
+  sourceQueries.push(`${primary} community ${country}${city}`);
+  sourceQueries.push(`${primary} forum ${country}${city}`);
+  sourceQueries.push(`${primary} canale Telegram ${country}${city}`);
+  sourceQueries.push(`${primary} creator ${country}${city}`);
+  sourceQueries.push(`${primary} pagine ${country}${city}`);
+  return [...new Set(sourceQueries.map((query) => query.replace(/\s+/g, " ").trim()))].slice(0, SERPER_MAX_QUERIES);
+}
+
+function serperQueries(config) {
+  return sourceDiscoveryQueries(config);
 }
 
 function prospectFromSearchResult(result = {}, config = {}, provider = "Serper Google Search") {
@@ -571,20 +590,9 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
   const isSocialPage = /facebook\.com|linkedin\.com|instagram\.com|tiktok\.com|youtube\.com/i.test(host);
   const isMarketplace = /freelancer\.|addlance\.com|techlance\.it|malt\.it/i.test(host);
   const isForum = !isSocialPage && !isMarketplace && /forum|community|reddit|discussioni|thread|risposte|stackoverflow|quora/i.test(haystack);
-  const isBusinessContact = /contatti|preventivo|richiedi|azienda|agenzia|servizi|software house|web agency|professionista|freelance|budget|pubblicato da/i.test(haystack);
-  const hasContactIntent = hasServiceBuyingIntent(text) || (hasClientIntent(text) && hasDevelopmentTerm(text));
-  const sellerOrAd = isSellerOrAdSignal(text);
+  const isBusinessContact = /contatti|azienda|directory|paginegialle|scheda|maps|servizi|professionista|business/i.test(haystack);
   if (!link || !title) return null;
-  if (isItalianMode(config) && !isItalianWebResult(link, text)) return null;
   if (!passesExplicitRecency(text, config)) return null;
-  if (isProgrammingSearch(config) && isMarketingContentNoise(link, text)) return null;
-  if (isProgrammingSearch(config) && isMarketplaceSellerListing(link, text)) return null;
-  if (isProgrammingSearch(config) && sellerOrAd && !/youtube\.com|youtu\.be/i.test(link)) return null;
-  if (isProgrammingSearch(config) && !hasExplicitHireRequest(text)) return null;
-  if (isProgrammingSearch(config) && !isMarketplaceOrCommunityLead(link, text) && !/budget|pubblicato da|solo a chi parla italiano/i.test(text)) return null;
-  if (isProgrammingSearch(config) && !hasContactIntent && !hasOwnedProjectProblem(text) && !/forum|reddit|community|discussione/i.test(haystack)) {
-    return null;
-  }
   const platform = isSocialPage
     ? host.includes("facebook")
       ? "Facebook"
@@ -600,15 +608,16 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
     : isForum
       ? "Forum"
       : "Website";
-  const sourceType = isMarketplace
-    ? "marketplace_buyer_request"
-    : sellerOrAd
-      ? "audience_source_to_mine"
-    : isSocialPage
-      ? "social_page_buyer_request"
-      : isBusinessContact
-        ? "serper_business_or_intent_signal"
-        : "serper_public_signal";
+  const sourceType =
+    platform === "YouTube" && /watch|shorts|youtu\.be/i.test(link)
+      ? "youtube_video_source_to_mine"
+      : isSocialPage
+        ? "social_source_to_mine"
+        : isForum
+          ? "community_source_to_mine"
+          : isBusinessContact || isMarketplace
+            ? "business_directory_source_to_mine"
+            : "website_source_to_mine";
   return {
     platform,
     source_type: sourceType,
@@ -624,11 +633,12 @@ function prospectFromSearchResult(result = {}, config = {}, provider = "Serper G
     city: config.city,
     country: config.country,
     estimated_language: inferLanguage(text, config.language),
-    detected_intent: inferIntent(text),
+    detected_intent: "fonte audience rilevante",
     interactions_detected: 1,
     last_interaction: new Date().toISOString(),
     provider_source: provider,
-    source_reliability: isMarketplace || isSocialPage ? 86 : isForum ? 74 : 68
+    source_reliability: isMarketplace || isSocialPage ? 86 : isForum ? 74 : 68,
+    internal_notes: "Fonte scoperta da Serper. Non è un lead finale: va usata per estrarre audience/commentatori/follower pubblici disponibili."
   };
 }
 
@@ -671,13 +681,13 @@ function apifySearchTerms(config = {}) {
     .slice(0, 8);
   const programming = isProgrammingSearch(config)
     ? [
-        "cerco sviluppatore",
-        "cerco programmatore",
-        "mi serve un sito",
-        "devo creare un app",
-        "cerco automazioni AI",
-        "cerco bot telegram",
-        "preventivo gestionale"
+        "programmazione",
+        "sviluppo app",
+        "siti web",
+        "automazioni AI",
+        "software gestionale",
+        "ecommerce Italia",
+        "startup Italia"
       ]
     : [];
   const trading = isTradingSearch(config)
@@ -1581,27 +1591,57 @@ async function searchApify(config) {
   if (!process.env.APIFY_TOKEN) {
     throw new Error("APIFY_TOKEN non configurata su Vercel");
   }
-  const specs = apifyRunSpecs(config);
+  const discoveredSources = process.env.SERPER_API_KEY
+    ? await searchSerper(config).catch(() => [])
+    : [];
+  const enrichedConfig = {
+    ...config,
+    monitorUrls: uniqueUrls([
+      ...(config.monitorUrls || []),
+      ...discoveredSources
+        .map((source) => source.source_url)
+        .filter((url) => /^https?:\/\//i.test(url))
+    ]).slice(0, 24)
+  };
+  const specs = apifyRunSpecs(enrichedConfig);
   if (!specs.length) {
     throw new Error("APIFY_TOKEN presente, ma nessun Actor Apify attivo per le fonti selezionate");
   }
   const settled = await Promise.allSettled(specs.map((spec) => runApifyActor(spec).then((items) => ({ spec, items }))));
   const prospects = settled.flatMap((result) =>
     result.status === "fulfilled"
-      ? result.value.items.map((item) => prospectFromApifyItem(item, config, result.value.spec)).filter(Boolean)
+      ? result.value.items.map((item) => prospectFromApifyItem(item, enrichedConfig, result.value.spec)).filter(Boolean)
       : []
   );
-  const youtubeUrls = youtubeUrlsFromApifyResults(settled, config);
+  const youtubeUrls = youtubeUrlsFromApifyResults(settled, enrichedConfig);
   const alreadyScrapedComments = prospects.some((prospect) => prospect.platform === "YouTube" && /comment/i.test(prospect.source_type));
   if (youtubeUrls.length && !alreadyScrapedComments) {
-    const commentProspects = await searchYouTubeCommentsFromVideos(youtubeUrls, config).catch(() => []);
+    const commentProspects = await searchYouTubeCommentsFromVideos(youtubeUrls, enrichedConfig).catch(() => []);
     prospects.push(...commentProspects);
   }
   if (!prospects.length && settled.every((result) => result.status === "rejected")) {
     throw new Error(settled.map((result) => result.reason?.message || "Actor Apify non riuscito").join(" | "));
   }
-  return prospects;
+  return [...discoveredSources, ...prospects];
 }
+
+const SerperProvider = {
+  name: "SerperProvider",
+  searchSources: searchSerper
+};
+
+const ApifyProvider = {
+  name: "ApifyProvider",
+  searchSources: async (config) => (process.env.SERPER_API_KEY ? searchSerper(config) : []),
+  extractProfiles: searchApify,
+  extractPosts: searchApify,
+  extractComments: searchApify,
+  extractFollowers: searchApify,
+  extractSimilarAccounts: searchApify,
+  extractTelegramMessages: searchApify,
+  extractYouTubeComments: searchYouTubeAudience,
+  extractTikTokData: searchApify
+};
 
 async function searchReddit(config) {
   const queries = liveQueries(config).slice(0, isItalianMode(config) ? 7 : 16);
@@ -1983,7 +2023,12 @@ module.exports = async function handler(req, res) {
   const prospects = settled
     .flatMap((result) => (result.status === "fulfilled" ? result.value : []))
     .filter((prospect) => prospect.source_url && prospect.relevant_text)
-    .filter((prospect) => languageMatchesConfig(prospect, config))
+    .filter((prospect) => {
+      const sourceType = String(prospect.source_type || "");
+      const context = `${prospect.source_url || ""} ${prospect.source_page || ""} ${prospect.source_item || ""}`;
+      if (/source_to_mine|follower|profile/i.test(sourceType) && /italia|italy|italiano|roma|milano|napoli|torino|bologna/i.test(context)) return true;
+      return languageMatchesConfig(prospect, config);
+    })
     .filter((prospect) => monthsSince(prospect.last_interaction) <= config.recencyMonths);
 
   const strictProspects = prospects.filter((prospect) => isUsefulProspectForSearch(prospect, config));
@@ -2005,7 +2050,7 @@ module.exports = async function handler(req, res) {
   const seen = new Set();
   const unique = relaxedProspects
     .filter((prospect) => {
-      const key = `${prospect.source_url}|${prospect.relevant_text.slice(0, 80)}`.toLowerCase();
+      const key = `${prospect.platform}|${prospect.username_public || ""}|${prospect.profile_link || ""}|${prospect.source_url}|${prospect.relevant_text.slice(0, 80)}`.toLowerCase();
       if (seen.has(key)) return false;
       seen.add(key);
       return true;

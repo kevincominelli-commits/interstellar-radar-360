@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Interstellar Dashboard Mockup</title>
-    <link rel="stylesheet" href="mockup-wow.css?v=radar360-23" />
+    <link rel="stylesheet" href="mockup-wow.css?v=radar360-24" />
   </head>
   <body data-theme="stripe">
     <canvas id="starCanvas" aria-hidden="true"></canvas>
@@ -497,7 +497,7 @@
               <div class="panel-head">
                 <div>
                   <span>AI Social & Web Radar 360</span>
-                  <h2>Prospect intelligence</h2>
+                  <h2>Audience Intelligence</h2>
                 </div>
                 <button type="button" class="help-button" data-help="radarOverview">?</button>
               </div>
@@ -505,14 +505,41 @@
               <div class="radar-guided-panel">
                 <div class="radar-command-top">
                   <span>Mission control</span>
-                  <h3>Dimmi chi vuoi trovare. Il Radar decide dove scavare.</h3>
-                  <p>Video, post e annunci non sono clienti: sono fonti calde. Il prospect vero è chi commenta, chiede info o mostra interesse.</p>
+                  <h3>Crea una pool di audience targetizzata.</h3>
+                  <p>Il Radar non promette clienti pronti: trova fonti rilevanti, estrae utenti attivi pubblici e rivela solo i prospect richiesti.</p>
                 </div>
 
                 <label class="radar-mission-input">
-                  <span>Cliente target</span>
-                  <input id="radarGoalInput" value="clienti interessati a trovare un programmatore, creare un sito, app, bot o automazioni AI" />
+                  <span>Nicchia / audience</span>
+                  <input id="radarGoalInput" value="audience interessata a programmazione, app, siti, bot e automazioni AI" />
                 </label>
+
+                <div class="radar-source-console audience-console">
+                  <label>
+                    <span>Modalità Radar</span>
+                    <select id="radarQuickMode">
+                      <option value="auto" selected>Auto Radar consigliato</option>
+                      <option value="source">Fonte specifica</option>
+                      <option value="competitor">Competitor audience</option>
+                      <option value="pool">Solo pool esistente</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Tipo audience</span>
+                    <select id="radarQuickAudienceType">
+                      <option value="mix" selected>Mix automatico</option>
+                      <option value="commenters">Commentatori attivi</option>
+                      <option value="followers">Follower disponibili</option>
+                      <option value="creators">Creator / pagine</option>
+                      <option value="similar">Account simili</option>
+                      <option value="community">Community users</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Lead da rivelare</span>
+                    <input id="radarQuickQuantity" type="number" min="5" max="250" value="50" />
+                  </label>
+                </div>
 
                 <div class="radar-source-console">
                   <div>
@@ -546,10 +573,10 @@
                 </div>
 
                 <div class="radar-logic-strip">
-                  <span>1. trova fonti</span>
-                  <span>2. legge segnali</span>
-                  <span>3. scarta fuffa</span>
-                  <span>4. ordina prospect</span>
+                  <span>1. controlla pool</span>
+                  <span>2. scopre fonti</span>
+                  <span>3. estrae audience</span>
+                  <span>4. rivela prospect</span>
                 </div>
               </div>
 
@@ -710,8 +737,8 @@
                   <strong>Input manuale avanzato</strong>
                   <p>Usalo per incollare URL, CSV o segnali presi da provider esterni. Non serve per la ricerca normale.</p>
                   <div class="button-row">
-                    <button type="button" class="ghost-button" data-radar-open-search="programmingRequests">Richieste software</button>
-                    <button type="button" class="ghost-button" data-radar-open-search="hotPagesRequests">Pagine calde</button>
+                    <button type="button" class="ghost-button" data-radar-open-search="programmingRequests">Fonti software</button>
+                    <button type="button" class="ghost-button" data-radar-open-search="hotPagesRequests">Community social</button>
                     <button type="button" class="ghost-button" data-radar-open-search="marketplaceRequests">Marketplace</button>
                     <button type="button" class="ghost-button" data-radar-open-search="blogRequests">Blog / Community</button>
                     <button type="button" class="ghost-button" data-radar-open-search="businessWeb">Aziende web</button>
@@ -730,42 +757,53 @@
               <div class="panel-head">
                 <div>
                   <span>Risultati Radar</span>
-                  <h2>Prospect ordinati per qualità</h2>
+                  <h2>Lead rivelati e pool</h2>
                 </div>
                 <div class="panel-actions">
                   <button type="button" id="exportRadarCsv">Export CSV</button>
                 </div>
               </div>
 
+              <div class="lead-tabs radar-view-tabs" id="radarViewTabs">
+                <button type="button" class="active" data-radar-view="revealed">Lead rivelati</button>
+                <button type="button" data-radar-view="pools">Pool</button>
+                <button type="button" data-radar-view="sources">Fonti</button>
+                <button type="button" data-radar-view="saved">Lead salvati</button>
+                <button type="button" data-radar-view="history">Storico</button>
+                <button type="button" data-radar-view="admin">Admin</button>
+              </div>
+
               <div class="finder-stats radar-stats" id="radarStats"></div>
 
               <div class="lead-tabs radar-tabs" id="radarTabs">
                 <button type="button" class="active" data-radar-tab="all">Tutti</button>
-                <button type="button" data-radar-tab="hot">Hot</button>
-                <button type="button" data-radar-tab="warm">Warm</button>
-                <button type="button" data-radar-tab="cold">Cold</button>
+                <button type="button" data-radar-tab="hot">Top fit</button>
+                <button type="button" data-radar-tab="warm">Buoni</button>
+                <button type="button" data-radar-tab="cold">Da nutrire</button>
                 <button type="button" data-radar-tab="social">Social</button>
                 <button type="button" data-radar-tab="web">Web</button>
-                <button type="button" data-radar-tab="forum">Forum</button>
-                <button type="button" data-radar-tab="automated">Auto</button>
-                <button type="button" data-radar-tab="manual">Manual</button>
+                <button type="button" data-radar-tab="forum">Community</button>
+                <button type="button" data-radar-tab="commenters">Commentatori</button>
+                <button type="button" data-radar-tab="followers">Follower</button>
+                <button type="button" data-radar-tab="automated">Business</button>
+                <button type="button" data-radar-tab="manual">Manuale</button>
               </div>
 
               <div class="system-toolbar finder-toolbar radar-toolbar">
-                <input id="radarSearch" type="search" placeholder="Filtra nome, testo, fonte, città, intent..." />
+                <input id="radarSearch" type="search" placeholder="Filtra username, bio, fonte, città, tag..." />
                 <select id="radarSourceFilter">
                   <option value="all">Tutte fonti</option>
                 </select>
                 <select id="radarContactModeFilter">
                   <option value="all">Tutti contatti</option>
                   <option value="manual_assist">Manual assist</option>
-                  <option value="automated_possible">Automated possible</option>
+                  <option value="automated_possible">Business contact</option>
                 </select>
                 <select id="radarSort">
-                  <option value="score">Score alto</option>
+                  <option value="score">Fit audience</option>
                   <option value="recency">Più recenti</option>
-                  <option value="intent">Intent forte</option>
-                  <option value="automation">Automatizzabili</option>
+                  <option value="intent">Engagement</option>
+                  <option value="automation">Business contact</option>
                 </select>
               </div>
 
@@ -1116,6 +1154,6 @@
       </main>
     </div>
 
-    <script src="mockup-wow.js?v=radar360-23"></script>
+    <script src="mockup-wow.js?v=radar360-24"></script>
   </body>
 </html>
